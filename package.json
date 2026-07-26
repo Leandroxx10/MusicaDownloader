@@ -1,0 +1,12 @@
+{
+  "name": "moura-downloads-local",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Página Netlify e projeto Android local do Moura Downloads",
+  "scripts": {
+    "serve": "npx http-server app -p 8080 -c-1"
+  },
+  "devDependencies": {
+    "http-server": "14.1.1"
+  }
+}
