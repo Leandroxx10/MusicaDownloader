@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#07130d">
+  <meta name="description" content="Aplicativo Android para baixar, organizar e compartilhar mídias autorizadas, com processamento local no celular.">
+  <meta name="color-scheme" content="dark">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="stylesheet" href="./styles.css">
+  <title>Moura Downloads</title>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Navegação principal">
+      <div class="brand">
+        <img src="./assets/logo.png" alt="Ícone Moura Downloads">
+        <div><strong>Moura</strong><span>Downloads</span></div>
+      </div>
+      <nav class="side-nav">
+        <button class="nav-item active" data-view="inicio"><span>⌂</span>Início</button>
+        <button class="nav-item" data-view="downloads"><span>⇩</span>Biblioteca</button>
+        <button class="nav-item" data-view="historico"><span>◷</span>Histórico</button>
+        <button class="nav-item" data-view="configuracoes"><span>⚙</span>Ajustes</button>
+      </nav>
+      <div class="sidebar-note">
+        <span class="status-dot"></span>
+        <div><strong>Processamento local</strong><small>O arquivo é processado e salvo no próprio celular.</small></div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div class="mobile-brand"><img src="./assets/logo.png" alt=""><strong>Moura</strong></div>
+        <div class="top-actions">
+          <span id="modeBadge" class="connection-badge">Modo de demonstração</span>
+          <button id="installBtn" class="ghost-button hidden">Instalar PWA</button>
+          <button id="openLibraryBtn" class="icon-button" aria-label="Abrir biblioteca">⇩</button>
+        </div>
+      </header>
+
+      <section id="view-inicio" class="view active">
+        <div class="hero-card">
+          <div class="hero-copy">
+            <span class="eyebrow">MOURA DOWNLOADS</span>
+            <h1>Baixe e organize no celular</h1>
+            <p>Cole um link autorizado, escolha áudio ou vídeo e deixe o próprio aparelho processar o arquivo.</p>
+            <div class="hero-actions"><a id="downloadApkLink" class="primary-button apk-button hidden" href="./apk/moura-downloads.apk" download>Baixar APK Android</a><button id="heroLibraryBtn" class="secondary-button" type="button">Ver biblioteca</button></div>
+          </div>
+          <div class="hero-mark"><img src="./assets/logo.png" alt=""></div>
+        </div>
+
+        <section class="download-card" aria-labelledby="downloadTitle">
+          <div class="section-heading">
+            <div><span class="eyebrow">NOVO DOWNLOAD</span><h2 id="downloadTitle">Cole o link da mídia</h2></div>
+            <span id="platformPill" class="platform-pill">Aguardando link</span>
+          </div>
+
+          <label class="url-field" for="mediaUrl">
+            <span>🔗</span>
+            <input id="mediaUrl" type="url" inputmode="url" autocomplete="url" placeholder="https://youtube.com/..." aria-describedby="urlHelp">
+            <button id="pasteBtn" type="button">Colar</button>
+          </label>
+          <p id="urlHelp" class="helper">O APK processa o link localmente. Conteúdos privados, protegidos por DRM ou sem autorização não devem ser baixados.</p>
+
+          <div class="format-grid" role="radiogroup" aria-label="Formato do download">
+            <label class="format-option selected">
+              <input type="radio" name="format" value="mp3" checked>
+              <span class="format-icon">♫</span>
+              <span><strong>Áudio MP3</strong><small>Melhor áudio disponível</small></span>
+            </label>
+            <label class="format-option">
+              <input type="radio" name="format" value="mp4">
+              <span class="format-icon">▶</span>
+              <span><strong>Vídeo MP4</strong><small>Melhor qualidade compatível</small></span>
+            </label>
+          </div>
+
+          <div class="category-picker-row">
+            <label for="downloadCategory">Salvar na categoria</label>
+            <div class="select-with-action">
+              <select id="downloadCategory" aria-label="Categoria do novo download"></select>
+              <button id="newCategoryBtn" type="button" class="small-action">+ Nova</button>
+            </div>
+          </div>
+
+          <label class="rights-check">
+            <input id="rightsConfirmed" type="checkbox">
+            <span>Confirmo que sou proprietário do conteúdo ou tenho autorização para baixá-lo.</span>
+          </label>
+
+          <div class="download-actions">
+            <button id="analyzeBtn" class="secondary-button">Verificar link</button>
+            <button id="downloadBtn" class="primary-button">Baixar no celular <span>⇩</span></button>
+          </div>
+
+          <div id="analysisPanel" class="analysis-panel hidden" aria-live="polite">
+            <div id="mediaThumb" class="media-thumb">M</div>
+            <div class="media-info"><strong id="mediaTitle">Link pronto</strong><span id="mediaMeta">—</span></div>
+            <span id="mediaStatus" class="ready-badge">Pronto</span>
+          </div>
+
+          <div id="progressPanel" class="progress-panel hidden" aria-live="assertive">
+            <div class="progress-ring"><strong id="progressPercent">0%</strong></div>
+            <div class="progress-copy">
+              <strong id="progressTitle">Preparando download</strong>
+              <span id="progressText">O celular está inicializando o processador.</span>
+              <div class="progress-track"><i id="progressBar"></i></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="dashboard-grid">
+          <article class="info-card"><span class="info-icon">📂</span><div><strong>Categorias</strong><small>Separe músicas e vídeos sem duplicar arquivos.</small></div></article>
+          <article class="info-card"><span class="info-icon">✎</span><div><strong>Controle local</strong><small>Renomeie, exclua e favorite dentro do aplicativo.</small></div></article>
+          <article class="info-card"><span class="info-icon">◉</span><div><strong>WhatsApp</strong><small>Compartilhe o arquivo diretamente após o download.</small></div></article>
+        </section>
+      </section>
+
+      <section id="view-downloads" class="view">
+        <div class="page-title library-title-row">
+          <div><span class="eyebrow">ARQUIVOS NO CELULAR</span><h1>Minha biblioteca</h1><p>Gerencie somente os arquivos salvos pelo Moura Downloads.</p></div>
+          <button id="refreshLibraryBtn" class="secondary-button compact">Atualizar</button>
+        </div>
+
+        <div class="library-toolbar">
+          <label class="search-field"><span>⌕</span><input id="librarySearch" type="search" placeholder="Pesquisar downloads"></label>
+          <select id="librarySort" aria-label="Ordenar biblioteca">
+            <option value="recent">Mais recentes</option>
+            <option value="oldest">Mais antigos</option>
+            <option value="name">Nome A–Z</option>
+            <option value="size">Maior tamanho</option>
+          </select>
+        </div>
+
+        <div id="categoryChips" class="category-chips" role="tablist" aria-label="Categorias"></div>
+        <div id="librarySummary" class="library-summary"></div>
+        <div id="downloadsLibrary" class="downloads-library"></div>
+      </section>
+
+      <section id="view-historico" class="view">
+        <div class="page-title"><span class="eyebrow">HISTÓRICO LOCAL</span><h1>Atividade recente</h1><p>O histórico fica somente neste aparelho.</p></div>
+        <div class="history-toolbar"><button id="clearHistoryBtn" class="danger-button">Limpar histórico</button></div>
+        <div id="historyList" class="history-list"></div>
+      </section>
+
+      <section id="view-configuracoes" class="view">
+        <div class="page-title"><span class="eyebrow">AJUSTES</span><h1>Armazenamento e categorias</h1><p>Os downloads são salvos em <strong>Downloads/Moura Downloads</strong>.</p></div>
+        <div class="settings-card">
+          <div class="setting-row"><div><strong>Processamento no aparelho</strong><small>Não utiliza servidor de conversão.</small></div><span id="localEngineStatus" class="status-value">Somente APK</span></div>
+          <div class="setting-row"><div><strong>Pasta de armazenamento</strong><small>Visível no gerenciador de arquivos e galeria.</small></div><span class="status-value">Moura Downloads</span></div>
+          <div class="setting-row vertical"><div><strong>Categorias personalizadas</strong><small>Crie nomes como Treino, Trabalho, Clipes ou Podcasts.</small></div><div id="categoryManager" class="category-manager"></div></div>
+          <div class="settings-actions"><button id="addCategorySettingsBtn" class="primary-button" type="button">Criar categoria</button></div>
+          <p class="helper"><a href="./privacy.html" target="_blank" rel="noopener">Política de Privacidade</a> · <a href="./terms.html" target="_blank" rel="noopener">Termos de Uso</a></p>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Navegação inferior">
+      <button class="nav-item active" data-view="inicio"><span>⌂</span><small>Início</small></button>
+      <button class="nav-item" data-view="downloads"><span>⇩</span><small>Biblioteca</small></button>
+      <button class="nav-item" data-view="historico"><span>◷</span><small>Histórico</small></button>
+      <button class="nav-item" data-view="configuracoes"><span>⚙</span><small>Ajustes</small></button>
+    </nav>
+  </div>
+
+  <div id="actionSheet" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="actionSheetTitle">
+    <div class="action-sheet">
+      <div class="modal-handle"></div>
+      <div class="action-sheet-head"><div><span class="eyebrow">AÇÕES DO ARQUIVO</span><h2 id="actionSheetTitle">Download</h2></div><button class="modal-close" data-close-modal>×</button></div>
+      <div id="actionSheetMeta" class="action-sheet-meta"></div>
+      <div class="action-grid">
+        <button data-file-action="open"><span>▶</span>Abrir</button>
+        <button data-file-action="whatsapp"><span>◉</span>WhatsApp</button>
+        <button data-file-action="share"><span>↗</span>Compartilhar</button>
+        <button data-file-action="favorite"><span>☆</span>Favoritar</button>
+        <button data-file-action="rename"><span>✎</span>Renomear</button>
+        <button data-file-action="category"><span>▦</span>Categoria</button>
+        <button class="danger-action" data-file-action="delete"><span>⌫</span>Excluir</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="formModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="formModalTitle">
+    <form id="modalForm" class="form-modal">
+      <div class="action-sheet-head"><div><span id="formModalEyebrow" class="eyebrow">EDITAR</span><h2 id="formModalTitle">Alterar arquivo</h2></div><button type="button" class="modal-close" data-close-modal>×</button></div>
+      <p id="formModalDescription" class="modal-description"></p>
+      <div id="modalFieldContainer"></div>
+      <div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button id="modalSubmitBtn" class="primary-button" type="submit">Salvar</button></div>
+    </form>
+  </div>
+
+  <div id="confirmModal" class="modal-backdrop hidden" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="confirm-modal">
+      <span class="confirm-icon">!</span>
+      <h2 id="confirmTitle">Excluir arquivo?</h2>
+      <p id="confirmText">Esta ação remove o arquivo do celular e não pode ser desfeita.</p>
+      <div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button id="confirmDeleteBtn" class="danger-button">Excluir definitivamente</button></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="./app.js" defer></script>
+</body>
+</html>
