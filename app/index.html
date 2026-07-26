@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#07130d">
-  <meta name="description" content="Aplicativo Android para baixar, organizar e compartilhar mídias autorizadas, com processamento local no celular.">
+  <meta name="description" content="Super app Android para baixar, reproduzir, organizar e compartilhar mídias autorizadas, com processamento local e QR Code.">
   <meta name="color-scheme" content="dark">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/icon-192.png">
@@ -47,8 +47,9 @@
           <div class="hero-copy">
             <span class="eyebrow">APLICATIVO PARA ANDROID</span>
             <h1 id="heroTitle">Baixe o app no seu celular</h1>
-            <p id="heroDescription">Instale o Moura Downloads no Android para baixar, organizar e compartilhar suas mídias autorizadas no próprio aparelho.</p>
-            <div class="hero-actions"><a id="downloadApkLink" class="primary-button apk-button" href="https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk">Baixar APK agora <span aria-hidden="true">⇩</span></a><button id="heroLibraryBtn" class="secondary-button" type="button">Como instalar</button></div>
+            <p id="heroDescription">Instale o Moura Downloads no Android para baixar, reproduzir, organizar e compartilhar suas mídias autorizadas no próprio aparelho.</p>
+            <div class="hero-actions"><a id="downloadApkLink" class="primary-button apk-button" href="https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads-arm64.apk">Baixar versão rápida <span aria-hidden="true">⇩</span></a><button id="heroLibraryBtn" class="secondary-button" type="button">Como instalar</button></div>
+            <p id="compatibilityDownload" class="compatibility-download">Recomendado para celulares Android atuais. <a href="https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk">Baixar versão universal</a></p>
           </div>
           <div class="hero-mark"><img src="./assets/logo.png" alt=""></div>
         </div>
@@ -71,7 +72,7 @@
             <div><span class="eyebrow">NOVO DOWNLOAD</span><h2 id="downloadTitle">Cole o link da mídia</h2></div>
             <span id="platformPill" class="platform-pill">Aguardando link</span>
           </div>
-          <div id="webOnlyNotice" class="web-only-notice"><strong>Esta função acontece dentro do aplicativo.</strong><span>Instale o APK no Android para processar os links no próprio celular.</span><a href="https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk">Baixar aplicativo</a></div>
+          <div id="webOnlyNotice" class="web-only-notice"><strong>Esta função acontece dentro do aplicativo.</strong><span>Instale o APK no Android para processar os links no próprio celular.</span><a href="https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads-arm64.apk">Baixar aplicativo</a></div>
 
           <label class="url-field" for="mediaUrl">
             <span>🔗</span>
@@ -101,6 +102,16 @@
             </div>
           </div>
 
+          <div class="quality-picker-row">
+            <label for="downloadQuality">Velocidade e qualidade</label>
+            <select id="downloadQuality">
+              <option value="fast" selected>Rápido — recomendado (vídeo até 720p)</option>
+              <option value="best">Melhor qualidade disponível</option>
+              <option value="data">Economia de dados (vídeo até 480p)</option>
+            </select>
+            <small>O modo rápido reduz o tamanho e o tempo de processamento. Para MP3, usa qualidade equilibrada.</small>
+          </div>
+
           <label class="rights-check">
             <input id="rightsConfirmed" type="checkbox">
             <span>Confirmo que sou proprietário do conteúdo ou tenho autorização para baixá-lo.</span>
@@ -128,9 +139,10 @@
         </section>
 
         <section class="dashboard-grid">
-          <article class="info-card"><span class="info-icon">📂</span><div><strong>Categorias</strong><small>Separe músicas e vídeos sem duplicar arquivos.</small></div></article>
-          <article class="info-card"><span class="info-icon">✎</span><div><strong>Controle local</strong><small>Renomeie, exclua e favorite dentro do aplicativo.</small></div></article>
-          <article class="info-card"><span class="info-icon">◉</span><div><strong>WhatsApp</strong><small>Compartilhe o arquivo diretamente após o download.</small></div></article>
+          <article class="info-card"><span class="info-icon">▶</span><div><strong>Player interno</strong><small>Reproduza áudio e vídeo sem sair do Moura Downloads.</small></div></article>
+          <article class="info-card"><span class="info-icon">⚡</span><div><strong>Modo rápido</strong><small>Downloads paralelos e perfis para economizar tempo e dados.</small></div></article>
+          <article class="info-card"><span class="info-icon">📂</span><div><strong>Biblioteca completa</strong><small>Categorias, favoritos, pesquisa e posição de reprodução salva.</small></div></article>
+          <button id="openQrBtn" class="info-card info-card-button" type="button"><span class="info-icon">▦</span><div><strong>Compartilhar o app</strong><small>Mostre o QR Code para outra pessoa instalar.</small></div></button>
         </section>
       </section>
 
@@ -165,7 +177,18 @@
         <div class="page-title"><span class="eyebrow">AJUSTES</span><h1>Armazenamento e categorias</h1><p>Os downloads são salvos em <strong>Downloads/Moura Downloads</strong>.</p></div>
         <div class="settings-card">
           <div class="setting-row"><div><strong>Processamento no aparelho</strong><small>Não utiliza servidor de conversão.</small></div><span id="localEngineStatus" class="status-value">Somente APK</span></div>
+          <div class="setting-row"><div><strong>Versão instalada</strong><small>Player, QR Code e modo rápido.</small></div><span class="status-value">3.0 Super App</span></div>
           <div class="setting-row"><div><strong>Pasta de armazenamento</strong><small>Visível no gerenciador de arquivos e galeria.</small></div><span class="status-value">Moura Downloads</span></div>
+          <div id="shareAppCard" class="share-app-card">
+            <div class="qr-code-shell"><img id="appQrCode" class="hidden" alt="QR Code para baixar o Moura Downloads"><span id="qrPlaceholder">O QR Code aparece no aplicativo Android instalado.</span></div>
+            <div class="share-app-copy">
+              <span class="eyebrow">COMPARTILHE O SUPER APP</span>
+              <h2>Outras pessoas podem baixar pelo QR Code</h2>
+              <p>Abra esta tela no celular e peça para a outra pessoa apontar a câmera para o código.</p>
+              <code id="appShareUrl">Link de download da versão universal</code>
+              <div class="share-app-actions"><button id="shareAppBtn" class="primary-button" type="button">Compartilhar link</button><button id="copyAppLinkBtn" class="secondary-button" type="button">Copiar link</button></div>
+            </div>
+          </div>
           <div class="setting-row vertical"><div><strong>Categorias personalizadas</strong><small>Crie nomes como Treino, Trabalho, Clipes ou Podcasts.</small></div><div id="categoryManager" class="category-manager"></div></div>
           <div class="settings-actions"><button id="addCategorySettingsBtn" class="primary-button" type="button">Criar categoria</button></div>
           <p class="helper"><a href="./privacy.html" target="_blank" rel="noopener">Política de Privacidade</a> · <a href="./terms.html" target="_blank" rel="noopener">Termos de Uso</a></p>
@@ -187,7 +210,8 @@
       <div class="action-sheet-head"><div><span class="eyebrow">AÇÕES DO ARQUIVO</span><h2 id="actionSheetTitle">Download</h2></div><button class="modal-close" data-close-modal>×</button></div>
       <div id="actionSheetMeta" class="action-sheet-meta"></div>
       <div class="action-grid">
-        <button data-file-action="open"><span>▶</span>Abrir</button>
+        <button id="playFileButton" data-file-action="play"><span>▶</span>Reproduzir</button>
+        <button data-file-action="open"><span>↗</span>Abrir em outro app</button>
         <button data-file-action="whatsapp"><span>◉</span>WhatsApp</button>
         <button data-file-action="share"><span>↗</span>Compartilhar</button>
         <button data-file-action="favorite"><span>☆</span>Favoritar</button>

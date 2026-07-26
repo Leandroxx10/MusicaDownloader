@@ -16,6 +16,9 @@
 - Renomeação remove caracteres de caminho, controles e nomes excessivamente longos.
 - Exclusão exige confirmação visual.
 - Compartilhamento usa `FileProvider` e permissão temporária de leitura.
+- O player interno recebe somente URIs validadas da biblioteca do aplicativo.
+- A posição de reprodução fica apenas nas preferências locais do Android.
+- O QR Code é gerado localmente, sem câmera e sem serviço externo.
 - WhatsApp é aberto por pacote oficial instalado; há suporte ao WhatsApp Business.
 - Serviço de download não é exportado para outros aplicativos.
 - Broadcasts de progresso são restritos ao pacote do aplicativo.

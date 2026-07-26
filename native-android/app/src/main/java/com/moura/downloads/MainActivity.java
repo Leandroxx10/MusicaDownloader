@@ -9,6 +9,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
@@ -26,9 +27,15 @@ import android.widget.Toast;
 
 import androidx.core.content.FileProvider;
 
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.EncodeHintType;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,8 +44,10 @@ import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -47,6 +56,10 @@ public class MainActivity extends Activity {
     private static final int STORAGE_PERMISSION_REQUEST = 40;
     private static final int NOTIFICATION_PERMISSION_REQUEST = 41;
     private static final String PREFS = "moura_library";
+    private static final String APP_DOWNLOAD_URL =
+            "https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk";
+    private static final String APP_FAST_DOWNLOAD_URL =
+            "https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads-arm64.apk";
 
     private WebView webView;
     private String pendingSharedText;
@@ -86,7 +99,7 @@ public class MainActivity extends Activity {
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        settings.setUserAgentString(settings.getUserAgentString() + " MouraDownloadsAndroid/2.0");
+        settings.setUserAgentString(settings.getUserAgentString() + " MouraDownloadsAndroid/3.0");
 
         webView.addJavascriptInterface(new AndroidBridge(), "AndroidBridge");
         webView.setWebChromeClient(new WebChromeClient());
@@ -286,6 +299,26 @@ public class MainActivity extends Activity {
         return result;
     }
 
+    private String qrCodeDataUrl(String value) throws Exception {
+        int size = 720;
+        Map<EncodeHintType, Object> hints = new EnumMap<>(EncodeHintType.class);
+        hints.put(EncodeHintType.CHARACTER_SET, "UTF-8");
+        hints.put(EncodeHintType.MARGIN, 1);
+        BitMatrix matrix = new QRCodeWriter().encode(value, BarcodeFormat.QR_CODE, size, size, hints);
+        Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        int[] pixels = new int[size * size];
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                pixels[y * size + x] = matrix.get(x, y) ? Color.BLACK : Color.WHITE;
+            }
+        }
+        bitmap.setPixels(pixels, 0, size, 0, 0, size, size);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, output);
+        bitmap.recycle();
+        return "data:image/png;base64," + Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP);
+    }
+
     private String safeMessage(Throwable error) {
         String text = error.getMessage();
         return text == null || text.trim().isEmpty() ? "Não foi possível concluir a ação." : text;
@@ -335,7 +368,7 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public void startLocalDownload(String url, String format, String category) {
+        public void startLocalDownload(String url, String format, String category, String quality) {
             runOnUiThread(() -> {
                 if (url == null || (!url.startsWith("https://") && !url.startsWith("http://"))) {
                     Toast.makeText(MainActivity.this, "Link inválido.", Toast.LENGTH_LONG).show();
@@ -350,8 +383,12 @@ public class MainActivity extends Activity {
                 Intent service = new Intent(MainActivity.this, DownloadService.class);
                 service.setAction(DownloadService.ACTION_START);
                 service.putExtra(DownloadService.EXTRA_URL, url);
-                service.putExtra(DownloadService.EXTRA_FORMAT, "mp3".equalsIgnoreCase(format) ? "mp3" : "mp4");
+                service.putExtra(DownloadService.EXTRA_FORMAT,
+                        "mp3".equalsIgnoreCase(format) ? "mp3" : "mp4");
                 service.putExtra(DownloadService.EXTRA_CATEGORY, sanitizeCategory(category));
+                service.putExtra(DownloadService.EXTRA_QUALITY,
+                        "best".equalsIgnoreCase(quality) || "data".equalsIgnoreCase(quality)
+                                ? quality.toLowerCase(Locale.ROOT) : "fast");
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(service);
                 else startService(service);
             });
@@ -442,6 +479,30 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String playDownload(String id) {
+            try {
+                File file = fileFromId(id);
+                if (!file.exists()) return actionResult(false, "Arquivo não encontrado.").toString();
+                String mime = mimeForFile(file);
+                if (!mime.startsWith("audio/") && !mime.startsWith("video/")) {
+                    return actionResult(false, "Este tipo de arquivo não pode ser reproduzido no app.").toString();
+                }
+                Uri uri = FileProvider.getUriForFile(
+                        MainActivity.this, getPackageName() + ".fileprovider", file);
+                Intent player = new Intent(MainActivity.this, PlayerActivity.class);
+                player.putExtra(PlayerActivity.EXTRA_MEDIA_URI, uri.toString());
+                player.putExtra(PlayerActivity.EXTRA_MEDIA_ID, id);
+                player.putExtra(PlayerActivity.EXTRA_MEDIA_NAME, file.getName());
+                player.putExtra(PlayerActivity.EXTRA_MEDIA_MIME, mime);
+                player.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                runOnUiThread(() -> startActivity(player));
+                return actionResult(true, "Abrindo o reprodutor do Moura.").toString();
+            } catch (Exception error) {
+                return actionResult(false, safeMessage(error)).toString();
+            }
+        }
+
+        @JavascriptInterface
         public String shareDownload(String id) {
             try {
                 File file = fileFromId(id);
@@ -472,6 +533,51 @@ public class MainActivity extends Activity {
                     return actionResult(true, "Abrindo WhatsApp Business.").toString();
                 }
                 return actionResult(false, "WhatsApp não está instalado neste celular.").toString();
+            } catch (Exception error) {
+                return actionResult(false, safeMessage(error)).toString();
+            }
+        }
+
+        @JavascriptInterface
+        public String getAppShareInfo() {
+            JSONObject info = new JSONObject();
+            try {
+                info.put("url", APP_DOWNLOAD_URL);
+                info.put("fastUrl", APP_FAST_DOWNLOAD_URL);
+                info.put("version", "3.0.0");
+                info.put("qrDataUrl", qrCodeDataUrl(APP_DOWNLOAD_URL));
+            } catch (Exception error) {
+                try { info.put("error", safeMessage(error)); } catch (Exception ignored) { }
+            }
+            return info.toString();
+        }
+
+        @JavascriptInterface
+        public String copyAppLink() {
+            try {
+                ClipboardManager clipboard =
+                        (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                if (clipboard == null) {
+                    return actionResult(false, "Área de transferência indisponível.").toString();
+                }
+                clipboard.setPrimaryClip(ClipData.newPlainText("Baixar Moura Downloads", APP_DOWNLOAD_URL));
+                return actionResult(true, "Link do aplicativo copiado.").toString();
+            } catch (Exception error) {
+                return actionResult(false, safeMessage(error)).toString();
+            }
+        }
+
+        @JavascriptInterface
+        public String shareAppLink() {
+            try {
+                Intent share = new Intent(Intent.ACTION_SEND);
+                share.setType("text/plain");
+                share.putExtra(Intent.EXTRA_SUBJECT, "Moura Downloads");
+                share.putExtra(Intent.EXTRA_TEXT,
+                        "Baixe o Moura Downloads para Android:\n" + APP_DOWNLOAD_URL);
+                runOnUiThread(() ->
+                        startActivity(Intent.createChooser(share, "Compartilhar aplicativo")));
+                return actionResult(true, "Menu de compartilhamento aberto.").toString();
             } catch (Exception error) {
                 return actionResult(false, safeMessage(error)).toString();
             }

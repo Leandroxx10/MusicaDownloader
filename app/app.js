@@ -11,6 +11,7 @@
   };
 
   const DEFAULT_CATEGORIES = ['Músicas', 'Vídeos', 'Podcasts', 'Clipes', 'Outros'];
+  const UNIVERSAL_APP_URL = 'https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk';
   const isAndroid = Boolean(window.AndroidBridge?.appMode && window.AndroidBridge.appMode() === 'android-local');
 
   const state = {
@@ -43,6 +44,7 @@
     progressPercent: $('#progressPercent'),
     progressBar: $('#progressBar'),
     downloadCategory: $('#downloadCategory'),
+    downloadQuality: $('#downloadQuality'),
     librarySearch: $('#librarySearch'),
     librarySort: $('#librarySort'),
     categoryChips: $('#categoryChips'),
@@ -62,6 +64,9 @@
     modalSubmitBtn: $('#modalSubmitBtn'),
     confirmModal: $('#confirmModal'),
     confirmText: $('#confirmText'),
+    appQrCode: $('#appQrCode'),
+    qrPlaceholder: $('#qrPlaceholder'),
+    appShareUrl: $('#appShareUrl'),
     toast: $('#toast')
   };
 
@@ -112,6 +117,10 @@
 
   function selectedFormat() {
     return $('input[name="format"]:checked')?.value || 'mp3';
+  }
+
+  function selectedQualityLabel() {
+    return els.downloadQuality?.selectedOptions?.[0]?.textContent || 'Rápido';
   }
 
   function renderCategoryControls() {
@@ -207,7 +216,7 @@
     if (!url) return toast('Cole um link válido iniciado por http:// ou https://.', true);
     const platform = platformFromUrl(url);
     els.mediaTitle.textContent = `${platform} identificado`;
-    els.mediaMeta.textContent = `${selectedFormat().toUpperCase()} • ${els.downloadCategory.value}`;
+    els.mediaMeta.textContent = `${selectedFormat().toUpperCase()} • ${els.downloadCategory.value} • ${selectedQualityLabel()}`;
     els.mediaThumb.textContent = platform.charAt(0).toUpperCase();
     els.analysisPanel.classList.remove('hidden');
     toast('Link pronto para processamento local.');
@@ -224,11 +233,12 @@
 
     const format = selectedFormat();
     const category = els.downloadCategory.value || (format === 'mp3' ? 'Músicas' : 'Vídeos');
-    state.pendingDownload = { url, format, category, platform: platformFromUrl(url), startedAt: new Date().toISOString() };
+    const quality = els.downloadQuality?.value || 'fast';
+    state.pendingDownload = { url, format, category, quality, platform: platformFromUrl(url), startedAt: new Date().toISOString() };
     setProgress(true, 1, 'Preparando download', 'O processador local está sendo iniciado.');
     els.downloadBtn.disabled = true;
     try {
-      window.AndroidBridge.startLocalDownload(url, format, category);
+      window.AndroidBridge.startLocalDownload(url, format, category, quality);
     } catch (error) {
       els.downloadBtn.disabled = false;
       setProgress(false);
@@ -360,6 +370,7 @@
           <div class="file-tags"><span class="file-tag">${escapeHtml(file.category)}</span>${file.favorite ? '<span class="file-tag favorite">★ Favorito</span>' : ''}</div>
         </div>
         <div class="file-actions">
+          ${['audio', 'video'].includes(file.type) ? '<button class="round-action play" data-quick-action="play" aria-label="Reproduzir no aplicativo">▶</button>' : ''}
           <button class="round-action whatsapp" data-quick-action="whatsapp" aria-label="Compartilhar no WhatsApp">◉</button>
           <button class="round-action" data-quick-action="menu" aria-label="Mais ações">⋮</button>
         </div>
@@ -376,6 +387,7 @@
     els.actionSheetMeta.textContent = `${formatBytes(file.size)} • ${file.category} • ${formatDate(file.modified)}`;
     const favoriteButton = $('[data-file-action="favorite"]', els.actionSheet);
     favoriteButton.innerHTML = `<span>${file.favorite ? '★' : '☆'}</span>${file.favorite ? 'Desfavoritar' : 'Favoritar'}`;
+    $('#playFileButton').classList.toggle('hidden', !['audio', 'video'].includes(file.type));
     els.actionSheet.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
   }
@@ -400,7 +412,8 @@
       return;
     }
 
-    const method = action === 'open' ? 'openDownload'
+    const method = action === 'play' ? 'playDownload'
+      : action === 'open' ? 'openDownload'
       : action === 'whatsapp' ? 'shareWhatsApp'
         : action === 'share' ? 'shareDownload'
           : action === 'favorite' ? 'toggleFavorite' : '';
@@ -446,6 +459,49 @@
     }
   }
 
+  function setupAppSharing() {
+    let info = { url: isAndroid ? UNIVERSAL_APP_URL : location.href };
+    if (isAndroid) {
+      try {
+        const nativeInfo = JSON.parse(window.AndroidBridge.getAppShareInfo());
+        if (!nativeInfo.error) info = nativeInfo;
+      } catch { /* Mantém o link universal sem QR quando a geração falhar. */ }
+    }
+    els.appShareUrl.textContent = info.url;
+    if (info.qrDataUrl) {
+      els.appQrCode.src = info.qrDataUrl;
+      els.appQrCode.classList.remove('hidden');
+      els.qrPlaceholder.classList.add('hidden');
+    }
+  }
+
+  async function copyAppLink() {
+    if (isAndroid) {
+      const result = nativeAction('copyAppLink');
+      return toast(result.message, !result.success);
+    }
+    try {
+      await navigator.clipboard.writeText(location.href);
+      toast('Link do site copiado.');
+    } catch {
+      toast('Não foi possível copiar o link.', true);
+    }
+  }
+
+  async function shareAppLink() {
+    if (isAndroid) {
+      const result = nativeAction('shareAppLink');
+      return toast(result.message, !result.success);
+    }
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Moura Downloads', text: 'Baixe o Moura Downloads para Android', url: location.href });
+        return;
+      } catch { return; }
+    }
+    copyAppLink();
+  }
+
   $$('.nav-item[data-view]').forEach(item => item.addEventListener('click', () => showView(item.dataset.view)));
   $('#openLibraryBtn').addEventListener('click', () => showView('downloads'));
   $('#heroLibraryBtn').addEventListener('click', () => {
@@ -460,6 +516,12 @@
   els.downloadBtn.addEventListener('click', startDownload);
   $('#newCategoryBtn').addEventListener('click', () => openFormModal('new-category'));
   $('#addCategorySettingsBtn').addEventListener('click', () => openFormModal('new-category'));
+  $('#openQrBtn').addEventListener('click', () => {
+    showView('configuracoes');
+    setTimeout(() => $('#shareAppCard')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120);
+  });
+  $('#copyAppLinkBtn').addEventListener('click', copyAppLink);
+  $('#shareAppBtn').addEventListener('click', shareAppLink);
   $('#refreshLibraryBtn').addEventListener('click', () => { refreshLibrary(); toast('Biblioteca atualizada.'); });
   els.librarySearch.addEventListener('input', renderLibrary);
   els.librarySort.addEventListener('change', renderLibrary);
@@ -489,7 +551,10 @@
     if (!item || !action) return;
     const file = findFile(item.dataset.fileId);
     if (!file) return;
-    if (action.dataset.quickAction === 'whatsapp') {
+    if (action.dataset.quickAction === 'play') {
+      const result = nativeAction('playDownload', file.id);
+      toast(result.message, !result.success);
+    } else if (action.dataset.quickAction === 'whatsapp') {
       const result = nativeAction('shareWhatsApp', file.id);
       toast(result.message, !result.success);
     } else openActionSheet(file);
@@ -555,10 +620,11 @@
     const link = $('#downloadApkLink');
     if (!isAndroid) return;
     link?.classList.add('hidden');
+    $('#compatibilityDownload')?.classList.add('hidden');
     $('#como-instalar')?.classList.add('hidden');
     $('#webOnlyNotice')?.classList.add('hidden');
-    $('#heroTitle').textContent = 'Baixe e organize no celular';
-    $('#heroDescription').textContent = 'Cole um link autorizado, escolha áudio ou vídeo e deixe o próprio aparelho processar o arquivo.';
+    $('#heroTitle').textContent = 'Baixe, reproduza e organize';
+    $('#heroDescription').textContent = 'Cole um link autorizado, escolha áudio ou vídeo e use o player interno sem sair do aplicativo.';
     $('#heroLibraryBtn').textContent = 'Ver biblioteca';
   }
 
@@ -566,7 +632,7 @@
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
   }
 
-  els.modeBadge.textContent = isAndroid ? 'Processamento no celular' : 'Página do Netlify';
+  els.modeBadge.textContent = isAndroid ? 'Super App local' : 'Página do Netlify';
   els.modeBadge.classList.toggle('online', isAndroid);
   $('#localEngineStatus').textContent = isAndroid ? 'Ativo' : 'Disponível no APK';
   renderCategoryControls();
@@ -574,5 +640,6 @@
   renderHistory();
   refreshLibrary();
   consumeSharedUrl();
+  setupAppSharing();
   configureInstallExperience();
 })();

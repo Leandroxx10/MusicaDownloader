@@ -43,28 +43,33 @@ jobs:
       - name: Preparar APK para distribuição
         run: |
           mkdir -p release
-          cp native-android/app/build/outputs/apk/debug/app-debug.apk release/moura-downloads.apk
+          cp native-android/app/build/outputs/apk/debug/app-universal-debug.apk release/moura-downloads.apk
+          cp native-android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk release/moura-downloads-arm64.apk
+          cp native-android/app/build/outputs/apk/debug/app-armeabi-v7a-debug.apk release/moura-downloads-32bit.apk
           test -s release/moura-downloads.apk
+          test -s release/moura-downloads-arm64.apk
+          test -s release/moura-downloads-32bit.apk
+          sha256sum release/*.apk > release/SHA256SUMS.txt
 
-      - name: Guardar APK nos artefatos da execução
+      - name: Guardar APKs nos artefatos da execução
         uses: actions/upload-artifact@v4
         with:
           name: Moura-Downloads-APK
-          path: release/moura-downloads.apk
+          path: release
           if-no-files-found: error
 
-      - name: Publicar APK no endereço fixo de download
+      - name: Publicar APKs nos endereços fixos de download
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view latest >/dev/null 2>&1; then
-            gh release upload latest release/moura-downloads.apk --clobber
+            gh release upload latest release/* --clobber
             gh release edit latest \
-              --title "Moura Downloads — versão atual" \
-              --notes "APK Android gerado automaticamente a partir da branch main. Commit: $GITHUB_SHA"
+              --title "Moura Downloads 3.0 — Super App" \
+              --notes "Player interno, QR Code, modo rápido e APKs menores por arquitetura. Use moura-downloads-arm64.apk em celulares atuais ou moura-downloads.apk para compatibilidade universal. Commit: $GITHUB_SHA"
           else
-            gh release create latest release/moura-downloads.apk \
+            gh release create latest release/* \
               --target "$GITHUB_SHA" \
-              --title "Moura Downloads — versão atual" \
-              --notes "APK Android gerado automaticamente a partir da branch main. Commit: $GITHUB_SHA"
+              --title "Moura Downloads 3.0 — Super App" \
+              --notes "Player interno, QR Code, modo rápido e APKs menores por arquitetura. Use moura-downloads-arm64.apk em celulares atuais ou moura-downloads.apk para compatibilidade universal. Commit: $GITHUB_SHA"
           fi

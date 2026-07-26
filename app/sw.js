@@ -1,4 +1,4 @@
-const CACHE = 'moura-downloads-v3';
+const CACHE = 'moura-downloads-v4';
 const ASSETS = [
   './', './index.html', './styles.css', './download.css', './app.js', './offline.html',
   './privacy.html', './terms.html', './manifest.webmanifest',

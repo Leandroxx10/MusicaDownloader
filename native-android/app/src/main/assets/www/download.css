@@ -7,6 +7,15 @@
   font-size: 18px;
 }
 
+.compatibility-download {
+  margin-top: 12px !important;
+  font-size: 12px !important;
+}
+
+.compatibility-download a {
+  font-weight: 850;
+}
+
 .install-guide {
   margin-top: 24px;
   padding: 26px;
@@ -130,9 +139,137 @@
   text-decoration: none;
 }
 
+.quality-picker-row {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  background: rgba(8, 18, 12, .74);
+}
+
+.quality-picker-row label,
+.quality-picker-row small {
+  display: block;
+}
+
+.quality-picker-row label {
+  margin-bottom: 9px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.quality-picker-row select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  outline: 0;
+  background: #07110b;
+  color: var(--text);
+  padding: 12px 13px;
+}
+
+.quality-picker-row small {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.dashboard-grid {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.info-card-button {
+  width: 100%;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.info-card-button:hover {
+  border-color: rgba(66, 245, 123, .4);
+  background: rgba(66, 245, 123, .08);
+}
+
+.round-action.play {
+  border-color: rgba(66, 245, 123, .44);
+  background: rgba(66, 245, 123, .13);
+  color: #d4ffdf;
+}
+
+.share-app-card {
+  display: grid;
+  grid-template-columns: minmax(180px, 230px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: center;
+  margin: 20px 0;
+  padding: 20px;
+  border: 1px solid rgba(66, 245, 123, .22);
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(66, 245, 123, .08), rgba(7, 17, 11, .88));
+}
+
+.qr-code-shell {
+  display: grid;
+  aspect-ratio: 1;
+  place-items: center;
+  overflow: hidden;
+  padding: 10px;
+  border-radius: 18px;
+  background: #fff;
+  color: #173122;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.qr-code-shell img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.share-app-copy h2 {
+  margin: 7px 0 9px;
+  font-size: 24px;
+}
+
+.share-app-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.share-app-copy code {
+  display: block;
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+  color: #bfffd0;
+  font-size: 10px;
+}
+
+.share-app-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
 @media (max-width: 760px) {
   .install-steps {
     grid-template-columns: 1fr;
+  }
+
+  .share-app-card {
+    grid-template-columns: 1fr;
+  }
+
+  .qr-code-shell {
+    width: min(100%, 280px);
+    margin: 0 auto;
   }
 }
 
@@ -158,5 +295,21 @@
   .web-only-notice a {
     display: inline-block;
     margin-top: 10px;
+  }
+
+  .share-app-card {
+    padding: 15px;
+  }
+
+  .share-app-actions {
+    display: grid;
+  }
+
+  .file-actions .round-action:first-child {
+    display: inline-block;
+  }
+
+  .file-actions .round-action.whatsapp {
+    display: none;
   }
 }

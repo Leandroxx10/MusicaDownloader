@@ -3,6 +3,7 @@ package com.moura.downloads;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -34,6 +35,7 @@ public class DownloadService extends Service {
     public static final String EXTRA_URL = "url";
     public static final String EXTRA_FORMAT = "format";
     public static final String EXTRA_CATEGORY = "category";
+    public static final String EXTRA_QUALITY = "quality";
     public static final String EXTRA_PAYLOAD = "payload";
 
     private static final String CHANNEL_ID = "moura_downloads";
@@ -65,6 +67,7 @@ public class DownloadService extends Service {
         String url = intent.getStringExtra(EXTRA_URL);
         String format = intent.getStringExtra(EXTRA_FORMAT);
         String category = intent.getStringExtra(EXTRA_CATEGORY);
+        String quality = intent.getStringExtra(EXTRA_QUALITY);
         if (url == null || (!url.startsWith("https://") && !url.startsWith("http://"))) {
             sendEvent("error", 0, 0, "Link inválido.");
             stopSelf(startId);
@@ -73,11 +76,14 @@ public class DownloadService extends Service {
         running = true;
         startAsForeground(buildNotification("Preparando download", 0, true));
         executor.execute(() -> runDownload(url, "mp3".equalsIgnoreCase(format) ? "mp3" : "mp4",
-                category == null || category.trim().isEmpty() ? "Outros" : category, startId));
+                category == null || category.trim().isEmpty() ? "Outros" : category,
+                "best".equalsIgnoreCase(quality) || "data".equalsIgnoreCase(quality)
+                        ? quality.toLowerCase(Locale.ROOT) : "fast",
+                startId));
         return START_NOT_STICKY;
     }
 
-    private void runDownload(String url, String format, String category, int startId) {
+    private void runDownload(String url, String format, String category, String quality, int startId) {
         File outputDir = getOutputDirectory(this);
         Set<String> before = new HashSet<>();
         File[] existing = outputDir.listFiles();
@@ -98,18 +104,28 @@ public class DownloadService extends Service {
             request.addOption("--retries", "10");
             request.addOption("--fragment-retries", "10");
             request.addOption("--socket-timeout", "30");
+            request.addOption("--concurrent-fragments", "4");
             request.addOption("--embed-metadata");
 
             if ("mp3".equals(format)) {
                 request.addOption("-x");
                 request.addOption("--audio-format", "mp3");
-                request.addOption("--audio-quality", "0");
+                request.addOption("--audio-quality",
+                        "best".equals(quality) ? "0" : "data".equals(quality) ? "7" : "5");
             } else {
-                request.addOption("-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/best");
+                String selector = "best".equals(quality)
+                        ? "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/best"
+                        : "data".equals(quality)
+                        ? "bv*[height<=480][ext=mp4]+ba[ext=m4a]/b[height<=480][ext=mp4]/best[height<=480]"
+                        : "bv*[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720][ext=mp4]/best[height<=720]";
+                request.addOption("-f", selector);
                 request.addOption("--merge-output-format", "mp4");
             }
 
-            sendEvent("running", 2, 0, "Download iniciado no próprio celular.");
+            String profileLabel = "best".equals(quality) ? "alta qualidade"
+                    : "data".equals(quality) ? "economia de dados" : "modo rápido";
+            sendEvent("running", 2, 0,
+                    "Download iniciado no próprio celular em " + profileLabel + ".");
             YoutubeDL.getInstance().execute(request, null, false, (progress, etaInSeconds, line) -> {
                 int value = (int) Math.max(0, Math.min(100, Math.round(progress)));
                 updateNotification("Baixando no celular", value, value < 100);
@@ -144,6 +160,11 @@ public class DownloadService extends Service {
 
     private void updateEngineWhenNeeded() {
         long lastUpdate = getSharedPreferences(PREFS, MODE_PRIVATE).getLong("yt_dlp_last_update", 0L);
+        if (lastUpdate == 0L) {
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                    .putLong("yt_dlp_last_update", System.currentTimeMillis()).apply();
+            return;
+        }
         long threeDays = 3L * 24L * 60L * 60L * 1000L;
         if (System.currentTimeMillis() - lastUpdate < threeDays) return;
         try {
@@ -188,10 +209,17 @@ public class DownloadService extends Service {
     }
 
     private Notification buildNotification(String title, int progress, boolean indeterminate) {
+        Intent openApp = new Intent(this, MainActivity.class);
+        openApp.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        PendingIntent contentIntent = PendingIntent.getActivity(
+                this, 2201, openApp,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         return new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.stat_sys_download)
                 .setContentTitle("Moura Downloads")
                 .setContentText(title)
+                .setContentIntent(contentIntent)
+                .setAutoCancel(progress >= 100)
                 .setOnlyAlertOnce(true)
                 .setOngoing(indeterminate || progress < 100)
                 .setProgress(100, progress, indeterminate)
