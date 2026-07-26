@@ -5,6 +5,13 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -33,21 +40,31 @@ jobs:
         working-directory: native-android
         run: gradle assembleDebug --stacktrace
 
-      - name: Preparar pacote para Netlify
+      - name: Preparar APK para distribuição
         run: |
-          mkdir -p app/apk
-          cp native-android/app/build/outputs/apk/debug/app-debug.apk app/apk/moura-downloads.apk
+          mkdir -p release
+          cp native-android/app/build/outputs/apk/debug/app-debug.apk release/moura-downloads.apk
+          test -s release/moura-downloads.apk
 
-      - name: Publicar APK
+      - name: Guardar APK nos artefatos da execução
         uses: actions/upload-artifact@v4
         with:
           name: Moura-Downloads-APK
-          path: native-android/app/build/outputs/apk/debug/app-debug.apk
+          path: release/moura-downloads.apk
           if-no-files-found: error
 
-      - name: Publicar pacote pronto para Netlify
-        uses: actions/upload-artifact@v4
-        with:
-          name: Moura-Downloads-Netlify
-          path: app
-          if-no-files-found: error
+      - name: Publicar APK no endereço fixo de download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view latest >/dev/null 2>&1; then
+            gh release upload latest release/moura-downloads.apk --clobber
+            gh release edit latest \
+              --title "Moura Downloads — versão atual" \
+              --notes "APK Android gerado automaticamente a partir da branch main. Commit: $GITHUB_SHA"
+          else
+            gh release create latest release/moura-downloads.apk \
+              --target "$GITHUB_SHA" \
+              --title "Moura Downloads — versão atual" \
+              --notes "APK Android gerado automaticamente a partir da branch main. Commit: $GITHUB_SHA"
+          fi

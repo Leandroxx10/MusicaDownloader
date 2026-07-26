@@ -218,8 +218,8 @@
     if (!url) return toast('Cole um link válido iniciado por http:// ou https://.', true);
     if (!els.rightsConfirmed.checked) return toast('Confirme que possui autorização para baixar o conteúdo.', true);
     if (!isAndroid) {
-      showView('configuracoes');
-      return toast('O processamento local funciona no APK Android. A versão do Netlify é a página de apresentação.', true);
+      $('#como-instalar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return toast('Instale o APK no Android para baixar no próprio celular.', true);
     }
 
     const format = selectedFormat();
@@ -448,7 +448,13 @@
 
   $$('.nav-item[data-view]').forEach(item => item.addEventListener('click', () => showView(item.dataset.view)));
   $('#openLibraryBtn').addEventListener('click', () => showView('downloads'));
-  $('#heroLibraryBtn').addEventListener('click', () => showView('downloads'));
+  $('#heroLibraryBtn').addEventListener('click', () => {
+    if (isAndroid) {
+      showView('downloads');
+      return;
+    }
+    $('#como-instalar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
   $('#pasteBtn').addEventListener('click', pasteClipboard);
   els.analyzeBtn.addEventListener('click', verifyLink);
   els.downloadBtn.addEventListener('click', startDownload);
@@ -545,13 +551,15 @@
     $('#installBtn').classList.add('hidden');
   });
 
-  async function detectHostedApk() {
+  function configureInstallExperience() {
     const link = $('#downloadApkLink');
-    if (!link || isAndroid) return;
-    try {
-      const response = await fetch(link.getAttribute('href'), { method: 'HEAD', cache: 'no-store' });
-      if (response.ok) link.classList.remove('hidden');
-    } catch { /* APK ainda não foi adicionado ao pacote do Netlify. */ }
+    if (!isAndroid) return;
+    link?.classList.add('hidden');
+    $('#como-instalar')?.classList.add('hidden');
+    $('#webOnlyNotice')?.classList.add('hidden');
+    $('#heroTitle').textContent = 'Baixe e organize no celular';
+    $('#heroDescription').textContent = 'Cole um link autorizado, escolha áudio ou vídeo e deixe o próprio aparelho processar o arquivo.';
+    $('#heroLibraryBtn').textContent = 'Ver biblioteca';
   }
 
   if (!isAndroid && 'serviceWorker' in navigator) {
@@ -566,5 +574,5 @@
   renderHistory();
   refreshLibrary();
   consumeSharedUrl();
-  detectHostedApk();
+  configureInstallExperience();
 })();

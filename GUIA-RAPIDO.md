@@ -1,48 +1,38 @@
 # Guia rápido — Moura Downloads 2.0
 
-## O que esta versão faz
+## Colocar o site no ar
 
-O processamento acontece no próprio celular Android. A página publicada no Netlify serve para apresentar o aplicativo e disponibilizar o APK.
+1. Abra [app.netlify.com](https://app.netlify.com/) no notebook.
+2. Clique em **Add new project > Import an existing project**.
+3. Conecte o GitHub e escolha `Leandroxx10/MusicaDownloader`.
+4. Deixe **Base directory** e **Build command** vazios.
+5. Use `app` em **Publish directory**.
+6. Clique em **Deploy**.
 
-Dentro do APK, a pessoa pode:
+Pronto: o Netlify publicará a página e atualizará o site automaticamente quando a branch `main` mudar.
 
-- colar ou compartilhar um link com o aplicativo;
-- escolher MP3 ou MP4;
-- selecionar uma categoria antes do download;
-- criar categorias personalizadas;
-- pesquisar e ordenar os downloads;
-- abrir, favoritar, renomear e mudar a categoria;
-- excluir com uma confirmação;
-- compartilhar pelo menu do Android;
-- enviar diretamente ao WhatsApp ou WhatsApp Business.
+## Baixar pelo celular
 
-O aplicativo gerencia somente a pasta `Downloads/Moura Downloads`.
+1. Abra o endereço do seu site Netlify em um celular Android.
+2. Toque em **Baixar APK agora**.
+3. Confirme o download.
+4. Abra `moura-downloads.apk` pela notificação ou pela pasta **Downloads**.
+5. Se o Android pedir, permita a instalação por esse navegador.
+6. Toque em **Instalar** e depois em **Abrir**.
 
-## Gerar o APK sem instalar programas
+O APK exige Android 8.0 ou superior. Ele não abre em notebook com Windows.
 
-1. Extraia este ZIP.
-2. Crie um repositório no GitHub.
-3. Envie todos os arquivos e pastas para o repositório.
-4. Abra a aba **Actions**.
-5. Abra **Gerar APK Android**.
-6. Clique em **Run workflow**.
-7. Quando concluir, abra a execução.
-8. Em **Artifacts**, baixe **Moura-Downloads-APK**.
-9. Extraia o arquivo baixado e instale `app-debug.apk` no Android.
+## O que é automático
 
-## Publicar a interface no Netlify
+- O GitHub Actions gera o APK após cada envio para `main`.
+- A versão atual é publicada no endereço fixo usado pelo botão do site.
+- Você não precisa baixar o artefato, renomear arquivos nem reenviar o APK ao Netlify.
 
-1. No Netlify, selecione **Add new site**.
-2. Escolha **Import an existing project**.
-3. Conecte o mesmo repositório GitHub.
-4. O arquivo `netlify.toml` já informa que a pasta publicada é `app`.
-5. Confirme o deploy.
+Link direto do APK:
 
-A interface do Netlify é uma apresentação/PWA. As funções de processamento, gerenciamento de arquivos e WhatsApp funcionam dentro do APK.
+**https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk**
 
-## Atualizar o aplicativo
-
-Depois de alterar o projeto, envie as mudanças ao GitHub. A ação gera um novo APK automaticamente. Para distribuir a atualização, substitua o APK anterior pelo novo arquivo.
+Se o botão ainda não funcionar, abra a aba **Actions** do repositório e confirme que a execução **Gerar APK Android** terminou com a marca verde.
 
 ## Uso permitido
 

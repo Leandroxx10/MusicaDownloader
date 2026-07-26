@@ -1,0 +1,162 @@
+.apk-button {
+  justify-content: center;
+  gap: 9px;
+}
+
+.apk-button span {
+  font-size: 18px;
+}
+
+.install-guide {
+  margin-top: 24px;
+  padding: 26px;
+  border: 1px solid rgba(66, 245, 123, .18);
+  border-radius: 24px;
+  background: linear-gradient(145deg, rgba(13, 31, 21, .98), rgba(7, 17, 11, .98));
+  box-shadow: var(--shadow);
+}
+
+.install-guide-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.install-guide-heading h2 {
+  margin: 6px 0 0;
+  font-size: 24px;
+}
+
+.android-badge {
+  flex: none;
+  padding: 8px 12px;
+  border: 1px solid rgba(66, 245, 123, .25);
+  border-radius: 999px;
+  background: rgba(66, 245, 123, .09);
+  color: #caffd8;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.install-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.install-steps article {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  background: rgba(8, 19, 12, .84);
+}
+
+.install-steps article > span {
+  display: grid;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--green), var(--green-2));
+  color: #041008;
+  font-weight: 950;
+}
+
+.install-steps strong,
+.install-steps small {
+  display: block;
+}
+
+.install-steps small {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.device-note {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 200, 87, .08);
+  color: #d9cfae;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.device-note strong {
+  color: #ffe294;
+}
+
+.web-only-notice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 16px;
+  align-items: center;
+  margin-top: 20px;
+  padding: 15px 16px;
+  border: 1px solid rgba(66, 245, 123, .23);
+  border-radius: 15px;
+  background: rgba(66, 245, 123, .07);
+}
+
+.web-only-notice strong,
+.web-only-notice span {
+  display: block;
+}
+
+.web-only-notice span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.web-only-notice a {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  padding: 9px 12px;
+  border-radius: 11px;
+  background: rgba(66, 245, 123, .13);
+  color: #caffd8;
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+@media (max-width: 760px) {
+  .install-steps {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .install-guide {
+    padding: 17px;
+    border-radius: 20px;
+  }
+
+  .install-guide-heading {
+    display: block;
+  }
+
+  .android-badge {
+    display: inline-block;
+    margin-top: 12px;
+  }
+
+  .web-only-notice {
+    display: block;
+  }
+
+  .web-only-notice a {
+    display: inline-block;
+    margin-top: 10px;
+  }
+}

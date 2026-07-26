@@ -10,6 +10,7 @@
   <link rel="icon" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./download.css">
   <title>Moura Downloads</title>
 </head>
 <body>
@@ -44,19 +45,33 @@
       <section id="view-inicio" class="view active">
         <div class="hero-card">
           <div class="hero-copy">
-            <span class="eyebrow">MOURA DOWNLOADS</span>
-            <h1>Baixe e organize no celular</h1>
-            <p>Cole um link autorizado, escolha áudio ou vídeo e deixe o próprio aparelho processar o arquivo.</p>
-            <div class="hero-actions"><a id="downloadApkLink" class="primary-button apk-button hidden" href="./apk/moura-downloads.apk" download>Baixar APK Android</a><button id="heroLibraryBtn" class="secondary-button" type="button">Ver biblioteca</button></div>
+            <span class="eyebrow">APLICATIVO PARA ANDROID</span>
+            <h1 id="heroTitle">Baixe o app no seu celular</h1>
+            <p id="heroDescription">Instale o Moura Downloads no Android para baixar, organizar e compartilhar suas mídias autorizadas no próprio aparelho.</p>
+            <div class="hero-actions"><a id="downloadApkLink" class="primary-button apk-button" href="https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk">Baixar APK agora <span aria-hidden="true">⇩</span></a><button id="heroLibraryBtn" class="secondary-button" type="button">Como instalar</button></div>
           </div>
           <div class="hero-mark"><img src="./assets/logo.png" alt=""></div>
         </div>
+
+        <section id="como-instalar" class="install-guide" aria-labelledby="installTitle">
+          <div class="install-guide-heading">
+            <div><span class="eyebrow">INSTALAÇÃO SIMPLES</span><h2 id="installTitle">Como instalar no celular</h2></div>
+            <span class="android-badge">Android 8 ou superior</span>
+          </div>
+          <div class="install-steps">
+            <article><span>1</span><div><strong>Baixe o APK</strong><small>Toque no botão verde acima e confirme o download no navegador.</small></div></article>
+            <article><span>2</span><div><strong>Abra o arquivo</strong><small>Procure por <b>moura-downloads.apk</b> na notificação ou na pasta Downloads.</small></div></article>
+            <article><span>3</span><div><strong>Autorize e instale</strong><small>Se o Android pedir, permita a instalação por este navegador e toque em Instalar.</small></div></article>
+          </div>
+          <p class="device-note"><strong>Está no notebook?</strong> O APK não abre no Windows. Use o notebook apenas para publicar esta página no Netlify e abra o site pelo celular para instalar o aplicativo.</p>
+        </section>
 
         <section class="download-card" aria-labelledby="downloadTitle">
           <div class="section-heading">
             <div><span class="eyebrow">NOVO DOWNLOAD</span><h2 id="downloadTitle">Cole o link da mídia</h2></div>
             <span id="platformPill" class="platform-pill">Aguardando link</span>
           </div>
+          <div id="webOnlyNotice" class="web-only-notice"><strong>Esta função acontece dentro do aplicativo.</strong><span>Instale o APK no Android para processar os links no próprio celular.</span><a href="https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk">Baixar aplicativo</a></div>
 
           <label class="url-field" for="mediaUrl">
             <span>🔗</span>

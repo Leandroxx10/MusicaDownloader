@@ -1,84 +1,70 @@
-# Moura Downloads 2.0 — processamento local no Android
+# Moura Downloads 2.0
 
-Aplicativo Android com visual escuro e degradê verde. O próprio celular executa o mecanismo de download e a conversão de áudio/vídeo; não existe backend, Render, Oracle ou servidor de processamento para configurar.
+Aplicativo Android com processamento local de mídia e uma página pronta para publicar no Netlify. O visitante abre o site no celular, toca em **Baixar APK agora** e recebe a versão atual do aplicativo.
 
 > Use somente com conteúdo próprio, autorizado, licenciado ou em domínio público. O projeto não inclui bypass de DRM, cookies de contas, acesso a conteúdo privado ou quebra de controles de acesso.
+
+## Publicar no Netlify
+
+Não é preciso compilar nada no notebook nem copiar o APK para o Netlify.
+
+1. Entre em [app.netlify.com](https://app.netlify.com/).
+2. Escolha **Add new project** e depois **Import an existing project**.
+3. Selecione **GitHub** e o repositório `Leandroxx10/MusicaDownloader`.
+4. Mantenha **Base directory** e **Build command** vazios.
+5. Confirme que **Publish directory** está como `app`.
+6. Clique em **Deploy**.
+
+O arquivo `netlify.toml` na raiz já define a pasta correta. Depois do primeiro deploy, cada novo envio para a branch `main` atualiza o site automaticamente.
+
+## Download do aplicativo
+
+O botão da página usa este endereço fixo:
+
+**https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk**
+
+O GitHub Actions compila e substitui automaticamente o APK nesse endereço. O arquivo grande não fica armazenado dentro do repositório nem precisa ser enviado manualmente ao Netlify.
+
+O APK funciona em **Android 8.0 ou superior**. Ele não abre no Windows; o notebook serve apenas para administrar o repositório e publicar o site.
+
+## Como a automação funciona
+
+Ao enviar uma alteração para `main`, o workflow `.github/workflows/build-android.yml`:
+
+1. configura Java 17, Android SDK 35 e Gradle 8.9;
+2. compila um APK Android instalável;
+3. preserva uma cópia nos artefatos da execução;
+4. cria ou atualiza a release `latest`;
+5. mantém o mesmo endereço de download usado pelo site.
+
+Também é possível abrir **Actions > Gerar APK Android > Run workflow** para executar manualmente.
 
 ## O que foi incluído
 
 - Download local por `yt-dlp` e FFmpeg dentro do APK.
 - Áudio MP3 e vídeo MP4.
-- Notificação de progresso enquanto o aplicativo estiver minimizado.
+- Notificação de progresso.
 - Pasta pública `Downloads/Moura Downloads`.
-- Biblioteca com pesquisa, ordenação e filtros.
-- Categorias padrão e categorias personalizadas.
-- Favoritos.
-- Renomear arquivos preservando a extensão.
-- Alterar categoria sem duplicar o arquivo.
-- Excluir com confirmação.
-- Abrir o arquivo em outro aplicativo.
-- Compartilhar pelo menu Android.
-- Compartilhar diretamente no WhatsApp ou WhatsApp Business.
-- Histórico local apagável.
-- Receber links pelo menu **Compartilhar** do Android.
-- Página PWA responsiva para publicação no Netlify.
+- Biblioteca com pesquisa, ordenação, categorias e favoritos.
+- Renomear, excluir, abrir e compartilhar arquivos.
+- Compartilhamento pelo WhatsApp e WhatsApp Business.
+- Recebimento de links pelo menu **Compartilhar** do Android.
+- Página responsiva/PWA pronta para o Netlify.
+- Instruções de instalação visíveis para usuários de celular.
 
 ## Estrutura
 
-- `app/`: página responsiva para o Netlify. Ela apresenta a interface, mas o processamento de mídia ocorre somente no APK.
-- `native-android/`: aplicativo Android nativo que contém a interface e o processador local.
-- `.github/workflows/build-android.yml`: compila o APK no GitHub Actions.
-- `SECURITY.md`: verificações de segurança, privacidade e limitações.
-- `LICENSE`: GPL-3.0, necessária pelas bibliotecas utilizadas.
+- `app/`: site estático publicado pelo Netlify.
+- `native-android/`: projeto do aplicativo Android.
+- `.github/workflows/build-android.yml`: build e publicação automática do APK.
+- `netlify.toml`: configuração do deploy no Netlify.
+- `GUIA-RAPIDO.md`: instruções curtas para publicação e instalação.
+- `SECURITY.md`: segurança, privacidade e limitações.
 
-## Publicar a página no Netlify
-
-1. Envie todo o projeto para um repositório GitHub.
-2. No Netlify, escolha **Add new site > Import an existing project**.
-3. Conecte o repositório.
-4. O arquivo `netlify.toml` já define `app` como pasta de publicação.
-5. Publique. O Netlify fornecerá HTTPS automaticamente.
-
-A página do Netlify não precisa de servidor e não processa vídeos. Ela funciona como apresentação do aplicativo e PWA de demonstração.
-
-## Gerar o APK no GitHub
-
-1. Abra a aba **Actions** do repositório.
-2. Selecione **Gerar APK Android**.
-3. Clique em **Run workflow**.
-4. Ao concluir, baixe o artefato **Moura-Downloads-APK**.
-5. Extraia o arquivo `app-debug.apk` e instale no celular.
-
-O primeiro build baixa as dependências Android do Maven Central. O APK é maior que um aplicativo comum porque inclui Python, `yt-dlp`, FFmpeg e bibliotecas nativas para ARM de 32 e 64 bits.
-
-## Disponibilizar o APK no Netlify
-
-Depois de gerar o APK:
-
-1. Crie a pasta `app/apk`.
-2. Renomeie `app-debug.apk` para `moura-downloads.apk`.
-3. Coloque o arquivo em `app/apk/moura-downloads.apk`.
-4. Adicione um botão em sua página ou use o endereço `https://SEU-SITE.netlify.app/apk/moura-downloads.apk`.
-5. Faça novo deploy.
-
-## Gerar pelo Android Studio
-
-1. Abra a pasta `native-android` no Android Studio.
-2. Aguarde a sincronização do Gradle.
-3. Use **Build > Build APK(s)**.
-4. O resultado ficará em `native-android/app/build/outputs/apk/debug/app-debug.apk`.
-
-## Atualizações do mecanismo
-
-Antes de um download, o aplicativo tenta atualizar o mecanismo local no máximo uma vez a cada três dias. Se a atualização falhar, ele continua com a versão incluída no APK. Mudanças nas plataformas ainda podem exigir uma nova versão do aplicativo.
-
-## Compatibilidade
+## Compatibilidade e observações
 
 - Android 8.0 ou superior.
-- APK inclui `arm64-v8a` e `armeabi-v7a`.
-- Downloads e conversões longos consomem bateria, rede, CPU e espaço de armazenamento.
-- A biblioteca gerencia somente arquivos existentes em `Downloads/Moura Downloads`.
-
-## Limitação desta entrega
-
-O código foi validado estruturalmente neste ambiente, mas o APK não foi compilado aqui porque o Android SDK e as dependências Maven não estão disponíveis localmente. O workflow do GitHub executa a compilação em ambiente Android configurado.
+- Arquiteturas `arm64-v8a` e `armeabi-v7a`.
+- Downloads e conversões longos consomem bateria, rede, CPU e armazenamento.
+- A biblioteca gerencia somente arquivos em `Downloads/Moura Downloads`.
+- O APK é maior que um aplicativo comum porque inclui Python, `yt-dlp`, FFmpeg e bibliotecas nativas.
