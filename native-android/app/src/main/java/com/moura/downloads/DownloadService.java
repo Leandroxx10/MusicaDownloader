@@ -110,10 +110,11 @@ public class DownloadService extends Service {
             }
 
             sendEvent("running", 2, 0, "Download iniciado no próprio celular.");
-            YoutubeDL.getInstance().execute(request, (progress, etaInSeconds) -> {
+            YoutubeDL.getInstance().execute(request, null, false, (progress, etaInSeconds, line) -> {
                 int value = (int) Math.max(0, Math.min(100, Math.round(progress)));
                 updateNotification("Baixando no celular", value, value < 100);
                 sendEvent("running", value, etaInSeconds, "Baixando e processando arquivo.");
+                return kotlin.Unit.INSTANCE;
             });
 
             File[] after = outputDir.listFiles(file -> file.isFile() &&
@@ -147,7 +148,7 @@ public class DownloadService extends Service {
         if (System.currentTimeMillis() - lastUpdate < threeDays) return;
         try {
             sendEvent("initializing", 1, 0, "Verificando atualização do processador local.");
-            YoutubeDL.getInstance().updateYoutubeDL(this, YoutubeDL.UpdateChannel.NIGHTLY);
+            YoutubeDL.getInstance().updateYoutubeDL(this, YoutubeDL.UpdateChannel._NIGHTLY);
             getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                     .putLong("yt_dlp_last_update", System.currentTimeMillis()).apply();
         } catch (Exception ignored) {
