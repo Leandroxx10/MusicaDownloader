@@ -104,11 +104,12 @@ O QR é criado no aparelho com ZXing. Nenhuma imagem, contato ou dado pessoal é
 Ao enviar uma alteração para `main`, o GitHub Actions:
 
 1. configura Java 17, Android SDK 35 e Gradle 8.9;
-2. restaura a chave permanente guardada nos segredos do repositório;
-3. compila e assina APKs para `arm64-v8a`, `armeabi-v7a` e universal;
-4. gera checksums SHA-256 e o manifesto `update.json`;
-5. guarda os arquivos como artefato da execução;
-6. substitui os arquivos da release `latest`, preservando os links públicos.
+2. gera automaticamente um número de versão superior para cada execução;
+3. restaura a chave permanente guardada nos segredos do repositório;
+4. compila e assina APKs para `arm64-v8a`, `armeabi-v7a` e universal;
+5. gera checksums SHA-256 e o manifesto `update.json`;
+6. guarda os arquivos como artefato da execução;
+7. substitui os arquivos da release `latest`, preservando os links públicos.
 
 ## Compatibilidade
 

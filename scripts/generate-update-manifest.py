@@ -18,9 +18,17 @@ BASE_URL = (
 
 
 def read_version() -> tuple[int, str]:
+    ci_code = os.environ.get("MOURA_VERSION_CODE")
+    ci_name = os.environ.get("MOURA_VERSION_NAME")
+    if ci_code and ci_name:
+        return int(ci_code), ci_name
     text = GRADLE_FILE.read_text(encoding="utf-8")
-    code_match = re.search(r"\bversionCode\s+(\d+)", text)
-    name_match = re.search(r"\bversionName\s+['\"]([^'\"]+)['\"]", text)
+    code_match = re.search(r":\s*(\d+)\s*$", next(
+        line for line in text.splitlines() if "versionCode ciVersionCode" in line
+    ))
+    name_match = re.search(r":\s*['\"]([^'\"]+)['\"]", next(
+        line for line in text.splitlines() if "versionName ciVersionName" in line
+    ))
     if not code_match or not name_match:
         raise RuntimeError("Não foi possível encontrar a versão no build.gradle.")
     return int(code_match.group(1)), name_match.group(1)

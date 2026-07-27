@@ -15,6 +15,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      MOURA_VERSION_CODE: ${{ github.run_number }}
+      MOURA_VERSION_NAME: 4.0.${{ github.run_number }}
     steps:
       - name: Baixar projeto
         uses: actions/checkout@v4
