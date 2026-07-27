@@ -11,11 +11,10 @@
   };
 
   const DEFAULT_CATEGORIES = ['Músicas', 'Vídeos', 'Podcasts', 'Clipes', 'Outros'];
-  const FAST_APP_URL = 'https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads-arm64.apk';
+  const COMPLETE_APP_URL = 'https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk';
   const isAndroid = Boolean(window.AndroidBridge?.appMode && window.AndroidBridge.appMode() === 'android-local');
 
   const state = {
-    deferredInstall: null,
     history: storage.get('moura_history_v2', []),
     customCategories: storage.get('moura_categories_v2', []),
     downloadPreferences: storage.get('moura_download_preferences_v4', {
@@ -316,10 +315,11 @@
       refreshLibrary();
       return;
     }
-    if (['initializing', 'running', 'cancelling'].includes(event.status)) {
+    if (['initializing', 'retrying', 'running', 'cancelling'].includes(event.status)) {
       els.cancelDownloadBtn.classList.remove('hidden');
       setProgress(true, event.progress || 1,
         event.status === 'initializing' ? 'Preparando processador'
+          : event.status === 'retrying' ? 'Corrigindo compatibilidade'
           : event.status === 'cancelling' ? 'Cancelando download' : 'Baixando no celular',
         event.eta ? `${event.message} Tempo estimado: ${event.eta}s.` : event.message);
       return;
@@ -693,7 +693,7 @@
   }
 
   function setupAppSharing() {
-    let info = { url: isAndroid ? FAST_APP_URL : location.href };
+    let info = { url: isAndroid ? COMPLETE_APP_URL : location.href };
     if (isAndroid) {
       try {
         const nativeInfo = JSON.parse(window.AndroidBridge.getAppShareInfo());
@@ -857,24 +857,14 @@
     toast('Histórico local removido.');
   });
 
-  window.addEventListener('beforeinstallprompt', event => {
-    event.preventDefault();
-    state.deferredInstall = event;
-    $('#installBtn').classList.remove('hidden');
-  });
-  $('#installBtn').addEventListener('click', async () => {
-    if (!state.deferredInstall) return;
-    state.deferredInstall.prompt();
-    await state.deferredInstall.userChoice;
-    state.deferredInstall = null;
-    $('#installBtn').classList.add('hidden');
+  $('#downloadApkLink')?.addEventListener('click', () => {
+    toast('Download iniciado. Depois, abra moura-downloads.apk e confirme a instalação.');
   });
 
   function configureInstallExperience() {
     const link = $('#downloadApkLink');
     if (!isAndroid) return;
     link?.classList.add('hidden');
-    $('#compatibilityDownload')?.classList.add('hidden');
     $('#como-instalar')?.classList.add('hidden');
     $('#webOnlyNotice')?.classList.add('hidden');
     $('#heroTitle').textContent = 'Baixe, reproduza e organize';

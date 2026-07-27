@@ -1,6 +1,6 @@
 # Moura Downloads 4.0 — Atualizações inteligentes
 
-Aplicativo Android com processamento local, player interno, biblioteca completa, compartilhamento por QR Code e atualização de versão dentro do próprio app. A página estática está pronta para publicação no Netlify e oferece uma versão rápida do APK para celulares atuais.
+Aplicativo Android desenvolvido por **Leandro Moura**, com processamento local, player interno, biblioteca completa, compartilhamento por QR Code e atualização de versão dentro do próprio app. A página estática está pronta para publicação no Netlify e oferece um único botão para baixar o aplicativo completo.
 
 > Use somente com conteúdo próprio, autorizado, licenciado ou em domínio público. O projeto não inclui bypass de DRM, cookies de contas, acesso a conteúdo privado ou quebra de controles de acesso.
 
@@ -24,32 +24,26 @@ Aplicativo Android com processamento local, player interno, biblioteca completa,
 - Perfil **Rápido** como padrão, com vídeo de até 720p.
 - Perfil de **Melhor qualidade** e perfil de **Economia de dados**.
 - Download simultâneo de fragmentos quando a plataforma permitir.
-- Aceleração de transferências com aria2 no próprio celular.
 - Inicialização antecipada do processador para reduzir a espera do primeiro download.
+- Atualização do processador de links antes do primeiro uso e a cada três dias.
+- Nova tentativa automática quando uma plataforma muda o formato do link.
+- Detecção segura do arquivo final mesmo quando ele já existia na biblioteca.
 - Cancelamento real pelo aplicativo e pela notificação, com limpeza dos arquivos temporários.
 - Mensagens simples para falha de internet, falta de espaço, link privado ou site incompatível.
-- Primeiro download inicia sem esperar uma atualização do mecanismo.
 - APK separado para celulares `arm64-v8a`, reduzindo o tamanho do download.
 - APK universal limitado às duas arquiteturas Android suportadas, sem carregar versões de computador.
-- Versões universal e de 32 bits mantidas como alternativas.
+- Versões por arquitetura mantidas apenas para as atualizações automáticas do app.
 - Notificação de download abre o aplicativo ao ser tocada.
+- Pacote Android App Bundle (`.aab`) pronto para envio ao Google Play.
 
-## Downloads
+## Download
 
-- **Recomendado para celulares atuais:**
+O site e o QR Code apresentam somente o aplicativo completo:
 
-  https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads-arm64.apk
+https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk
 
-- **Versão universal:**
-
-  https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk
-
-- **Celulares Android antigos de 32 bits:**
-
-  https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads-32bit.apk
-
-O QR Code aponta para a versão rápida `arm64-v8a`, usada pela maioria dos celulares
-Android atuais. A mensagem compartilhada inclui também a versão universal como alternativa.
+Os APKs menores por arquitetura continuam na release para que o próprio aplicativo escolha
+o arquivo correto nas atualizações futuras. O usuário não precisa escolher entre versões.
 
 ## Atualizações futuras
 
@@ -62,6 +56,12 @@ Depois que a versão 4.0 assinada estiver instalada:
 5. arquivos, favoritos, categorias e preferências são mantidos.
 
 O Android não permite que um APK distribuído fora da Play Store conclua uma instalação silenciosa. A confirmação final do sistema continua necessária. Quem estiver usando uma versão 3.0 de depuração precisa desinstalá-la uma única vez antes de instalar a 4.0 assinada.
+
+O nome **Leandro Moura** aparece no site, nos ajustes do aplicativo, no compartilhamento e
+nos metadados Android. A tela do Play Protect pertence ao Google e não pode ser alterada pelo
+APK. Para que o Google também mostre uma identidade verificada, publique o arquivo
+`moura-downloads-play-store.aab` pelo Play Console usando uma conta de desenvolvedor
+verificada com esse nome.
 
 ## Publicar no Netlify
 
@@ -112,7 +112,7 @@ Ao enviar uma alteração para `main`, o GitHub Actions:
 1. configura Java 17, Android SDK 35 e Gradle 8.9;
 2. gera automaticamente um número de versão superior para cada execução;
 3. restaura a chave permanente guardada nos segredos do repositório;
-4. compila e assina APKs para `arm64-v8a`, `armeabi-v7a` e universal;
+4. compila e assina APKs para `arm64-v8a`, `armeabi-v7a`, universal e o pacote AAB da Play Store;
 5. confirma que todos usam o certificado permanente esperado;
 6. bloqueia APKs com arquitetura errada, tamanho excessivo ou manifesto inválido;
 7. gera checksums SHA-256 e o manifesto `update.json`;

@@ -103,14 +103,19 @@ def validate_required_features() -> None:
         "build Android release": "assembleRelease" in workflow,
         "assinatura por segredo": "ANDROID_KEYSTORE_BASE64" in workflow,
         "validação do release": "validate-release.py" in workflow,
+        "pacote para Google Play": "bundleRelease" in workflow,
         "APK arm64": "'arm64-v8a'" in gradle,
         "APK 32 bits": "'armeabi-v7a'" in gradle,
-        "aceleração aria2": "youtubedl-android:aria2c:" in gradle,
+        "atualização do processador no primeiro uso": "updateEngineWhenNeeded(false)"
+        in download_service,
+        "nova tentativa automática": 'sendEvent("retrying"' in download_service,
         "cancelamento de mídia": "cancelLocalDownload" in app_js
         and "ACTION_CANCEL" in download_service,
         "player interno": "playDownload" in app_js,
         "atualização com SHA-256": "sha256(temp)" in update_service,
-        "QR rápido": "moura-downloads-arm64.apk" in app_js,
+        "download completo no site": "moura-downloads.apk" in app_js
+        and "moura-downloads-arm64.apk" not in index,
+        "desenvolvedor identificado": "Leandro Moura" in index,
         "site pronto para celular": 'name="viewport"' in index,
     }
     failed = [name for name, valid in checks.items() if not valid]

@@ -14,6 +14,8 @@ APK_RULES = {
     "moura-downloads-32bit.apk": ({"armeabi-v7a"}, 90 * 1024 * 1024),
     "moura-downloads.apk": ({"arm64-v8a", "armeabi-v7a"}, 170 * 1024 * 1024),
 }
+AAB_NAME = "moura-downloads-play-store.aab"
+AAB_MAX_SIZE = 170 * 1024 * 1024
 
 
 def fail(message: str) -> None:
@@ -38,6 +40,15 @@ def apk_architectures(path: Path) -> set[str]:
         }
 
 
+def aab_architectures(path: Path) -> set[str]:
+    with zipfile.ZipFile(path) as archive:
+        return {
+            name.split("/", 3)[2]
+            for name in archive.namelist()
+            if name.startswith("base/lib/") and name.count("/") >= 3
+        }
+
+
 def main() -> None:
     for filename, (expected_architectures, max_size) in APK_RULES.items():
         path = RELEASE_DIR / filename
@@ -54,6 +65,22 @@ def main() -> None:
                 f"{filename} ficou grande demais: "
                 f"{path.stat().st_size / 1024 / 1024:.1f} MB."
             )
+
+    aab = RELEASE_DIR / AAB_NAME
+    if not aab.is_file() or aab.stat().st_size == 0:
+        fail(f"Pacote da Play Store ausente ou vazio: {AAB_NAME}")
+    if aab.stat().st_size > AAB_MAX_SIZE:
+        fail(
+            f"{AAB_NAME} ficou grande demais: "
+            f"{aab.stat().st_size / 1024 / 1024:.1f} MB."
+        )
+    architectures = aab_architectures(aab)
+    expected = {"arm64-v8a", "armeabi-v7a"}
+    if architectures != expected:
+        fail(
+            f"{AAB_NAME} contém arquiteturas {sorted(architectures)}, "
+            f"mas deveria conter {sorted(expected)}."
+        )
 
     manifest_path = RELEASE_DIR / "update.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -79,6 +106,7 @@ def main() -> None:
     for filename in APK_RULES:
         path = RELEASE_DIR / filename
         print(f"- {filename}: {path.stat().st_size / 1024 / 1024:.1f} MB")
+    print(f"- {AAB_NAME}: {aab.stat().st_size / 1024 / 1024:.1f} MB")
 
 
 if __name__ == "__main__":

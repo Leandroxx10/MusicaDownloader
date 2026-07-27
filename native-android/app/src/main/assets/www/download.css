@@ -16,6 +16,26 @@
   font-weight: 850;
 }
 
+.developer-signature {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 13px !important;
+  color: #c9e9d2 !important;
+  font-size: 12px !important;
+}
+
+.developer-signature span {
+  display: grid;
+  width: 21px;
+  height: 21px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(66, 245, 123, .14);
+  color: var(--green);
+  font-weight: 950;
+}
+
 .install-guide {
   margin-top: 24px;
   padding: 26px;
@@ -102,6 +122,21 @@
 
 .device-note strong {
   color: #ffe294;
+}
+
+.security-note {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(66, 245, 123, .16);
+  border-radius: 14px;
+  background: rgba(66, 245, 123, .06);
+  color: #bcd0c2;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.security-note strong {
+  color: #d9ffe4;
 }
 
 .update-banner {

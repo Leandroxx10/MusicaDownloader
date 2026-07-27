@@ -65,8 +65,6 @@ public class MainActivity extends Activity {
             "https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/update.json";
     private static final String APP_DOWNLOAD_URL =
             "https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk";
-    private static final String APP_FAST_DOWNLOAD_URL =
-            "https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads-arm64.apk";
 
     private WebView webView;
     private String pendingSharedText;
@@ -842,10 +840,10 @@ public class MainActivity extends Activity {
         public String getAppShareInfo() {
             JSONObject info = new JSONObject();
             try {
-                info.put("url", APP_FAST_DOWNLOAD_URL);
-                info.put("universalUrl", APP_DOWNLOAD_URL);
+                info.put("url", APP_DOWNLOAD_URL);
                 info.put("version", BuildConfig.VERSION_NAME);
-                info.put("qrDataUrl", qrCodeDataUrl(APP_FAST_DOWNLOAD_URL));
+                info.put("developer", "Leandro Moura");
+                info.put("qrDataUrl", qrCodeDataUrl(APP_DOWNLOAD_URL));
             } catch (Exception error) {
                 try { info.put("error", safeMessage(error)); } catch (Exception ignored) { }
             }
@@ -861,7 +859,7 @@ public class MainActivity extends Activity {
                     return actionResult(false, "Área de transferência indisponível.").toString();
                 }
                 clipboard.setPrimaryClip(
-                        ClipData.newPlainText("Baixar Moura Downloads", APP_FAST_DOWNLOAD_URL));
+                        ClipData.newPlainText("Baixar Moura Downloads", APP_DOWNLOAD_URL));
                 return actionResult(true, "Link do aplicativo copiado.").toString();
             } catch (Exception error) {
                 return actionResult(false, safeMessage(error)).toString();
@@ -875,10 +873,9 @@ public class MainActivity extends Activity {
                 share.setType("text/plain");
                 share.putExtra(Intent.EXTRA_SUBJECT, "Moura Downloads");
                 share.putExtra(Intent.EXTRA_TEXT,
-                        "Baixe a versão rápida do Moura Downloads para Android:\n"
-                                + APP_FAST_DOWNLOAD_URL
-                                + "\n\nSe o celular não for compatível, use a versão universal:\n"
-                                + APP_DOWNLOAD_URL);
+                        "Baixe o Moura Downloads completo para Android:\n"
+                                + APP_DOWNLOAD_URL
+                                + "\n\nDesenvolvido por Leandro Moura.");
                 runOnUiThread(() ->
                         startActivity(Intent.createChooser(share, "Compartilhar aplicativo")));
                 return actionResult(true, "Menu de compartilhamento aberto.").toString();

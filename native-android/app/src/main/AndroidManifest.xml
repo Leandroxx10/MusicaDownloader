@@ -25,8 +25,13 @@
         android:requestLegacyExternalStorage="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:label="Moura Downloads"
+        android:label="@string/app_name"
+        android:description="@string/app_description"
         android:theme="@style/AppTheme">
+
+        <meta-data
+            android:name="com.moura.downloads.DEVELOPER"
+            android:value="@string/developer_name" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

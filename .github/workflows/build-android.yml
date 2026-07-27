@@ -63,20 +63,22 @@ jobs:
           echo "ANDROID_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
           echo "ANDROID_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
 
-      - name: Gerar APKs assinados
+      - name: Gerar APKs e pacote da Play Store assinados
         working-directory: native-android
-        run: gradle assembleRelease --stacktrace
+        run: gradle assembleRelease bundleRelease --stacktrace
 
-      - name: Preparar APKs e atualização automática
+      - name: Preparar APKs, Play Store e atualização automática
         run: |
           mkdir -p release
           cp native-android/app/build/outputs/apk/release/app-universal-release.apk release/moura-downloads.apk
           cp native-android/app/build/outputs/apk/release/app-arm64-v8a-release.apk release/moura-downloads-arm64.apk
           cp native-android/app/build/outputs/apk/release/app-armeabi-v7a-release.apk release/moura-downloads-32bit.apk
+          cp native-android/app/build/outputs/bundle/release/app-release.aab release/moura-downloads-play-store.aab
           test -s release/moura-downloads.apk
           test -s release/moura-downloads-arm64.apk
           test -s release/moura-downloads-32bit.apk
-          sha256sum release/*.apk > release/SHA256SUMS.txt
+          test -s release/moura-downloads-play-store.aab
+          sha256sum release/*.apk release/*.aab > release/SHA256SUMS.txt
           python3 scripts/generate-update-manifest.py
           ls -lh release
 
@@ -94,10 +96,10 @@ jobs:
             echo "$(basename "$apk"): assinatura permanente confirmada"
           done
 
-      - name: Guardar APKs nos artefatos da execução
+      - name: Guardar instaladores nos artefatos da execução
         uses: actions/upload-artifact@v7
         with:
-          name: Moura-Downloads-APK
+          name: Moura-Downloads-Android
           path: release
           if-no-files-found: error
           compression-level: 0
@@ -110,10 +112,10 @@ jobs:
             gh release upload latest release/* --clobber
             gh release edit latest \
               --title "Moura Downloads 4.0 — Atualizações inteligentes" \
-              --notes "Atualização dentro do app, assinatura permanente, download automático no Wi-Fi, repetição pelo histórico e experiência simplificada. Use moura-downloads-arm64.apk em celulares atuais. Commit: $GITHUB_SHA"
+              --notes "App completo desenvolvido por Leandro Moura. No site, use moura-downloads.apk. A release também inclui atualizações otimizadas e o pacote AAB para publicação no Google Play. Commit: $GITHUB_SHA"
           else
             gh release create latest release/* \
               --target "$GITHUB_SHA" \
               --title "Moura Downloads 4.0 — Atualizações inteligentes" \
-              --notes "Atualização dentro do app, assinatura permanente, download automático no Wi-Fi, repetição pelo histórico e experiência simplificada. Use moura-downloads-arm64.apk em celulares atuais. Commit: $GITHUB_SHA"
+              --notes "App completo desenvolvido por Leandro Moura. No site, use moura-downloads.apk. A release também inclui atualizações otimizadas e o pacote AAB para publicação no Google Play. Commit: $GITHUB_SHA"
           fi

@@ -9,8 +9,8 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css">
-  <link rel="stylesheet" href="./download.css">
+  <link rel="stylesheet" href="./styles.css?v=7">
+  <link rel="stylesheet" href="./download.css?v=7">
   <title>Moura Downloads</title>
 </head>
 <body>
@@ -37,7 +37,6 @@
         <div class="mobile-brand"><img src="./assets/logo.png" alt=""><strong>Moura</strong></div>
         <div class="top-actions">
           <span id="modeBadge" class="connection-badge">Modo de demonstração</span>
-          <button id="installBtn" class="ghost-button hidden">Instalar PWA</button>
           <button id="openLibraryBtn" class="icon-button" aria-label="Abrir biblioteca">⇩</button>
         </div>
       </header>
@@ -47,9 +46,9 @@
           <div class="hero-copy">
             <span class="eyebrow">APLICATIVO PARA ANDROID</span>
             <h1 id="heroTitle">Baixe o app no seu celular</h1>
-            <p id="heroDescription">Instale o Moura Downloads no Android para baixar, reproduzir, organizar e compartilhar suas mídias autorizadas no próprio aparelho.</p>
-            <div class="hero-actions"><a id="downloadApkLink" class="primary-button apk-button" href="https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads-arm64.apk">Baixar versão rápida <span aria-hidden="true">⇩</span></a><button id="heroLibraryBtn" class="secondary-button" type="button">Como instalar</button></div>
-            <p id="compatibilityDownload" class="compatibility-download">Recomendado para celulares Android atuais. <a href="https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk">Baixar versão universal</a></p>
+            <p id="heroDescription">Instale o Moura Downloads completo no Android para baixar, reproduzir, organizar e compartilhar suas mídias no próprio aparelho.</p>
+            <div class="hero-actions"><a id="downloadApkLink" class="primary-button apk-button" href="https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk" download="moura-downloads.apk">Baixar app completo <span aria-hidden="true">⇩</span></a><button id="heroLibraryBtn" class="secondary-button" type="button">Como instalar</button></div>
+            <p id="compatibilityDownload" class="developer-signature"><span>✓</span> Aplicativo oficial desenvolvido por <strong>Leandro Moura</strong>.</p>
           </div>
           <div class="hero-mark"><img src="./assets/logo.png" alt=""></div>
         </div>
@@ -66,10 +65,11 @@
             <span class="android-badge">Android 8 ou superior</span>
           </div>
           <div class="install-steps">
-            <article><span>1</span><div><strong>Baixe o APK</strong><small>Toque no botão verde acima e confirme o download no navegador.</small></div></article>
+            <article><span>1</span><div><strong>Baixe o app completo</strong><small>Toque no botão verde acima. O download começa e você só confirma no navegador.</small></div></article>
             <article><span>2</span><div><strong>Abra o arquivo</strong><small>Procure por <b>moura-downloads.apk</b> na notificação ou na pasta Downloads.</small></div></article>
             <article><span>3</span><div><strong>Autorize e instale</strong><small>Se o Android pedir, permita a instalação por este navegador e toque em Instalar.</small></div></article>
           </div>
+          <p class="security-note"><strong>Instalação segura:</strong> o Google Play Protect pode analisar aplicativos instalados fora da Play Store. Mantenha a proteção ativada e confirme que o arquivo se chama <b>moura-downloads.apk</b> e veio desta página oficial de Leandro Moura.</p>
           <p class="device-note"><strong>Está no notebook?</strong> O APK não abre no Windows. Use o notebook apenas para publicar esta página no Netlify e abra o site pelo celular para instalar o aplicativo.</p>
         </section>
 
@@ -78,7 +78,7 @@
             <div><span class="eyebrow">NOVO DOWNLOAD</span><h2 id="downloadTitle">Cole o link da mídia</h2></div>
             <span id="platformPill" class="platform-pill">Aguardando link</span>
           </div>
-          <div id="webOnlyNotice" class="web-only-notice"><strong>Esta função acontece dentro do aplicativo.</strong><span>Instale o APK no Android para processar os links no próprio celular.</span><a href="https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads-arm64.apk">Baixar aplicativo</a></div>
+          <div id="webOnlyNotice" class="web-only-notice"><strong>Esta função acontece dentro do aplicativo.</strong><span>Instale o APK completo no Android para processar os links no próprio celular.</span><a href="https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk" download="moura-downloads.apk">Baixar app completo</a></div>
 
           <label class="url-field" for="mediaUrl">
             <span>🔗</span>
@@ -180,6 +180,7 @@
         <div class="settings-card">
           <div class="setting-row"><div><strong>Processamento no aparelho</strong><small>Não utiliza servidor de conversão.</small></div><span id="localEngineStatus" class="status-value">Somente APK</span></div>
           <div class="setting-row"><div><strong>Versão instalada</strong><small>Player, QR Code e atualizações inteligentes.</small></div><span id="installedVersion" class="status-value">4.0</span></div>
+          <div class="setting-row"><div><strong>Desenvolvedor</strong><small>Identificação oficial do aplicativo.</small></div><span class="status-value">Leandro Moura</span></div>
           <div class="setting-row"><div><strong>Pasta de armazenamento</strong><small>Visível no gerenciador de arquivos e galeria.</small></div><span class="status-value">Moura Downloads</span></div>
           <div id="updateCard" class="update-card">
             <div class="update-card-head">
@@ -205,8 +206,8 @@
             <div class="share-app-copy">
               <span class="eyebrow">COMPARTILHE O SUPER APP</span>
               <h2>Outras pessoas podem baixar pelo QR Code</h2>
-              <p>Abra esta tela no celular e peça para a outra pessoa apontar a câmera para o código.</p>
-              <code id="appShareUrl">Link de download da versão rápida</code>
+              <p>Abra esta tela no celular e peça para a outra pessoa apontar a câmera para o código. O link entrega o app completo de Leandro Moura.</p>
+              <code id="appShareUrl">Link de download do app completo</code>
               <div class="share-app-actions"><button id="shareAppBtn" class="primary-button" type="button">Compartilhar link</button><button id="copyAppLinkBtn" class="secondary-button" type="button">Copiar link</button></div>
             </div>
           </div>
@@ -262,6 +263,6 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="./app.js" defer></script>
+  <script src="./app.js?v=7" defer></script>
 </body>
 </html>

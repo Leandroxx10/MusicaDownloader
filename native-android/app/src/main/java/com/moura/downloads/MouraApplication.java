@@ -2,7 +2,6 @@ package com.moura.downloads;
 
 import android.app.Application;
 
-import com.yausername.aria2c.Aria2c;
 import com.yausername.ffmpeg.FFmpeg;
 import com.yausername.youtubedl_android.YoutubeDL;
 
@@ -19,7 +18,6 @@ public class MouraApplication extends Application {
             try {
                 YoutubeDL.getInstance().init(this);
                 FFmpeg.getInstance().init(this);
-                Aria2c.getInstance().init(this);
             } catch (Exception ignored) {
                 // O serviço tenta novamente e mostra uma mensagem clara se o aparelho não suportar.
             }

@@ -15,16 +15,17 @@ import android.os.IBinder;
 
 import androidx.core.app.NotificationCompat;
 
-import com.yausername.aria2c.Aria2c;
 import com.yausername.ffmpeg.FFmpeg;
 import com.yausername.youtubedl_android.YoutubeDL;
 import com.yausername.youtubedl_android.YoutubeDLRequest;
+import com.yausername.youtubedl_android.YoutubeDLResponse;
 
 import org.json.JSONObject;
 
 import java.io.File;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -111,62 +112,44 @@ public class DownloadService extends Service {
             sendEvent("initializing", 1, 0, "Preparando o processador local no celular.");
             YoutubeDL.getInstance().init(this);
             FFmpeg.getInstance().init(this);
-            Aria2c.getInstance().init(this);
             ensureNotCancelled();
-            updateEngineWhenNeeded();
+            boolean engineUpdated = updateEngineWhenNeeded(false);
             ensureNotCancelled();
-
-            YoutubeDLRequest request = new YoutubeDLRequest(url);
-            request.addOption("-o", new File(outputDir, "%(title).120B [%(id)s].%(ext)s").getAbsolutePath());
-            request.addOption("--no-playlist");
-            request.addOption("--no-mtime");
-            request.addOption("--force-ipv4");
-            request.addOption("--retries", "10");
-            request.addOption("--fragment-retries", "10");
-            request.addOption("--socket-timeout", "30");
-            request.addOption("--concurrent-fragments", "4");
-            request.addOption("--embed-metadata");
-            request.addOption("--downloader", "libaria2c.so");
-
-            if ("mp3".equals(format)) {
-                request.addOption("-x");
-                request.addOption("--audio-format", "mp3");
-                request.addOption("--audio-quality",
-                        "best".equals(quality) ? "0" : "data".equals(quality) ? "7" : "5");
-            } else {
-                String selector = "best".equals(quality)
-                        ? "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/best"
-                        : "data".equals(quality)
-                        ? "bv*[height<=480][ext=mp4]+ba[ext=m4a]/b[height<=480][ext=mp4]/best[height<=480]"
-                        : "bv*[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720][ext=mp4]/best[height<=720]";
-                request.addOption("-f", selector);
-                request.addOption("--merge-output-format", "mp4");
-            }
 
             String profileLabel = "best".equals(quality) ? "alta qualidade"
                     : "data".equals(quality) ? "economia de dados" : "modo rápido";
             sendEvent("running", 2, 0,
                     "Download iniciado no próprio celular em " + profileLabel + ".");
-            YoutubeDL.getInstance().execute(
-                    request, DOWNLOAD_PROCESS_ID, false, (progress, etaInSeconds, line) -> {
-                int value = (int) Math.max(0, Math.min(100, Math.round(progress)));
-                updateNotification("Baixando no celular", value, value < 100, true);
-                sendEvent("running", value, etaInSeconds, "Baixando e processando arquivo.");
-                return kotlin.Unit.INSTANCE;
-            });
+            YoutubeDLResponse response;
+            try {
+                response = executeRequest(buildRequest(url, format, quality, outputDir));
+            } catch (Exception firstError) {
+                ensureNotCancelled();
+                deleteNewPartialFiles(outputDir, before, startedAt);
+                YoutubeDL.getInstance().destroyProcessById(DOWNLOAD_PROCESS_ID);
+                sendEvent("retrying", 2, 0,
+                        "O app detectou uma incompatibilidade e fará uma nova tentativa.");
+                updateNotification("Corrigindo compatibilidade", 0, true, true);
+                if (!engineUpdated) updateEngineWhenNeeded(true);
+                ensureNotCancelled();
+                response = executeRequest(buildRequest(url, format, quality, outputDir));
+            }
             ensureNotCancelled();
 
-            File[] after = outputDir.listFiles(file -> file.isFile() &&
+            Set<File> completed = outputFilesFromResponse(response, outputDir);
+            File[] after = outputDir.listFiles(file -> isFinalFile(file) &&
                     (!before.contains(file.getAbsolutePath()) || file.lastModified() >= startedAt - 2000));
-            if (after == null || after.length == 0) {
+            if (after != null) completed.addAll(Arrays.asList(after));
+            if (completed.isEmpty()) {
                 throw new IllegalStateException("O download terminou, mas o arquivo final não foi localizado.");
             }
-            Arrays.sort(after, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
-            for (File file : after) {
+            File[] outputs = completed.toArray(new File[0]);
+            Arrays.sort(outputs, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
+            for (File file : outputs) {
                 saveCategory(file, category);
                 MediaScannerConnection.scanFile(this, new String[]{file.getAbsolutePath()}, null, null);
             }
-            File newest = after[0];
+            File newest = outputs[0];
             updateNotification("Download concluído", 100, false, false);
             sendEvent("success", 100, 0, newest.getName());
         } catch (Exception error) {
@@ -189,6 +172,79 @@ public class DownloadService extends Service {
             stopForeground(false);
             stopSelf(startId);
         }
+    }
+
+    private YoutubeDLRequest buildRequest(
+            String url, String format, String quality, File outputDir) {
+        YoutubeDLRequest request = new YoutubeDLRequest(url);
+        request.addOption("-o",
+                new File(outputDir, "%(title).120B [%(id)s].%(ext)s").getAbsolutePath());
+        request.addOption("--ignore-config");
+        request.addOption("--no-playlist");
+        request.addOption("--no-mtime");
+        request.addOption("--force-ipv4");
+        request.addOption("--newline");
+        request.addOption("--retries", "10");
+        request.addOption("--fragment-retries", "10");
+        request.addOption("--extractor-retries", "5");
+        request.addOption("--socket-timeout", "30");
+        request.addOption("--concurrent-fragments", "4");
+        request.addOption("--embed-metadata");
+        request.addOption("--print", "after_move:filepath");
+
+        if ("mp3".equals(format)) {
+            request.addOption("-x");
+            request.addOption("--audio-format", "mp3");
+            request.addOption("--audio-quality",
+                    "best".equals(quality) ? "0" : "data".equals(quality) ? "7" : "5");
+        } else {
+            String selector = "best".equals(quality)
+                    ? "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b"
+                    : "data".equals(quality)
+                    ? "bv*[height<=480][ext=mp4]+ba[ext=m4a]/b[height<=480][ext=mp4]/best[height<=480]/best"
+                    : "bv*[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720][ext=mp4]/best[height<=720]/best";
+            request.addOption("-f", selector);
+            request.addOption("--merge-output-format", "mp4");
+        }
+        return request;
+    }
+
+    private YoutubeDLResponse executeRequest(YoutubeDLRequest request) throws Exception {
+        return YoutubeDL.getInstance().execute(
+                request, DOWNLOAD_PROCESS_ID, false, (progress, etaInSeconds, line) -> {
+                    int value = (int) Math.max(0, Math.min(100, Math.round(progress)));
+                    updateNotification("Baixando no celular", value, value < 100, true);
+                    sendEvent("running", value, etaInSeconds, "Baixando e processando arquivo.");
+                    return kotlin.Unit.INSTANCE;
+                });
+    }
+
+    private Set<File> outputFilesFromResponse(YoutubeDLResponse response, File outputDir) {
+        Set<File> files = new LinkedHashSet<>();
+        if (response == null || response.getOut() == null) return files;
+        try {
+            String root = outputDir.getCanonicalPath() + File.separator;
+            for (String line : response.getOut().split("\\R")) {
+                String candidate = line.trim();
+                if (candidate.length() >= 2 && candidate.startsWith("\"")
+                        && candidate.endsWith("\"")) {
+                    candidate = candidate.substring(1, candidate.length() - 1);
+                }
+                File file = new File(candidate);
+                if (isFinalFile(file) && file.getCanonicalPath().startsWith(root)) {
+                    files.add(file.getCanonicalFile());
+                }
+            }
+        } catch (Exception ignored) { }
+        return files;
+    }
+
+    private boolean isFinalFile(File file) {
+        if (file == null || !file.isFile()) return false;
+        String name = file.getName().toLowerCase(Locale.ROOT);
+        return !name.endsWith(".part") && !name.endsWith(".ytdl")
+                && !name.endsWith(".temp") && !name.endsWith(".tmp")
+                && !name.matches(".*\\.f\\d+\\..*");
     }
 
     private void ensureNotCancelled() {
@@ -216,6 +272,19 @@ public class DownloadService extends Service {
         if (message == null || message.trim().isEmpty()) {
             return "Falha ao processar o link no celular.";
         }
+        String cleaned = "";
+        for (String line : message.split("\\R")) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty() || trimmed.toLowerCase(Locale.ROOT).startsWith("warning:")) {
+                continue;
+            }
+            if (trimmed.toLowerCase(Locale.ROOT).startsWith("error:")) {
+                cleaned = trimmed.substring(6).trim();
+            } else if (cleaned.isEmpty()) {
+                cleaned = trimmed;
+            }
+        }
+        if (!cleaned.isEmpty()) message = cleaned;
         String lower = message.toLowerCase(Locale.ROOT);
         if (lower.contains("unsupported url")) {
             return "Esse link ou site ainda não é compatível com o processador local.";
@@ -231,25 +300,33 @@ public class DownloadService extends Service {
                 || lower.contains("timed out")) {
             return "A conexão caiu ou demorou demais. Verifique a internet e tente novamente.";
         }
+        if (lower.contains("http error 403") || lower.contains("forbidden")) {
+            return "O site recusou temporariamente o arquivo. Confirme que o link é público e tente novamente.";
+        }
+        if (lower.contains("requested format is not available")) {
+            return "Essa qualidade não está disponível para o link. Escolha o modo Rápido e tente novamente.";
+        }
         return message.trim();
     }
 
-    private void updateEngineWhenNeeded() {
+    private boolean updateEngineWhenNeeded(boolean force) {
         long lastUpdate = getSharedPreferences(PREFS, MODE_PRIVATE).getLong("yt_dlp_last_update", 0L);
-        if (lastUpdate == 0L) {
-            getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                    .putLong("yt_dlp_last_update", System.currentTimeMillis()).apply();
-            return;
-        }
         long threeDays = 3L * 24L * 60L * 60L * 1000L;
-        if (System.currentTimeMillis() - lastUpdate < threeDays) return;
+        if (!force && lastUpdate > 0L && System.currentTimeMillis() - lastUpdate < threeDays) {
+            return false;
+        }
         try {
-            sendEvent("initializing", 1, 0, "Verificando atualização do processador local.");
+            sendEvent("initializing", 1, 0,
+                    lastUpdate == 0L
+                            ? "Preparando a compatibilidade do primeiro download."
+                            : "Verificando atualização do processador local.");
             YoutubeDL.getInstance().updateYoutubeDL(this, YoutubeDL.UpdateChannel._NIGHTLY);
             getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                     .putLong("yt_dlp_last_update", System.currentTimeMillis()).apply();
+            return true;
         } catch (Exception ignored) {
             // Continua com a versão incluída no APK quando não houver atualização disponível.
+            return false;
         }
     }
 
