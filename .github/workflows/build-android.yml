@@ -36,20 +36,45 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Gerar APK instalável
-        working-directory: native-android
-        run: gradle assembleDebug --stacktrace
+      - name: Configurar assinatura permanente
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_BASE64"
+          test -n "$KEYSTORE_PASSWORD"
+          test -n "$KEY_ALIAS"
+          test -n "$KEY_PASSWORD"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/moura-release.jks"
+          test -s "$RUNNER_TEMP/moura-release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/moura-release.jks" >> "$GITHUB_ENV"
+          echo "ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "ANDROID_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "ANDROID_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
 
-      - name: Preparar APK para distribuição
+      - name: Gerar APKs assinados
+        working-directory: native-android
+        run: gradle assembleRelease --stacktrace
+
+      - name: Preparar APKs e atualização automática
         run: |
           mkdir -p release
-          cp native-android/app/build/outputs/apk/debug/app-universal-debug.apk release/moura-downloads.apk
-          cp native-android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk release/moura-downloads-arm64.apk
-          cp native-android/app/build/outputs/apk/debug/app-armeabi-v7a-debug.apk release/moura-downloads-32bit.apk
+          cp native-android/app/build/outputs/apk/release/app-universal-release.apk release/moura-downloads.apk
+          cp native-android/app/build/outputs/apk/release/app-arm64-v8a-release.apk release/moura-downloads-arm64.apk
+          cp native-android/app/build/outputs/apk/release/app-armeabi-v7a-release.apk release/moura-downloads-32bit.apk
           test -s release/moura-downloads.apk
           test -s release/moura-downloads-arm64.apk
           test -s release/moura-downloads-32bit.apk
           sha256sum release/*.apk > release/SHA256SUMS.txt
+          python3 scripts/generate-update-manifest.py
+
+      - name: Verificar assinatura dos APKs
+        run: |
+          for apk in release/*.apk; do
+            "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$apk"
+          done
 
       - name: Guardar APKs nos artefatos da execução
         uses: actions/upload-artifact@v4
@@ -65,11 +90,11 @@ jobs:
           if gh release view latest >/dev/null 2>&1; then
             gh release upload latest release/* --clobber
             gh release edit latest \
-              --title "Moura Downloads 3.0 — Super App" \
-              --notes "Player interno, QR Code, modo rápido e APKs menores por arquitetura. Use moura-downloads-arm64.apk em celulares atuais ou moura-downloads.apk para compatibilidade universal. Commit: $GITHUB_SHA"
+              --title "Moura Downloads 4.0 — Atualizações inteligentes" \
+              --notes "Atualização dentro do app, assinatura permanente, download automático no Wi-Fi, repetição pelo histórico e experiência simplificada. Use moura-downloads-arm64.apk em celulares atuais. Commit: $GITHUB_SHA"
           else
             gh release create latest release/* \
               --target "$GITHUB_SHA" \
-              --title "Moura Downloads 3.0 — Super App" \
-              --notes "Player interno, QR Code, modo rápido e APKs menores por arquitetura. Use moura-downloads-arm64.apk em celulares atuais ou moura-downloads.apk para compatibilidade universal. Commit: $GITHUB_SHA"
+              --title "Moura Downloads 4.0 — Atualizações inteligentes" \
+              --notes "Atualização dentro do app, assinatura permanente, download automático no Wi-Fi, repetição pelo histórico e experiência simplificada. Use moura-downloads-arm64.apk em celulares atuais. Commit: $GITHUB_SHA"
           fi

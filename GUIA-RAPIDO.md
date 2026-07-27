@@ -1,4 +1,4 @@
-# Guia rápido — Moura Downloads 3.0
+# Guia rápido — Moura Downloads 4.0
 
 ## Download mais rápido
 
@@ -9,6 +9,17 @@ Para celulares Android atuais, use:
 Se a instalação informar incompatibilidade, use a versão universal:
 
 **https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk**
+
+Se você já instalou a versão 3.0, desinstale-a uma única vez e instale a 4.0. A partir da 4.0, as próximas versões serão oferecidas dentro do próprio aplicativo.
+
+## Atualizar sem procurar outro APK
+
+1. Abra **Ajustes**.
+2. Mantenha **Baixar automaticamente no Wi-Fi** ativado.
+3. Quando houver nova versão, o Moura baixa o arquivo compatível.
+4. Confirme **Instalar** na tela do Android.
+
+Também é possível tocar em **Verificar agora**. A confirmação final do Android é obrigatória para aplicativos instalados fora da Play Store.
 
 ## Reproduzir dentro do app
 
@@ -33,6 +44,8 @@ Também existem os botões **Compartilhar link** e **Copiar link**.
 - **Rápido:** padrão recomendado; vídeo até 720p e MP3 equilibrado.
 - **Melhor qualidade:** arquivos maiores e processamento mais demorado.
 - **Economia de dados:** vídeo até 480p e MP3 menor.
+
+O app agora lembra sua última escolha de formato, qualidade e categoria. No **Histórico**, use `↻` para preparar novamente um link anterior.
 
 ## Publicar no Netlify
 

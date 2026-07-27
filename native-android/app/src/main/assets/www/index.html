@@ -54,6 +54,12 @@
           <div class="hero-mark"><img src="./assets/logo.png" alt=""></div>
         </div>
 
+        <section id="updateBanner" class="update-banner hidden" aria-live="polite">
+          <span class="update-banner-icon">↻</span>
+          <div><strong id="updateBannerTitle">Nova versão disponível</strong><small id="updateBannerText">O Moura pode baixar a atualização dentro do próprio aplicativo.</small></div>
+          <button id="updateBannerBtn" class="primary-button compact" type="button">Atualizar</button>
+        </section>
+
         <section id="como-instalar" class="install-guide" aria-labelledby="installTitle">
           <div class="install-guide-heading">
             <div><span class="eyebrow">INSTALAÇÃO SIMPLES</span><h2 id="installTitle">Como instalar no celular</h2></div>
@@ -111,11 +117,6 @@
             </select>
             <small>O modo rápido reduz o tamanho e o tempo de processamento. Para MP3, usa qualidade equilibrada.</small>
           </div>
-
-          <label class="rights-check">
-            <input id="rightsConfirmed" type="checkbox">
-            <span>Confirmo que sou proprietário do conteúdo ou tenho autorização para baixá-lo.</span>
-          </label>
 
           <div class="download-actions">
             <button id="analyzeBtn" class="secondary-button">Verificar link</button>
@@ -177,8 +178,27 @@
         <div class="page-title"><span class="eyebrow">AJUSTES</span><h1>Armazenamento e categorias</h1><p>Os downloads são salvos em <strong>Downloads/Moura Downloads</strong>.</p></div>
         <div class="settings-card">
           <div class="setting-row"><div><strong>Processamento no aparelho</strong><small>Não utiliza servidor de conversão.</small></div><span id="localEngineStatus" class="status-value">Somente APK</span></div>
-          <div class="setting-row"><div><strong>Versão instalada</strong><small>Player, QR Code e modo rápido.</small></div><span class="status-value">3.0 Super App</span></div>
+          <div class="setting-row"><div><strong>Versão instalada</strong><small>Player, QR Code e atualizações inteligentes.</small></div><span id="installedVersion" class="status-value">4.0</span></div>
           <div class="setting-row"><div><strong>Pasta de armazenamento</strong><small>Visível no gerenciador de arquivos e galeria.</small></div><span class="status-value">Moura Downloads</span></div>
+          <div id="updateCard" class="update-card">
+            <div class="update-card-head">
+              <div><span class="eyebrow">ATUALIZAÇÕES INTELIGENTES</span><h2 id="updateTitle">Seu app sempre atualizado</h2><p id="updateDescription">O Moura verifica novas versões e pode baixá-las automaticamente no Wi-Fi.</p></div>
+              <span id="updateStatusBadge" class="status-value">Verificando</span>
+            </div>
+            <label class="update-toggle">
+              <input id="autoUpdateToggle" type="checkbox" checked>
+              <span><strong>Baixar automaticamente no Wi-Fi</strong><small>Não utiliza seus dados móveis. O Android mostrará a confirmação final de instalação.</small></span>
+            </label>
+            <div id="updateProgress" class="update-progress hidden">
+              <div><span id="updateProgressText">Preparando atualização</span><strong id="updateProgressPercent">0%</strong></div>
+              <div class="progress-track"><i id="updateProgressBar"></i></div>
+            </div>
+            <div class="update-actions">
+              <button id="checkUpdateBtn" class="secondary-button" type="button">Verificar agora</button>
+              <button id="startUpdateBtn" class="primary-button hidden" type="button">Baixar atualização</button>
+              <button id="cancelUpdateBtn" class="danger-button hidden" type="button">Cancelar</button>
+            </div>
+          </div>
           <div id="shareAppCard" class="share-app-card">
             <div class="qr-code-shell"><img id="appQrCode" class="hidden" alt="QR Code para baixar o Moura Downloads"><span id="qrPlaceholder">O QR Code aparece no aplicativo Android instalado.</span></div>
             <div class="share-app-copy">

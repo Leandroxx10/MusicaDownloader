@@ -19,6 +19,11 @@
 - O player interno recebe somente URIs validadas da biblioteca do aplicativo.
 - A posição de reprodução fica apenas nas preferências locais do Android.
 - O QR Code é gerado localmente, sem câmera e sem serviço externo.
+- Atualizações aceitam somente URLs HTTPS da release oficial do repositório.
+- O APK baixado é validado por SHA-256 antes da instalação.
+- Todas as versões públicas são assinadas com a mesma chave permanente.
+- A chave de assinatura fica fora do repositório e é fornecida ao build por GitHub Actions Secrets.
+- O serviço de atualização não é exportado e permite cancelamento.
 - WhatsApp é aberto por pacote oficial instalado; há suporte ao WhatsApp Business.
 - Serviço de download não é exportado para outros aplicativos.
 - Broadcasts de progresso são restritos ao pacote do aplicativo.
@@ -31,7 +36,7 @@
 - Arquivos muito grandes podem falhar por falta de espaço.
 - Plataformas podem alterar formatos ou exigir mecanismos adicionais.
 - O mecanismo local utiliza componentes GPL-3.0; distribua o código-fonte correspondente e preserve os avisos de licença.
-- Um APK de depuração não deve ser usado como versão final pública. Gere uma versão assinada e proteja a chave fora do repositório.
+- A confirmação final da instalação é controlada pelo Android e não pode ser removida em uma distribuição direta por APK.
 
 ## LGPD
 
@@ -44,5 +49,6 @@ Antes de distribuir:
 - Substitua o contato genérico da política de privacidade.
 - Faça análise de dependências e vulnerabilidades.
 - Teste exclusão, compartilhamento e permissões em Android 8 a 16.
+- Guarde uma cópia privada da chave de assinatura; perdê-la impede atualizações compatíveis.
 - Revise a conformidade com direitos autorais e termos das plataformas.
 - Não anuncie o aplicativo como meio de obter conteúdo protegido sem autorização.

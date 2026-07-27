@@ -1,7 +1,7 @@
 {
   "name": "Moura Downloads",
   "short_name": "Moura DL",
-  "description": "Super app Android com processamento local para baixar, reproduzir, organizar e compartilhar mídias autorizadas.",
+  "description": "Super app Android com player, biblioteca, QR Code e atualizações inteligentes dentro do aplicativo.",
   "id": "/",
   "start_url": "./",
   "scope": "./",

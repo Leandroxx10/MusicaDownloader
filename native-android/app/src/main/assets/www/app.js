@@ -18,9 +18,14 @@
     deferredInstall: null,
     history: storage.get('moura_history_v2', []),
     customCategories: storage.get('moura_categories_v2', []),
+    downloadPreferences: storage.get('moura_download_preferences_v4', {
+      format: 'mp3', quality: 'fast', category: 'Músicas'
+    }),
     library: [],
     activeCategory: 'Todas',
     selectedFile: null,
+    update: null,
+    updateDownloading: false,
     modalMode: null,
     modalPayload: null,
     pendingDownload: null,
@@ -31,7 +36,6 @@
     modeBadge: $('#modeBadge'),
     mediaUrl: $('#mediaUrl'),
     platformPill: $('#platformPill'),
-    rightsConfirmed: $('#rightsConfirmed'),
     analyzeBtn: $('#analyzeBtn'),
     downloadBtn: $('#downloadBtn'),
     analysisPanel: $('#analysisPanel'),
@@ -67,6 +71,21 @@
     appQrCode: $('#appQrCode'),
     qrPlaceholder: $('#qrPlaceholder'),
     appShareUrl: $('#appShareUrl'),
+    updateBanner: $('#updateBanner'),
+    updateBannerTitle: $('#updateBannerTitle'),
+    updateBannerText: $('#updateBannerText'),
+    installedVersion: $('#installedVersion'),
+    updateTitle: $('#updateTitle'),
+    updateDescription: $('#updateDescription'),
+    updateStatusBadge: $('#updateStatusBadge'),
+    autoUpdateToggle: $('#autoUpdateToggle'),
+    updateProgress: $('#updateProgress'),
+    updateProgressText: $('#updateProgressText'),
+    updateProgressPercent: $('#updateProgressPercent'),
+    updateProgressBar: $('#updateProgressBar'),
+    checkUpdateBtn: $('#checkUpdateBtn'),
+    startUpdateBtn: $('#startUpdateBtn'),
+    cancelUpdateBtn: $('#cancelUpdateBtn'),
     toast: $('#toast')
   };
 
@@ -121,6 +140,29 @@
 
   function selectedQualityLabel() {
     return els.downloadQuality?.selectedOptions?.[0]?.textContent || 'Rápido';
+  }
+
+  function saveDownloadPreferences() {
+    state.downloadPreferences = {
+      format: selectedFormat(),
+      quality: els.downloadQuality?.value || 'fast',
+      category: els.downloadCategory?.value || 'Outros'
+    };
+    storage.set('moura_download_preferences_v4', state.downloadPreferences);
+  }
+
+  function restoreDownloadPreferences() {
+    const preferences = state.downloadPreferences || {};
+    const formatInput = $(`input[name="format"][value="${preferences.format === 'mp4' ? 'mp4' : 'mp3'}"]`);
+    if (formatInput) formatInput.checked = true;
+    $$('.format-option').forEach(label =>
+      label.classList.toggle('selected', Boolean($('input', label)?.checked)));
+    if (['fast', 'best', 'data'].includes(preferences.quality)) {
+      els.downloadQuality.value = preferences.quality;
+    }
+    if (allCategories().includes(preferences.category)) {
+      els.downloadCategory.value = preferences.category;
+    }
   }
 
   function renderCategoryControls() {
@@ -191,6 +233,7 @@
     renderCategoryControls();
     renderCategoryManager();
     els.downloadCategory.value = category;
+    saveDownloadPreferences();
     closeModals();
     toast('Categoria criada.');
   }
@@ -225,7 +268,6 @@
   function startDownload() {
     const url = normalizeUrl(els.mediaUrl.value);
     if (!url) return toast('Cole um link válido iniciado por http:// ou https://.', true);
-    if (!els.rightsConfirmed.checked) return toast('Confirme que possui autorização para baixar o conteúdo.', true);
     if (!isAndroid) {
       $('#como-instalar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return toast('Instale o APK no Android para baixar no próprio celular.', true);
@@ -296,6 +338,142 @@
     }
     try { return parseNativeResult(window.AndroidBridge[method](...args)); }
     catch (error) { return { success: false, message: error?.message || 'Não foi possível concluir a ação.' }; }
+  }
+
+  function setUpdateProgress(visible, progress = 0, message = 'Preparando atualização') {
+    els.updateProgress.classList.toggle('hidden', !visible);
+    const value = Math.max(0, Math.min(100, Number(progress) || 0));
+    els.updateProgressText.textContent = message;
+    els.updateProgressPercent.textContent = `${Math.round(value)}%`;
+    els.updateProgressBar.style.width = `${value}%`;
+  }
+
+  function renderUpdateCheck(data) {
+    state.update = data;
+    els.checkUpdateBtn.disabled = false;
+    if (!data?.success) {
+      els.updateStatusBadge.textContent = 'Sem conexão';
+      els.updateTitle.textContent = 'Não foi possível verificar';
+      els.updateDescription.textContent = data?.message || 'Confira sua internet e tente novamente.';
+      els.startUpdateBtn.classList.add('hidden');
+      return;
+    }
+
+    els.installedVersion.textContent = `${data.currentVersionName || '—'} Super App`;
+    els.autoUpdateToggle.checked = Boolean(data.autoUpdate);
+    if (!data.available) {
+      els.updateBanner.classList.add('hidden');
+      els.updateStatusBadge.textContent = 'Atualizado';
+      els.updateTitle.textContent = 'Você está na versão mais recente';
+      els.updateDescription.textContent = `Versão ${data.currentVersionName}. O Moura continuará verificando novas versões automaticamente.`;
+      els.startUpdateBtn.classList.add('hidden');
+      return;
+    }
+
+    const size = data.size ? ` • ${formatBytes(data.size)}` : '';
+    els.updateBanner.classList.remove('hidden');
+    els.updateBannerTitle.textContent = `Moura ${data.versionName} disponível`;
+    els.updateBannerText.textContent = data.notes || 'Nova versão pronta para atualizar dentro do aplicativo.';
+    els.updateStatusBadge.textContent = 'Nova versão';
+    els.updateTitle.textContent = `Atualização ${data.versionName} disponível`;
+    els.updateDescription.textContent = `${data.notes || 'Melhorias de velocidade, segurança e experiência.'}${size}`;
+    els.startUpdateBtn.textContent = `Atualizar para ${data.versionName}`;
+    els.startUpdateBtn.classList.remove('hidden');
+  }
+
+  function checkForUpdates(manual = false) {
+    if (!isAndroid) {
+      if (manual) toast('A verificação acontece dentro do aplicativo Android.', true);
+      return;
+    }
+    els.checkUpdateBtn.disabled = true;
+    els.updateStatusBadge.textContent = 'Verificando';
+    els.updateTitle.textContent = 'Procurando nova versão';
+    els.updateDescription.textContent = 'Aguarde alguns segundos.';
+    try {
+      window.AndroidBridge.checkForUpdates();
+    } catch {
+      els.checkUpdateBtn.disabled = false;
+      els.updateStatusBadge.textContent = 'Erro';
+      if (manual) toast('Não foi possível verificar atualizações.', true);
+    }
+  }
+
+  function startAppUpdate() {
+    const update = state.update;
+    if (!update?.available || !update.apkUrl) {
+      return checkForUpdates(true);
+    }
+    const result = nativeAction('startAppUpdate', update.apkUrl, update.sha256 || '', update.versionName || '');
+    toast(result.message, !result.success);
+    if (!result.success) return;
+    state.updateDownloading = !result.permissionRequired;
+    els.startUpdateBtn.classList.add('hidden');
+    els.cancelUpdateBtn.classList.toggle('hidden', Boolean(result.permissionRequired));
+    setUpdateProgress(!result.permissionRequired, 1,
+      result.permissionRequired ? 'Aguardando autorização do Android' : 'Iniciando atualização');
+  }
+
+  function cancelAppUpdate() {
+    const result = nativeAction('cancelAppUpdate');
+    toast(result.message, !result.success);
+  }
+
+  window.MouraUpdate = {
+    onCheckResult(data) {
+      renderUpdateCheck(data);
+    },
+    onProgress(event) {
+      if (!event) return;
+      if (['downloading', 'verifying'].includes(event.status)) {
+        state.updateDownloading = true;
+        els.updateStatusBadge.textContent = event.status === 'verifying' ? 'Verificando' : 'Baixando';
+        els.startUpdateBtn.classList.add('hidden');
+        els.cancelUpdateBtn.classList.remove('hidden');
+        setUpdateProgress(true, event.progress,
+          event.status === 'verifying' ? 'Verificando a segurança da atualização' : event.message);
+        return;
+      }
+      state.updateDownloading = false;
+      els.cancelUpdateBtn.classList.add('hidden');
+      if (event.status === 'ready') {
+        els.updateStatusBadge.textContent = 'Pronta';
+        els.updateTitle.textContent = 'Atualização pronta para instalar';
+        els.updateDescription.textContent = 'Confirme a instalação na tela do Android. Seus arquivos e preferências serão mantidos.';
+        setUpdateProgress(true, 100, 'Download concluído');
+        toast('Atualização pronta. Confirme a instalação no Android.');
+        return;
+      }
+      setUpdateProgress(false);
+      if (event.status === 'cancelled') {
+        els.updateStatusBadge.textContent = 'Cancelada';
+        if (state.update?.available) els.startUpdateBtn.classList.remove('hidden');
+        return toast('Atualização cancelada.');
+      }
+      if (event.status === 'error') {
+        els.updateStatusBadge.textContent = 'Falhou';
+        els.updateDescription.textContent = event.message || 'Não foi possível baixar a atualização.';
+        if (state.update?.available) els.startUpdateBtn.classList.remove('hidden');
+        toast(event.message || 'Falha na atualização.', true);
+      }
+    }
+  };
+
+  function setupUpdates() {
+    if (!isAndroid) {
+      els.updateStatusBadge.textContent = 'No APK';
+      els.updateTitle.textContent = 'Atualizações dentro do aplicativo';
+      els.updateDescription.textContent = 'Depois da instalação inicial, o próprio Moura avisa e baixa as próximas versões.';
+      els.autoUpdateToggle.disabled = true;
+      els.checkUpdateBtn.disabled = true;
+      return;
+    }
+    try {
+      const installed = JSON.parse(window.AndroidBridge.getInstalledVersion());
+      els.installedVersion.textContent = `${installed.versionName || '—'} Super App`;
+      els.autoUpdateToggle.checked = installed.autoUpdate !== false;
+    } catch { /* A verificação online atualizará os dados. */ }
+    setTimeout(() => checkForUpdates(false), 900);
   }
 
   function refreshLibrary() {
@@ -431,12 +609,30 @@
   }
 
   function renderHistory() {
-    els.historyList.innerHTML = state.history.length ? state.history.map(item => `
+    els.historyList.innerHTML = state.history.length ? state.history.map((item, index) => `
       <article class="history-row">
         <span class="history-icon">${item.format === 'mp3' ? '♫' : '▶'}</span>
         <div class="history-copy"><strong>${escapeHtml(item.title || item.platform || 'Download')}</strong><small>${escapeHtml(item.category || 'Outros')} • ${new Date(item.date).toLocaleString('pt-BR')} • ${escapeHtml(item.status || '')}</small></div>
         <span class="history-format">${escapeHtml(String(item.format || '').toUpperCase())}</span>
+        ${item.url ? `<button class="round-action" data-repeat-history="${index}" aria-label="Usar este link novamente">↻</button>` : ''}
       </article>`).join('') : '<div class="empty-state"><strong>Nenhuma atividade registrada</strong><span>Os downloads concluídos ou com falha aparecerão aqui.</span></div>';
+  }
+
+  function repeatHistoryDownload(index) {
+    const item = state.history[Number(index)];
+    if (!item?.url) return;
+    els.mediaUrl.value = item.url;
+    const formatInput = $(`input[name="format"][value="${item.format === 'mp4' ? 'mp4' : 'mp3'}"]`);
+    if (formatInput) {
+      formatInput.checked = true;
+      formatInput.dispatchEvent(new Event('change'));
+    }
+    if (['fast', 'best', 'data'].includes(item.quality)) els.downloadQuality.value = item.quality;
+    if (allCategories().includes(item.category)) els.downloadCategory.value = item.category;
+    saveDownloadPreferences();
+    els.mediaUrl.dispatchEvent(new Event('input'));
+    showView('inicio');
+    setTimeout(verifyLink, 120);
   }
 
   async function pasteClipboard() {
@@ -520,11 +716,28 @@
     showView('configuracoes');
     setTimeout(() => $('#shareAppCard')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120);
   });
+  $('#updateBannerBtn').addEventListener('click', () => {
+    showView('configuracoes');
+    setTimeout(() => $('#updateCard')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120);
+  });
+  els.checkUpdateBtn.addEventListener('click', () => checkForUpdates(true));
+  els.startUpdateBtn.addEventListener('click', startAppUpdate);
+  els.cancelUpdateBtn.addEventListener('click', cancelAppUpdate);
+  els.autoUpdateToggle.addEventListener('change', () => {
+    if (!isAndroid) return;
+    const result = nativeAction('setAutoUpdatesEnabled', els.autoUpdateToggle.checked);
+    toast(result.message, !result.success);
+    if (!result.success) els.autoUpdateToggle.checked = !els.autoUpdateToggle.checked;
+  });
   $('#copyAppLinkBtn').addEventListener('click', copyAppLink);
   $('#shareAppBtn').addEventListener('click', shareAppLink);
   $('#refreshLibraryBtn').addEventListener('click', () => { refreshLibrary(); toast('Biblioteca atualizada.'); });
   els.librarySearch.addEventListener('input', renderLibrary);
   els.librarySort.addEventListener('change', renderLibrary);
+  els.historyList.addEventListener('click', event => {
+    const button = event.target.closest('[data-repeat-history]');
+    if (button) repeatHistoryDownload(button.dataset.repeatHistory);
+  });
 
   els.mediaUrl.addEventListener('input', () => {
     const url = normalizeUrl(els.mediaUrl.value);
@@ -536,7 +749,10 @@
     $$('.format-option').forEach(label => label.classList.toggle('selected', label.contains(input) && input.checked));
     const previous = els.downloadCategory.value;
     if (['Músicas', 'Vídeos'].includes(previous)) els.downloadCategory.value = input.value === 'mp3' ? 'Músicas' : 'Vídeos';
+    saveDownloadPreferences();
   }));
+  els.downloadQuality.addEventListener('change', saveDownloadPreferences);
+  els.downloadCategory.addEventListener('change', saveDownloadPreferences);
 
   els.categoryChips.addEventListener('click', event => {
     const button = event.target.closest('[data-category-filter]');
@@ -636,10 +852,12 @@
   els.modeBadge.classList.toggle('online', isAndroid);
   $('#localEngineStatus').textContent = isAndroid ? 'Ativo' : 'Disponível no APK';
   renderCategoryControls();
+  restoreDownloadPreferences();
   renderCategoryManager();
   renderHistory();
   refreshLibrary();
   consumeSharedUrl();
   setupAppSharing();
+  setupUpdates();
   configureInstallExperience();
 })();

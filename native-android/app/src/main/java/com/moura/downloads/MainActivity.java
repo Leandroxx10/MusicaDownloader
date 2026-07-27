@@ -11,9 +11,11 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
 import android.webkit.MimeTypeMap;
@@ -39,6 +41,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.util.ArrayList;
@@ -56,6 +60,9 @@ public class MainActivity extends Activity {
     private static final int STORAGE_PERMISSION_REQUEST = 40;
     private static final int NOTIFICATION_PERMISSION_REQUEST = 41;
     private static final String PREFS = "moura_library";
+    private static final String UPDATE_PREFS = "moura_updates";
+    private static final String UPDATE_MANIFEST_URL =
+            "https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/update.json";
     private static final String APP_DOWNLOAD_URL =
             "https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk";
     private static final String APP_FAST_DOWNLOAD_URL =
@@ -63,6 +70,10 @@ public class MainActivity extends Activity {
 
     private WebView webView;
     private String pendingSharedText;
+    private String pendingUpdateUrl;
+    private String pendingUpdateSha256;
+    private String pendingUpdateVersion;
+    private boolean activityVisible;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     private final BroadcastReceiver downloadReceiver = new BroadcastReceiver() {
@@ -71,6 +82,18 @@ public class MainActivity extends Activity {
             String payload = intent.getStringExtra(DownloadService.EXTRA_PAYLOAD);
             if (payload == null) return;
             callJavascript("window.onNativeDownloadEvent", payload);
+        }
+    };
+
+    private final BroadcastReceiver updateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String payload = intent.getStringExtra(UpdateService.EXTRA_PAYLOAD);
+            if (payload != null) callJavascript("window.MouraUpdate.onProgress", payload);
+            String path = intent.getStringExtra(UpdateService.EXTRA_FILE_PATH);
+            if (path != null && activityVisible && canInstallPackages()) {
+                openUpdateInstaller(path);
+            }
         }
     };
 
@@ -85,7 +108,7 @@ public class MainActivity extends Activity {
         setContentView(webView);
 
         configureWebView();
-        registerDownloadReceiver();
+        registerAppReceivers();
         requestRuntimePermissions();
         readSharedText(getIntent());
         webView.loadUrl(APP_ORIGIN + "index.html");
@@ -99,19 +122,22 @@ public class MainActivity extends Activity {
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        settings.setUserAgentString(settings.getUserAgentString() + " MouraDownloadsAndroid/3.0");
+        settings.setUserAgentString(settings.getUserAgentString() + " MouraDownloadsAndroid/4.0");
 
         webView.addJavascriptInterface(new AndroidBridge(), "AndroidBridge");
         webView.setWebChromeClient(new WebChromeClient());
         webView.setWebViewClient(new LocalAssetClient());
     }
 
-    private void registerDownloadReceiver() {
-        IntentFilter filter = new IntentFilter(DownloadService.ACTION_DOWNLOAD_EVENT);
+    private void registerAppReceivers() {
+        IntentFilter downloadFilter = new IntentFilter(DownloadService.ACTION_DOWNLOAD_EVENT);
+        IntentFilter updateFilter = new IntentFilter(UpdateService.ACTION_UPDATE_EVENT);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(downloadReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            registerReceiver(downloadReceiver, downloadFilter, Context.RECEIVER_NOT_EXPORTED);
+            registerReceiver(updateReceiver, updateFilter, Context.RECEIVER_NOT_EXPORTED);
         } else {
-            registerReceiver(downloadReceiver, filter);
+            registerReceiver(downloadReceiver, downloadFilter);
+            registerReceiver(updateReceiver, updateFilter);
         }
     }
 
@@ -338,9 +364,201 @@ public class MainActivity extends Activity {
         return intent.resolveActivity(getPackageManager()) != null;
     }
 
+    private String fetchUpdateManifest() throws Exception {
+        HttpURLConnection connection =
+                (HttpURLConnection) new URL(UPDATE_MANIFEST_URL).openConnection();
+        connection.setConnectTimeout(12000);
+        connection.setReadTimeout(18000);
+        connection.setInstanceFollowRedirects(true);
+        connection.setRequestProperty("Accept", "application/json");
+        connection.setRequestProperty("User-Agent", "MouraDownloadsAndroid/4.0");
+        connection.connect();
+        int responseCode = connection.getResponseCode();
+        if (responseCode < 200 || responseCode >= 300) {
+            connection.disconnect();
+            throw new IllegalStateException("Servidor de atualização respondeu com código " + responseCode + ".");
+        }
+        try (InputStream input = connection.getInputStream();
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[8192];
+            int count;
+            int total = 0;
+            while ((count = input.read(buffer)) != -1) {
+                total += count;
+                if (total > 256 * 1024) {
+                    throw new IllegalStateException("O arquivo de atualização é maior que o esperado.");
+                }
+                output.write(buffer, 0, count);
+            }
+            return output.toString(StandardCharsets.UTF_8.name());
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    private String preferredApkKey() {
+        for (String abi : Build.SUPPORTED_ABIS) {
+            if ("arm64-v8a".equalsIgnoreCase(abi)) return "arm64";
+            if ("armeabi-v7a".equalsIgnoreCase(abi)) return "armeabi";
+        }
+        return "universal";
+    }
+
+    private JSONObject updateStatus() {
+        JSONObject result = new JSONObject();
+        try {
+            JSONObject manifest = new JSONObject(fetchUpdateManifest());
+            int latestCode = manifest.optInt("versionCode", 0);
+            String latestName = manifest.optString("versionName", "");
+            boolean available = latestCode > BuildConfig.VERSION_CODE;
+            JSONObject apks = manifest.optJSONObject("apks");
+            JSONObject selected = apks == null ? null : apks.optJSONObject(preferredApkKey());
+            if (selected == null && apks != null) selected = apks.optJSONObject("universal");
+
+            result.put("success", true);
+            result.put("available", available);
+            result.put("currentVersionCode", BuildConfig.VERSION_CODE);
+            result.put("currentVersionName", BuildConfig.VERSION_NAME);
+            result.put("versionCode", latestCode);
+            result.put("versionName", latestName);
+            result.put("notes", manifest.optString("notes", ""));
+            result.put("mandatory", manifest.optBoolean("mandatory", false));
+            result.put("publishedAt", manifest.optString("publishedAt", ""));
+            result.put("autoUpdate", autoUpdatesEnabled());
+            result.put("unmetered", isUnmeteredConnection());
+            result.put("canInstall", canInstallPackages());
+            if (selected != null) {
+                result.put("apkUrl", selected.optString("url", ""));
+                result.put("sha256", selected.optString("sha256", ""));
+                result.put("size", selected.optLong("size", 0L));
+                result.put("architecture", selected.optString("architecture", preferredApkKey()));
+            }
+        } catch (Exception error) {
+            try {
+                result.put("success", false);
+                result.put("available", false);
+                result.put("currentVersionCode", BuildConfig.VERSION_CODE);
+                result.put("currentVersionName", BuildConfig.VERSION_NAME);
+                result.put("message", safeMessage(error));
+            } catch (Exception ignored) { }
+        }
+        return result;
+    }
+
+    private boolean autoUpdatesEnabled() {
+        return getSharedPreferences(UPDATE_PREFS, MODE_PRIVATE)
+                .getBoolean("auto_updates", true);
+    }
+
+    private boolean isUnmeteredConnection() {
+        ConnectivityManager manager =
+                (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        return manager != null && !manager.isActiveNetworkMetered();
+    }
+
+    private boolean canInstallPackages() {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.O
+                || getPackageManager().canRequestPackageInstalls();
+    }
+
+    private void maybeStartAutomaticUpdate(JSONObject status) {
+        if (!status.optBoolean("success")
+                || !status.optBoolean("available")
+                || !autoUpdatesEnabled()
+                || !isUnmeteredConnection()
+                || !canInstallPackages()) return;
+        String version = status.optString("versionName", "");
+        String url = status.optString("apkUrl", "");
+        if (url.isEmpty()) return;
+
+        android.content.SharedPreferences preferences =
+                getSharedPreferences(UPDATE_PREFS, MODE_PRIVATE);
+        String attemptedVersion = preferences.getString("last_auto_version", "");
+        long attemptedAt = preferences.getLong("last_auto_attempt", 0L);
+        long sixHours = 6L * 60L * 60L * 1000L;
+        if (version.equals(attemptedVersion)
+                && System.currentTimeMillis() - attemptedAt < sixHours) return;
+        preferences.edit()
+                .putString("last_auto_version", version)
+                .putLong("last_auto_attempt", System.currentTimeMillis())
+                .apply();
+        startUpdateService(url, status.optString("sha256", ""), version);
+    }
+
+    private void checkForUpdatesAsync() {
+        executor.execute(() -> {
+            JSONObject status = updateStatus();
+            callJavascript("window.MouraUpdate.onCheckResult", status.toString());
+            maybeStartAutomaticUpdate(status);
+        });
+    }
+
+    private void startUpdateService(String url, String sha256, String version) {
+        Intent service = new Intent(this, UpdateService.class);
+        service.setAction(UpdateService.ACTION_START);
+        service.putExtra(UpdateService.EXTRA_URL, url);
+        service.putExtra(UpdateService.EXTRA_SHA256, sha256);
+        service.putExtra(UpdateService.EXTRA_VERSION, version);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(service);
+        else startService(service);
+    }
+
+    private void requestInstallPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+        try {
+            Intent settings = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:" + getPackageName()));
+            startActivity(settings);
+        } catch (Exception ignored) {
+            startActivity(new Intent(Settings.ACTION_SECURITY_SETTINGS));
+        }
+    }
+
+    private void openUpdateInstaller(String path) {
+        try {
+            File base = new File(
+                    getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS),
+                    "updates").getCanonicalFile();
+            File apk = new File(path).getCanonicalFile();
+            if (!apk.exists() || !apk.getPath().startsWith(base.getPath() + File.separator)) {
+                throw new SecurityException("Arquivo de atualização inválido.");
+            }
+            Uri uri = FileProvider.getUriForFile(
+                    this, getPackageName() + ".fileprovider", apk);
+            Intent install = new Intent(Intent.ACTION_VIEW);
+            install.setDataAndType(uri, "application/vnd.android.package-archive");
+            install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(install);
+        } catch (Exception error) {
+            Toast.makeText(this, safeMessage(error), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        activityVisible = true;
+        if (pendingUpdateUrl != null && canInstallPackages()) {
+            String url = pendingUpdateUrl;
+            String sha256 = pendingUpdateSha256;
+            String version = pendingUpdateVersion;
+            pendingUpdateUrl = null;
+            pendingUpdateSha256 = null;
+            pendingUpdateVersion = null;
+            startUpdateService(url, sha256, version);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        activityVisible = false;
+        super.onPause();
+    }
+
     @Override
     protected void onDestroy() {
         try { unregisterReceiver(downloadReceiver); } catch (Exception ignored) { }
+        try { unregisterReceiver(updateReceiver); } catch (Exception ignored) { }
         executor.shutdownNow();
         if (webView != null) webView.destroy();
         super.onDestroy();
@@ -365,6 +583,65 @@ public class MainActivity extends Activity {
             if (clip == null || clip.getItemCount() == 0) return "";
             CharSequence text = clip.getItemAt(0).coerceToText(MainActivity.this);
             return text == null ? "" : text.toString();
+        }
+
+        @JavascriptInterface
+        public String getInstalledVersion() {
+            JSONObject info = new JSONObject();
+            try {
+                info.put("versionCode", BuildConfig.VERSION_CODE);
+                info.put("versionName", BuildConfig.VERSION_NAME);
+                info.put("autoUpdate", autoUpdatesEnabled());
+                info.put("canInstall", canInstallPackages());
+            } catch (Exception ignored) { }
+            return info.toString();
+        }
+
+        @JavascriptInterface
+        public void checkForUpdates() {
+            checkForUpdatesAsync();
+        }
+
+        @JavascriptInterface
+        public String setAutoUpdatesEnabled(boolean enabled) {
+            getSharedPreferences(UPDATE_PREFS, MODE_PRIVATE).edit()
+                    .putBoolean("auto_updates", enabled).apply();
+            return actionResult(true, enabled
+                    ? "Atualizações automáticas ativadas no Wi-Fi."
+                    : "Atualizações automáticas desativadas.").toString();
+        }
+
+        @JavascriptInterface
+        public String startAppUpdate(String url, String sha256, String version) {
+            try {
+                if (url == null || !url.startsWith(
+                        "https://github.com/Leandroxx10/MusicaDownloader/releases/download/")) {
+                    return actionResult(false, "Endereço de atualização inválido.").toString();
+                }
+                if (!canInstallPackages()) {
+                    pendingUpdateUrl = url;
+                    pendingUpdateSha256 = sha256;
+                    pendingUpdateVersion = version;
+                    JSONObject result = actionResult(true,
+                            "Ative “Permitir desta fonte”. O download começará ao voltar.");
+                    result.put("permissionRequired", true);
+                    runOnUiThread(MainActivity.this::requestInstallPermission);
+                    return result.toString();
+                }
+                runOnUiThread(() -> startUpdateService(url, sha256, version));
+                return actionResult(true,
+                        "Atualização iniciada. Você pode continuar usando o app.").toString();
+            } catch (Exception error) {
+                return actionResult(false, safeMessage(error)).toString();
+            }
+        }
+
+        @JavascriptInterface
+        public String cancelAppUpdate() {
+            Intent cancel = new Intent(MainActivity.this, UpdateService.class);
+            cancel.setAction(UpdateService.ACTION_CANCEL);
+            runOnUiThread(() -> startService(cancel));
+            return actionResult(true, "Cancelando atualização.").toString();
         }
 
         @JavascriptInterface
@@ -544,7 +821,7 @@ public class MainActivity extends Activity {
             try {
                 info.put("url", APP_DOWNLOAD_URL);
                 info.put("fastUrl", APP_FAST_DOWNLOAD_URL);
-                info.put("version", "3.0.0");
+                info.put("version", BuildConfig.VERSION_NAME);
                 info.put("qrDataUrl", qrCodeDataUrl(APP_DOWNLOAD_URL));
             } catch (Exception error) {
                 try { info.put("error", safeMessage(error)); } catch (Exception ignored) { }
