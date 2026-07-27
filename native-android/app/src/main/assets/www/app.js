@@ -11,7 +11,7 @@
   };
 
   const DEFAULT_CATEGORIES = ['Músicas', 'Vídeos', 'Podcasts', 'Clipes', 'Outros'];
-  const UNIVERSAL_APP_URL = 'https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk';
+  const FAST_APP_URL = 'https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads-arm64.apk';
   const isAndroid = Boolean(window.AndroidBridge?.appMode && window.AndroidBridge.appMode() === 'android-local');
 
   const state = {
@@ -47,6 +47,7 @@
     progressText: $('#progressText'),
     progressPercent: $('#progressPercent'),
     progressBar: $('#progressBar'),
+    cancelDownloadBtn: $('#cancelDownloadBtn'),
     downloadCategory: $('#downloadCategory'),
     downloadQuality: $('#downloadQuality'),
     librarySearch: $('#librarySearch'),
@@ -279,13 +280,26 @@
     state.pendingDownload = { url, format, category, quality, platform: platformFromUrl(url), startedAt: new Date().toISOString() };
     setProgress(true, 1, 'Preparando download', 'O processador local está sendo iniciado.');
     els.downloadBtn.disabled = true;
+    els.cancelDownloadBtn.disabled = false;
+    els.cancelDownloadBtn.textContent = 'Cancelar';
+    els.cancelDownloadBtn.classList.remove('hidden');
     try {
       window.AndroidBridge.startLocalDownload(url, format, category, quality);
     } catch (error) {
       els.downloadBtn.disabled = false;
+      els.cancelDownloadBtn.classList.add('hidden');
       setProgress(false);
       toast(error?.message || 'Não foi possível iniciar o download.', true);
     }
+  }
+
+  function cancelDownload() {
+    const result = nativeAction('cancelLocalDownload');
+    if (!result.success) return toast(result.message, true);
+    els.cancelDownloadBtn.disabled = true;
+    els.cancelDownloadBtn.textContent = 'Cancelando…';
+    setProgress(true, Number(els.progressPercent.textContent.replace('%', '')) || 0,
+      'Cancelando download', 'Removendo os arquivos temporários com segurança.');
   }
 
   function setProgress(visible, progress = 0, title = '', text = '') {
@@ -302,13 +316,18 @@
       refreshLibrary();
       return;
     }
-    if (['initializing', 'running'].includes(event.status)) {
+    if (['initializing', 'running', 'cancelling'].includes(event.status)) {
+      els.cancelDownloadBtn.classList.remove('hidden');
       setProgress(true, event.progress || 1,
-        event.status === 'initializing' ? 'Preparando processador' : 'Baixando no celular',
+        event.status === 'initializing' ? 'Preparando processador'
+          : event.status === 'cancelling' ? 'Cancelando download' : 'Baixando no celular',
         event.eta ? `${event.message} Tempo estimado: ${event.eta}s.` : event.message);
       return;
     }
     els.downloadBtn.disabled = false;
+    els.cancelDownloadBtn.classList.add('hidden');
+    els.cancelDownloadBtn.disabled = false;
+    els.cancelDownloadBtn.textContent = 'Cancelar';
     if (event.status === 'success') {
       setProgress(true, 100, 'Download concluído', event.message || 'Arquivo salvo na biblioteca.');
       if (state.pendingDownload) {
@@ -325,6 +344,11 @@
       if (state.pendingDownload) addHistory({ ...state.pendingDownload, title: state.pendingDownload.platform, status: 'falhou' });
       state.pendingDownload = null;
       toast(event.message || 'Falha no download.', true);
+    }
+    if (event.status === 'cancelled') {
+      setProgress(false);
+      state.pendingDownload = null;
+      toast(event.message || 'Download cancelado.');
     }
   };
 
@@ -669,7 +693,7 @@
   }
 
   function setupAppSharing() {
-    let info = { url: isAndroid ? UNIVERSAL_APP_URL : location.href };
+    let info = { url: isAndroid ? FAST_APP_URL : location.href };
     if (isAndroid) {
       try {
         const nativeInfo = JSON.parse(window.AndroidBridge.getAppShareInfo());
@@ -723,6 +747,7 @@
   $('#pasteBtn').addEventListener('click', pasteClipboard);
   els.analyzeBtn.addEventListener('click', verifyLink);
   els.downloadBtn.addEventListener('click', startDownload);
+  els.cancelDownloadBtn.addEventListener('click', cancelDownload);
   $('#newCategoryBtn').addEventListener('click', () => openFormModal('new-category'));
   $('#addCategorySettingsBtn').addEventListener('click', () => openFormModal('new-category'));
   $('#openQrBtn').addEventListener('click', () => {

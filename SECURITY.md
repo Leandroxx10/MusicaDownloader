@@ -23,7 +23,9 @@
 - O APK baixado é validado por SHA-256 antes da instalação.
 - Todas as versões públicas são assinadas com a mesma chave permanente.
 - A chave de assinatura fica fora do repositório e é fornecida ao build por GitHub Actions Secrets.
+- O hash público do certificado é conferido em cada build para impedir uma atualização assinada por outra chave.
 - O serviço de atualização não é exportado e permite cancelamento.
+- O serviço de download não é exportado, permite cancelamento e remove apenas temporários criados pela tarefa atual.
 - WhatsApp é aberto por pacote oficial instalado; há suporte ao WhatsApp Business.
 - Serviço de download não é exportado para outros aplicativos.
 - Broadcasts de progresso são restritos ao pacote do aplicativo.

@@ -319,6 +319,22 @@
   margin-top: 17px;
 }
 
+.progress-panel .danger-button {
+  flex: none;
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+@media (max-width: 620px) {
+  .progress-panel {
+    flex-wrap: wrap;
+  }
+
+  .progress-panel .danger-button {
+    width: 100%;
+  }
+}
+
 .share-app-card {
   display: grid;
   grid-template-columns: minmax(180px, 230px) minmax(0, 1fr);

@@ -15,6 +15,7 @@ import android.os.IBinder;
 
 import androidx.core.app.NotificationCompat;
 
+import com.yausername.aria2c.Aria2c;
 import com.yausername.ffmpeg.FFmpeg;
 import com.yausername.youtubedl_android.YoutubeDL;
 import com.yausername.youtubedl_android.YoutubeDLRequest;
@@ -26,11 +27,13 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class DownloadService extends Service {
     public static final String ACTION_START = "com.moura.downloads.START_LOCAL_DOWNLOAD";
+    public static final String ACTION_CANCEL = "com.moura.downloads.CANCEL_LOCAL_DOWNLOAD";
     public static final String ACTION_DOWNLOAD_EVENT = "com.moura.downloads.DOWNLOAD_EVENT";
     public static final String EXTRA_URL = "url";
     public static final String EXTRA_FORMAT = "format";
@@ -41,8 +44,10 @@ public class DownloadService extends Service {
     private static final String CHANNEL_ID = "moura_downloads";
     private static final int NOTIFICATION_ID = 2201;
     private static final String PREFS = "moura_library";
+    private static final String DOWNLOAD_PROCESS_ID = "moura-active-download";
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private volatile boolean running;
+    private volatile boolean cancelRequested;
 
     public static File getOutputDirectory(Context context) {
         File downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
@@ -59,7 +64,18 @@ public class DownloadService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent == null || !ACTION_START.equals(intent.getAction())) return START_NOT_STICKY;
+        if (intent == null) return START_NOT_STICKY;
+        if (ACTION_CANCEL.equals(intent.getAction())) {
+            if (running) {
+                cancelRequested = true;
+                YoutubeDL.getInstance().destroyProcessById(DOWNLOAD_PROCESS_ID);
+                updateNotification("Cancelando download", 0, true, true);
+                sendEvent("cancelling", 0, 0,
+                        "Cancelando e removendo arquivos temporários.");
+            }
+            return START_NOT_STICKY;
+        }
+        if (!ACTION_START.equals(intent.getAction())) return START_NOT_STICKY;
         if (running) {
             sendEvent("error", 0, 0, "Já existe um download em andamento.");
             return START_NOT_STICKY;
@@ -74,7 +90,8 @@ public class DownloadService extends Service {
             return START_NOT_STICKY;
         }
         running = true;
-        startAsForeground(buildNotification("Preparando download", 0, true));
+        cancelRequested = false;
+        startAsForeground(buildNotification("Preparando download", 0, true, true));
         executor.execute(() -> runDownload(url, "mp3".equalsIgnoreCase(format) ? "mp3" : "mp4",
                 category == null || category.trim().isEmpty() ? "Outros" : category,
                 "best".equalsIgnoreCase(quality) || "data".equalsIgnoreCase(quality)
@@ -94,7 +111,10 @@ public class DownloadService extends Service {
             sendEvent("initializing", 1, 0, "Preparando o processador local no celular.");
             YoutubeDL.getInstance().init(this);
             FFmpeg.getInstance().init(this);
+            Aria2c.getInstance().init(this);
+            ensureNotCancelled();
             updateEngineWhenNeeded();
+            ensureNotCancelled();
 
             YoutubeDLRequest request = new YoutubeDLRequest(url);
             request.addOption("-o", new File(outputDir, "%(title).120B [%(id)s].%(ext)s").getAbsolutePath());
@@ -106,6 +126,7 @@ public class DownloadService extends Service {
             request.addOption("--socket-timeout", "30");
             request.addOption("--concurrent-fragments", "4");
             request.addOption("--embed-metadata");
+            request.addOption("--downloader", "libaria2c.so");
 
             if ("mp3".equals(format)) {
                 request.addOption("-x");
@@ -126,12 +147,14 @@ public class DownloadService extends Service {
                     : "data".equals(quality) ? "economia de dados" : "modo rápido";
             sendEvent("running", 2, 0,
                     "Download iniciado no próprio celular em " + profileLabel + ".");
-            YoutubeDL.getInstance().execute(request, null, false, (progress, etaInSeconds, line) -> {
+            YoutubeDL.getInstance().execute(
+                    request, DOWNLOAD_PROCESS_ID, false, (progress, etaInSeconds, line) -> {
                 int value = (int) Math.max(0, Math.min(100, Math.round(progress)));
-                updateNotification("Baixando no celular", value, value < 100);
+                updateNotification("Baixando no celular", value, value < 100, true);
                 sendEvent("running", value, etaInSeconds, "Baixando e processando arquivo.");
                 return kotlin.Unit.INSTANCE;
             });
+            ensureNotCancelled();
 
             File[] after = outputDir.listFiles(file -> file.isFile() &&
                     (!before.contains(file.getAbsolutePath()) || file.lastModified() >= startedAt - 2000));
@@ -144,18 +167,71 @@ public class DownloadService extends Service {
                 MediaScannerConnection.scanFile(this, new String[]{file.getAbsolutePath()}, null, null);
             }
             File newest = after[0];
-            updateNotification("Download concluído", 100, false);
+            updateNotification("Download concluído", 100, false, false);
             sendEvent("success", 100, 0, newest.getName());
         } catch (Exception error) {
-            String message = error.getMessage();
-            if (message == null || message.trim().isEmpty()) message = "Falha ao processar o link no celular.";
-            updateNotification("Falha no download", 0, false);
-            sendEvent("error", 0, 0, message.length() > 240 ? message.substring(0, 240) : message);
+            if (cancelRequested || error instanceof YoutubeDL.CanceledException
+                    || error instanceof CancellationException) {
+                deleteNewPartialFiles(outputDir, before, startedAt);
+                updateNotification("Download cancelado", 0, false, false);
+                sendEvent("cancelled", 0, 0,
+                        "Download cancelado. Os arquivos temporários foram removidos.");
+            } else {
+                String message = friendlyError(error);
+                updateNotification("Falha no download", 0, false, false);
+                sendEvent("error", 0, 0,
+                        message.length() > 240 ? message.substring(0, 240) : message);
+            }
         } finally {
+            YoutubeDL.getInstance().destroyProcessById(DOWNLOAD_PROCESS_ID);
             running = false;
+            cancelRequested = false;
             stopForeground(false);
             stopSelf(startId);
         }
+    }
+
+    private void ensureNotCancelled() {
+        if (cancelRequested || Thread.currentThread().isInterrupted()) {
+            throw new CancellationException("Download cancelado.");
+        }
+    }
+
+    private void deleteNewPartialFiles(File outputDir, Set<String> before, long startedAt) {
+        File[] created = outputDir.listFiles(file -> file.isFile()
+                && !before.contains(file.getAbsolutePath())
+                && file.lastModified() >= startedAt - 2000L);
+        if (created == null) return;
+        for (File file : created) {
+            String name = file.getName().toLowerCase(Locale.ROOT);
+            if (name.endsWith(".part") || name.endsWith(".ytdl") || name.endsWith(".temp")
+                    || name.endsWith(".tmp") || name.matches(".*\\.f\\d+\\..*")) {
+                file.delete();
+            }
+        }
+    }
+
+    private String friendlyError(Exception error) {
+        String message = error.getMessage();
+        if (message == null || message.trim().isEmpty()) {
+            return "Falha ao processar o link no celular.";
+        }
+        String lower = message.toLowerCase(Locale.ROOT);
+        if (lower.contains("unsupported url")) {
+            return "Esse link ou site ainda não é compatível com o processador local.";
+        }
+        if (lower.contains("private video") || lower.contains("login required")
+                || lower.contains("sign in")) {
+            return "A mídia exige acesso privado ou login e não pode ser baixada pelo app.";
+        }
+        if (lower.contains("no space left") || lower.contains("enospc")) {
+            return "Não há espaço livre suficiente no celular para concluir o download.";
+        }
+        if (lower.contains("unable to resolve host") || lower.contains("network is unreachable")
+                || lower.contains("timed out")) {
+            return "A conexão caiu ou demorou demais. Verifique a internet e tente novamente.";
+        }
+        return message.trim();
     }
 
     private void updateEngineWhenNeeded() {
@@ -208,22 +284,33 @@ public class DownloadService extends Service {
         }
     }
 
-    private Notification buildNotification(String title, int progress, boolean indeterminate) {
+    private Notification buildNotification(
+            String title, int progress, boolean indeterminate, boolean active) {
         Intent openApp = new Intent(this, MainActivity.class);
         openApp.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent contentIntent = PendingIntent.getActivity(
                 this, 2201, openApp,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        return new NotificationCompat.Builder(this, CHANNEL_ID)
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.stat_sys_download)
                 .setContentTitle("Moura Downloads")
                 .setContentText(title)
                 .setContentIntent(contentIntent)
-                .setAutoCancel(progress >= 100)
+                .setAutoCancel(!active)
                 .setOnlyAlertOnce(true)
-                .setOngoing(indeterminate || progress < 100)
-                .setProgress(100, progress, indeterminate)
-                .build();
+                .setOngoing(active)
+                .setProgress(active || progress >= 100 ? 100 : 0, progress,
+                        active && indeterminate);
+        if (active) {
+            Intent cancel = new Intent(this, DownloadService.class);
+            cancel.setAction(ACTION_CANCEL);
+            PendingIntent cancelIntent = PendingIntent.getService(
+                    this, 2202, cancel,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            builder.addAction(android.R.drawable.ic_menu_close_clear_cancel,
+                    "Cancelar", cancelIntent);
+        }
+        return builder.build();
     }
 
     private void startAsForeground(Notification notification) {
@@ -234,9 +321,11 @@ public class DownloadService extends Service {
         }
     }
 
-    private void updateNotification(String title, int progress, boolean indeterminate) {
+    private void updateNotification(
+            String title, int progress, boolean indeterminate, boolean active) {
         NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        manager.notify(NOTIFICATION_ID, buildNotification(title, progress, indeterminate));
+        manager.notify(NOTIFICATION_ID,
+                buildNotification(title, progress, indeterminate, active));
     }
 
     @Override

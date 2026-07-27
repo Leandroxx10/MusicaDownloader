@@ -24,8 +24,13 @@ Aplicativo Android com processamento local, player interno, biblioteca completa,
 - Perfil **Rápido** como padrão, com vídeo de até 720p.
 - Perfil de **Melhor qualidade** e perfil de **Economia de dados**.
 - Download simultâneo de fragmentos quando a plataforma permitir.
+- Aceleração de transferências com aria2 no próprio celular.
+- Inicialização antecipada do processador para reduzir a espera do primeiro download.
+- Cancelamento real pelo aplicativo e pela notificação, com limpeza dos arquivos temporários.
+- Mensagens simples para falha de internet, falta de espaço, link privado ou site incompatível.
 - Primeiro download inicia sem esperar uma atualização do mecanismo.
 - APK separado para celulares `arm64-v8a`, reduzindo o tamanho do download.
+- APK universal limitado às duas arquiteturas Android suportadas, sem carregar versões de computador.
 - Versões universal e de 32 bits mantidas como alternativas.
 - Notificação de download abre o aplicativo ao ser tocada.
 
@@ -43,7 +48,8 @@ Aplicativo Android com processamento local, player interno, biblioteca completa,
 
   https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads-32bit.apk
 
-O QR Code do aplicativo aponta para a versão universal, garantindo maior compatibilidade.
+O QR Code aponta para a versão rápida `arm64-v8a`, usada pela maioria dos celulares
+Android atuais. A mensagem compartilhada inclui também a versão universal como alternativa.
 
 ## Atualizações futuras
 
@@ -107,9 +113,11 @@ Ao enviar uma alteração para `main`, o GitHub Actions:
 2. gera automaticamente um número de versão superior para cada execução;
 3. restaura a chave permanente guardada nos segredos do repositório;
 4. compila e assina APKs para `arm64-v8a`, `armeabi-v7a` e universal;
-5. gera checksums SHA-256 e o manifesto `update.json`;
-6. guarda os arquivos como artefato da execução;
-7. substitui os arquivos da release `latest`, preservando os links públicos.
+5. confirma que todos usam o certificado permanente esperado;
+6. bloqueia APKs com arquitetura errada, tamanho excessivo ou manifesto inválido;
+7. gera checksums SHA-256 e o manifesto `update.json`;
+8. guarda os arquivos como artefato da execução;
+9. substitui os arquivos da release `latest`, preservando os links públicos.
 
 ## Compatibilidade
 

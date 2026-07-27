@@ -19,6 +19,7 @@
     </queries>
 
     <application
+        android:name=".MouraApplication"
         android:allowBackup="false"
         android:usesCleartextTraffic="false"
         android:extractNativeLibs="true"
