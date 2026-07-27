@@ -74,6 +74,7 @@ public class MainActivity extends Activity {
     private String pendingUpdateSha256;
     private String pendingUpdateVersion;
     private boolean activityVisible;
+    private boolean refreshUpdatesOnResume;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     private final BroadcastReceiver downloadReceiver = new BroadcastReceiver() {
@@ -546,6 +547,9 @@ public class MainActivity extends Activity {
             pendingUpdateSha256 = null;
             pendingUpdateVersion = null;
             startUpdateService(url, sha256, version);
+        } else if (refreshUpdatesOnResume && canInstallPackages()) {
+            refreshUpdatesOnResume = false;
+            checkForUpdatesAsync();
         }
     }
 
@@ -609,6 +613,17 @@ public class MainActivity extends Activity {
             return actionResult(true, enabled
                     ? "Atualizações automáticas ativadas no Wi-Fi."
                     : "Atualizações automáticas desativadas.").toString();
+        }
+
+        @JavascriptInterface
+        public String prepareAppUpdates() {
+            if (canInstallPackages()) {
+                return actionResult(true, "O aparelho já está preparado para atualizações.").toString();
+            }
+            refreshUpdatesOnResume = true;
+            runOnUiThread(MainActivity.this::requestInstallPermission);
+            return actionResult(true,
+                    "Ative “Permitir desta fonte” e volte ao Moura Downloads.").toString();
         }
 
         @JavascriptInterface

@@ -363,10 +363,18 @@
     els.autoUpdateToggle.checked = Boolean(data.autoUpdate);
     if (!data.available) {
       els.updateBanner.classList.add('hidden');
-      els.updateStatusBadge.textContent = 'Atualizado';
-      els.updateTitle.textContent = 'Você está na versão mais recente';
-      els.updateDescription.textContent = `Versão ${data.currentVersionName}. O Moura continuará verificando novas versões automaticamente.`;
-      els.startUpdateBtn.classList.add('hidden');
+      if (data.canInstall === false) {
+        els.updateStatusBadge.textContent = 'Preparar';
+        els.updateTitle.textContent = 'Ative as atualizações no aparelho';
+        els.updateDescription.textContent = 'Faça esta autorização uma única vez para o Moura instalar as próximas versões.';
+        els.startUpdateBtn.textContent = 'Preparar atualizações';
+        els.startUpdateBtn.classList.remove('hidden');
+      } else {
+        els.updateStatusBadge.textContent = 'Atualizado';
+        els.updateTitle.textContent = 'Você está na versão mais recente';
+        els.updateDescription.textContent = `Versão ${data.currentVersionName}. O Moura continuará verificando novas versões automaticamente.`;
+        els.startUpdateBtn.classList.add('hidden');
+      }
       return;
     }
 
@@ -401,6 +409,11 @@
 
   function startAppUpdate() {
     const update = state.update;
+    if (update?.success && !update.available && update.canInstall === false) {
+      const result = nativeAction('prepareAppUpdates');
+      toast(result.message, !result.success);
+      return;
+    }
     if (!update?.available || !update.apkUrl) {
       return checkForUpdates(true);
     }
