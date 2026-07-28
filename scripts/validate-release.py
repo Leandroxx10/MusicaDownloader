@@ -16,6 +16,9 @@ APK_RULES = {
 }
 AAB_NAME = "moura-downloads-play-store.aab"
 AAB_MAX_SIZE = 170 * 1024 * 1024
+INTERFACE_NAME = "moura-interface.zip"
+INTERFACE_MAX_SIZE = 8 * 1024 * 1024
+INTERFACE_MAX_EXTRACTED_SIZE = 16 * 1024 * 1024
 
 
 def fail(message: str) -> None:
@@ -84,8 +87,11 @@ def main() -> None:
 
     manifest_path = RELEASE_DIR / "update.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("schemaVersion") != 1 or int(manifest.get("versionCode", 0)) <= 0:
+    if manifest.get("schemaVersion") != 2 or int(manifest.get("versionCode", 0)) <= 0:
         fail("O manifesto de atualização tem versão ou formato inválido.")
+    native_revision = int(manifest.get("nativeRevision", 0))
+    if native_revision <= 0:
+        fail("A revisão nativa do manifesto é inválida.")
 
     manifest_files = {
         "arm64": "moura-downloads-arm64.apk",
@@ -102,11 +108,60 @@ def main() -> None:
         if not str(info.get("url", "")).endswith("/" + filename):
             fail(f"Link incorreto no update.json para {filename}.")
 
+    interface_path = RELEASE_DIR / INTERFACE_NAME
+    if not interface_path.is_file() or interface_path.stat().st_size == 0:
+        fail(f"Pacote de interface ausente ou vazio: {INTERFACE_NAME}")
+    if interface_path.stat().st_size > INTERFACE_MAX_SIZE:
+        fail(
+            f"{INTERFACE_NAME} ficou grande demais: "
+            f"{interface_path.stat().st_size / 1024 / 1024:.1f} MB."
+        )
+    interface_info = manifest.get("interfaceBundle", {})
+    if interface_info.get("sha256") != sha256(interface_path):
+        fail(f"SHA-256 incorreto no update.json para {INTERFACE_NAME}.")
+    if int(interface_info.get("size", -1)) != interface_path.stat().st_size:
+        fail(f"Tamanho incorreto no update.json para {INTERFACE_NAME}.")
+    if not str(interface_info.get("url", "")).endswith("/" + INTERFACE_NAME):
+        fail(f"Link incorreto no update.json para {INTERFACE_NAME}.")
+    if int(interface_info.get("contentVersion", 0)) != int(
+        manifest.get("versionCode", 0)
+    ):
+        fail("A versão do pacote de interface não corresponde ao manifesto.")
+    if int(interface_info.get("requiredNativeRevision", 0)) != native_revision:
+        fail("A revisão nativa do pacote de interface não corresponde ao manifesto.")
+
+    with zipfile.ZipFile(interface_path) as archive:
+        names = archive.namelist()
+        required = {"index.html", "app.js", "styles.css", "download.css"}
+        if not required.issubset(names):
+            fail(
+                "O pacote de interface está incompleto: "
+                f"{sorted(required - set(names))}."
+            )
+        if len(names) > 160:
+            fail("O pacote de interface contém arquivos demais.")
+        if sum(item.file_size for item in archive.infolist()) > INTERFACE_MAX_EXTRACTED_SIZE:
+            fail("O pacote de interface extraído excede o limite seguro.")
+        invalid = [
+            name
+            for name in names
+            if name.startswith("/")
+            or "\\" in name
+            or ".." in Path(name).parts
+            or name == "assets/logo-source.png"
+        ]
+        if invalid:
+            fail(f"O pacote de interface contém caminhos inválidos: {invalid}.")
+
     print("Release validado:")
     for filename in APK_RULES:
         path = RELEASE_DIR / filename
         print(f"- {filename}: {path.stat().st_size / 1024 / 1024:.1f} MB")
     print(f"- {AAB_NAME}: {aab.stat().st_size / 1024 / 1024:.1f} MB")
+    print(
+        f"- {INTERFACE_NAME}: "
+        f"{interface_path.stat().st_size / 1024 / 1024:.2f} MB"
+    )
 
 
 if __name__ == "__main__":
