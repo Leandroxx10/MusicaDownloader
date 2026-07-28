@@ -24,13 +24,15 @@ Aplicativo Android desenvolvido por **Leandro Moura**, com processamento local, 
 - **Minha Mix**, **Continuar ouvindo** e **Redescobrir** com histórico processado somente no celular.
 - Botão de reprodução rápida em cada item da biblioteca.
 - QR Code gerado localmente para outras pessoas baixarem o aplicativo.
-- Compartilhar ou copiar o link do app sem sair da interface.
+- QR Code isolado na interface, sem exibir ou copiar o endereço do GitHub.
+- Conteúdo reposicionado dentro das áreas seguras do Android, sem sobrepor os botões do sistema.
 - Perfil **Rápido** como padrão, com vídeo de até 720p.
 - Perfil de **Melhor qualidade** e perfil de **Economia de dados**.
 - Download simultâneo de fragmentos quando a plataforma permitir.
 - Inicialização antecipada do processador para reduzir a espera do primeiro download.
 - Atualização do processador de links antes do primeiro uso e a cada três dias.
 - Nova tentativa automática quando uma plataforma muda o formato do link.
+- Rota pública alternativa para desafios anti-robô, sem cookies, conta ou acesso privado.
 - Detecção segura do arquivo final mesmo quando ele já existia na biblioteca.
 - Cancelamento real pelo aplicativo e pela notificação, com limpeza dos arquivos temporários.
 - Mensagens simples para falha de internet, falta de espaço, link privado ou site incompatível.
@@ -38,7 +40,8 @@ Aplicativo Android desenvolvido por **Leandro Moura**, com processamento local, 
 - APK universal limitado às duas arquiteturas Android suportadas, sem carregar versões de computador.
 - Versões por arquitetura mantidas apenas para as atualizações automáticas do app.
 - Notificação de download abre o aplicativo ao ser tocada.
-- Pacote Android App Bundle (`.aab`) pronto para envio ao Google Play.
+- Variante Google Play separada, sem permissão para instalar APKs e pronta para receber atualizações pela loja.
+- Pacote Android App Bundle (`.aab`) e ficha `pt-BR` prontos para o Play Console.
 
 ## Download
 
@@ -58,6 +61,10 @@ Depois que a versão 4.0 assinada estiver instalada:
 3. o arquivo é conferido por SHA-256;
 4. o Android mostra a tela final de instalação;
 5. arquivos, favoritos, categorias e preferências são mantidos.
+
+Na variante oficial da Google Play, a própria loja verifica, baixa e instala as
+atualizações. O atualizador de APK é incluído somente na versão distribuída pelo
+site.
 
 O Android não permite que um APK distribuído fora da Play Store conclua uma instalação silenciosa. A confirmação final do sistema continua necessária. Quem estiver usando uma versão 3.0 de depuração precisa desinstalá-la uma única vez antes de instalar a 4.0 assinada.
 
@@ -95,9 +102,10 @@ O `netlify.toml` na raiz já contém a configuração necessária. Cada novo env
 1. Abra **Ajustes**.
 2. Localize **Compartilhe o Super App**.
 3. Mostre o QR Code para outra pessoa escanear com a câmera.
-4. Também é possível tocar em **Compartilhar link** ou **Copiar link**.
 
-O QR é criado no aparelho com ZXing. Nenhuma imagem, contato ou dado pessoal é enviado para gerar o código.
+O endereço não é exibido nem pode ser copiado pela interface. O QR é criado no
+aparelho com ZXing; nenhuma imagem, contato ou dado pessoal é enviado para gerar
+o código.
 
 ## Estrutura
 
@@ -108,6 +116,8 @@ O QR é criado no aparelho com ZXing. Nenhuma imagem, contato ou dado pessoal é
 - `DownloadService.java`: downloads e perfis de qualidade.
 - `UpdateService.java`: download, verificação e instalação de novas versões.
 - `scripts/generate-update-manifest.py`: gera `update.json` com versão, arquitetura e SHA-256.
+- `scripts/validate-play-manifest.py`: impede que a variante Google Play solicite instalação de APKs.
+- `play-store/`: ficha em português e roteiro seguro para a publicação oficial.
 - `.github/workflows/build-android.yml`: build e publicação dos três APKs.
 - `netlify.toml`: configuração do Netlify.
 - `SECURITY.md`: segurança, privacidade e limitações.
@@ -119,9 +129,9 @@ Ao enviar uma alteração para `main`, o GitHub Actions:
 1. configura Java 17, Android SDK 35 e Gradle 8.9;
 2. gera automaticamente um número de versão superior para cada execução;
 3. restaura a chave permanente guardada nos segredos do repositório;
-4. compila e assina APKs para `arm64-v8a`, `armeabi-v7a`, universal e o pacote AAB da Play Store;
+4. compila os APKs da variante direta e o AAB separado da variante Google Play;
 5. confirma que todos usam o certificado permanente esperado;
-6. bloqueia APKs com arquitetura errada, tamanho excessivo ou manifesto inválido;
+6. bloqueia APKs com arquitetura errada, tamanho excessivo ou manifesto inválido e confirma que o AAB não instala APKs;
 7. gera checksums SHA-256 e o manifesto `update.json`;
 8. guarda os arquivos como artefato da execução;
 9. substitui os arquivos da release `latest`, preservando os links públicos.

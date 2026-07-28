@@ -9,6 +9,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.media.MediaScannerConnection;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.os.IBinder;
@@ -131,18 +132,24 @@ public class DownloadService extends Service {
                     "Conectando à mídia em " + profileLabel + ".");
             YoutubeDLResponse response;
             try {
-                response = executeRequest(buildRequest(url, format, quality, outputDir));
+                response = executeRequest(buildRequest(
+                        url, format, quality, outputDir, null));
             } catch (Exception firstError) {
                 ensureNotCancelled();
                 deleteNewPartialFiles(outputDir, before, startedAt);
                 YoutubeDL.getInstance().destroyProcessById(DOWNLOAD_PROCESS_ID);
                 sendEvent("retrying", 2, 0,
-                        "O app detectou uma incompatibilidade e fará uma nova tentativa.");
+                        isYouTubeUrl(url)
+                                ? "Tentando uma rota pública alternativa, sem login."
+                                : "O app detectou uma incompatibilidade e fará uma nova tentativa.");
                 updateNotification("Corrigindo compatibilidade", 0, true, true);
                 if (!engineUpdated) updateEngineWhenNeeded(true);
                 ensureNotCancelled();
                 displayedProgress = 5;
-                response = executeRequest(buildRequest(url, format, quality, outputDir));
+                response = executeRequest(buildRequest(
+                        url, format, quality, outputDir,
+                        isYouTubeUrl(url)
+                                ? "android_vr,tv_simply,web_embedded" : null));
             }
             ensureNotCancelled();
             displayedProgress = Math.max(displayedProgress, 98);
@@ -189,7 +196,8 @@ public class DownloadService extends Service {
     }
 
     private YoutubeDLRequest buildRequest(
-            String url, String format, String quality, File outputDir) {
+            String url, String format, String quality, File outputDir,
+            String youtubeClients) {
         YoutubeDLRequest request = new YoutubeDLRequest(url);
         request.addOption("-o",
                 new File(outputDir, "%(title).120B [%(id)s].%(ext)s").getAbsolutePath());
@@ -205,6 +213,10 @@ public class DownloadService extends Service {
         request.addOption("--concurrent-fragments", "4");
         request.addOption("--embed-metadata");
         request.addOption("--print", "after_move:filepath");
+        if (youtubeClients != null && !youtubeClients.trim().isEmpty()) {
+            request.addOption("--extractor-args",
+                    "youtube:player_client=" + youtubeClients);
+        }
 
         if ("mp3".equals(format)) {
             request.addOption("-x");
@@ -221,6 +233,21 @@ public class DownloadService extends Service {
             request.addOption("--merge-output-format", "mp4");
         }
         return request;
+    }
+
+    private boolean isYouTubeUrl(String value) {
+        try {
+            String host = Uri.parse(value).getHost();
+            if (host == null) return false;
+            String normalized = host.toLowerCase(Locale.ROOT);
+            return normalized.equals("youtu.be")
+                    || normalized.equals("youtube.com")
+                    || normalized.endsWith(".youtube.com")
+                    || normalized.equals("youtube-nocookie.com")
+                    || normalized.endsWith(".youtube-nocookie.com");
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private YoutubeDLResponse executeRequest(YoutubeDLRequest request) throws Exception {
@@ -347,9 +374,17 @@ public class DownloadService extends Service {
         if (lower.contains("unsupported url")) {
             return "Esse link ou site ainda não é compatível com o processador local.";
         }
-        if (lower.contains("private video") || lower.contains("login required")
-                || lower.contains("sign in")) {
-            return "A mídia exige acesso privado ou login e não pode ser baixada pelo app.";
+        if (lower.contains("sign in to confirm") || lower.contains("not a bot")
+                || lower.contains("login_required") || lower.contains("login required")) {
+            return "A plataforma exigiu uma verificação anti-robô. Se o link for público, "
+                    + "abra-o no navegador, confirme que ele reproduz sem login e tente novamente "
+                    + "após alguns minutos ou em outra rede.";
+        }
+        if (lower.contains("private video") || lower.contains("members-only")
+                || lower.contains("members only") || lower.contains("join this channel")
+                || lower.contains("age-restricted")) {
+            return "Essa mídia realmente exige acesso privado, assinatura ou verificação "
+                    + "de idade e não pode ser baixada pelo app.";
         }
         if (lower.contains("no space left") || lower.contains("enospc")) {
             return "Não há espaço livre suficiente no celular para concluir o download.";

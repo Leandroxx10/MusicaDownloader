@@ -18,6 +18,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
@@ -97,6 +101,7 @@ public class PlayerActivity extends Activity {
         getWindow().setStatusBarColor(Color.rgb(5, 11, 8));
         getWindow().setNavigationBarColor(Color.rgb(5, 11, 8));
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
         Intent intent = getIntent();
         String uriValue = intent.getStringExtra(EXTRA_MEDIA_URI);
@@ -124,7 +129,16 @@ public class PlayerActivity extends Activity {
                     .getLong(positionKey(mediaId), 0L);
         }
 
-        setContentView(buildLayout());
+        LinearLayout layout = buildLayout();
+        ViewCompat.setOnApplyWindowInsetsListener(layout, (view, windowInsets) -> {
+            Insets bars = windowInsets.getInsets(
+                    WindowInsetsCompat.Type.systemBars()
+                            | WindowInsetsCompat.Type.displayCutout());
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            return windowInsets;
+        });
+        setContentView(layout);
+        ViewCompat.requestApplyInsets(layout);
     }
 
     private LinearLayout buildLayout() {

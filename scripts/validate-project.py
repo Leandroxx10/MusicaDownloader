@@ -53,6 +53,7 @@ def validate_structured_files() -> None:
 
     xml_files = [
         ROOT / "native-android" / "app" / "src" / "main" / "AndroidManifest.xml",
+        ROOT / "native-android" / "app" / "src" / "play" / "AndroidManifest.xml",
         *(
             ROOT / "native-android" / "app" / "src" / "main" / "res"
         ).rglob("*.xml"),
@@ -97,6 +98,13 @@ def validate_required_features() -> None:
         / "moura"
         / "downloads"
         / "PlaybackService.java",
+        ROOT
+        / "native-android"
+        / "app"
+        / "src"
+        / "play"
+        / "AndroidManifest.xml",
+        ROOT / "scripts" / "validate-play-manifest.py",
     ]
     missing = [str(path.relative_to(ROOT)) for path in required if not path.is_file()]
     if missing:
@@ -109,20 +117,51 @@ def validate_required_features() -> None:
     download_service = required[4].read_text(encoding="utf-8")
     update_service = required[5].read_text(encoding="utf-8")
     playback_service = required[6].read_text(encoding="utf-8")
+    play_manifest = required[7].read_text(encoding="utf-8")
+    main_activity = (
+        ROOT
+        / "native-android"
+        / "app"
+        / "src"
+        / "main"
+        / "java"
+        / "com"
+        / "moura"
+        / "downloads"
+        / "MainActivity.java"
+    ).read_text(encoding="utf-8")
+    player_activity = (
+        ROOT
+        / "native-android"
+        / "app"
+        / "src"
+        / "main"
+        / "java"
+        / "com"
+        / "moura"
+        / "downloads"
+        / "PlayerActivity.java"
+    ).read_text(encoding="utf-8")
     manifest = (
         ROOT / "native-android" / "app" / "src" / "main" / "AndroidManifest.xml"
     ).read_text(encoding="utf-8")
 
     checks = {
-        "build Android release": "assembleRelease" in workflow,
+        "build Android release": "assembleSideloadRelease" in workflow,
         "assinatura por segredo": "ANDROID_KEYSTORE_BASE64" in workflow,
         "validação do release": "validate-release.py" in workflow,
-        "pacote para Google Play": "bundleRelease" in workflow,
+        "pacote para Google Play": "bundlePlayRelease" in workflow,
+        "variante oficial sem instalador de APK": "PLAY_STORE_BUILD" in gradle
+        and 'tools:node="remove"' in play_manifest
+        and "validate-play-manifest.py" in workflow,
         "APK arm64": "'arm64-v8a'" in gradle,
         "APK 32 bits": "'armeabi-v7a'" in gradle,
         "atualização do processador no primeiro uso": "updateEngineWhenNeeded(false)"
         in download_service,
         "nova tentativa automática": 'sendEvent("retrying"' in download_service,
+        "rota pública alternativa": "android_vr,tv_simply,web_embedded"
+        in download_service
+        and "verificação anti-robô" in download_service,
         "progresso por etapas": "normalizedDownloadProgress" in download_service
         and 'sendEvent("finalizing"' in download_service,
         "cancelamento de mídia": "cancelLocalDownload" in app_js
@@ -136,8 +175,15 @@ def validate_required_features() -> None:
         and 'id="smartLibrary"' in index,
         "timer do player": "ACTION_SET_SLEEP_TIMER" in playback_service,
         "atualização com SHA-256": "sha256(temp)" in update_service,
-        "download completo no site": "moura-downloads.apk" in app_js
+        "download completo no site": "moura-downloads.apk" in index
         and "moura-downloads-arm64.apk" not in index,
+        "somente QR Code no app": 'id="appQrCode"' in index
+        and 'id="appShareUrl"' not in index
+        and 'id="shareAppBtn"' not in index
+        and 'id="copyAppLinkBtn"' not in index,
+        "área segura dos botões Android": "WindowInsetsCompat.Type.systemBars()"
+        in main_activity
+        and "WindowInsetsCompat.Type.systemBars()" in player_activity,
         "Netlify limitado ao instalador": "netlify-mode" in app_js
         and "body.netlify-mode .download-card" in (
             WEB_DIR / "download.css"

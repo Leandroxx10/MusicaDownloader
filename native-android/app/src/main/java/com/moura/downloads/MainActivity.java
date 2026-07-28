@@ -25,9 +25,14 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import androidx.core.content.FileProvider;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
@@ -66,6 +71,8 @@ public class MainActivity extends Activity {
             "https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/update.json";
     private static final String APP_DOWNLOAD_URL =
             "https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk";
+    private static final String PLAY_STORE_URL =
+            "https://play.google.com/store/apps/details?id=com.moura.downloads";
 
     private WebView webView;
     private String pendingSharedText;
@@ -102,10 +109,24 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         getWindow().setStatusBarColor(Color.rgb(5, 11, 8));
         getWindow().setNavigationBarColor(Color.rgb(5, 11, 8));
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
         webView = new WebView(this);
         webView.setBackgroundColor(Color.rgb(5, 11, 8));
-        setContentView(webView);
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(Color.rgb(5, 11, 8));
+        root.addView(webView, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, windowInsets) -> {
+            Insets bars = windowInsets.getInsets(
+                    WindowInsetsCompat.Type.systemBars()
+                            | WindowInsetsCompat.Type.displayCutout());
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            return windowInsets;
+        });
+        setContentView(root);
+        ViewCompat.requestApplyInsets(root);
 
         configureWebView();
         registerAppReceivers();
@@ -525,12 +546,14 @@ public class MainActivity extends Activity {
     }
 
     private boolean canInstallPackages() {
-        return Build.VERSION.SDK_INT < Build.VERSION_CODES.O
-                || getPackageManager().canRequestPackageInstalls();
+        return !BuildConfig.PLAY_STORE_BUILD
+                && (Build.VERSION.SDK_INT < Build.VERSION_CODES.O
+                || getPackageManager().canRequestPackageInstalls());
     }
 
     private void maybeStartAutomaticUpdate(JSONObject status) {
-        if (!status.optBoolean("success")
+        if (BuildConfig.PLAY_STORE_BUILD
+                || !status.optBoolean("success")
                 || !status.optBoolean("available")
                 || !autoUpdatesEnabled()
                 || !isUnmeteredConnection()
@@ -554,6 +577,19 @@ public class MainActivity extends Activity {
     }
 
     private void checkForUpdatesAsync() {
+        if (BuildConfig.PLAY_STORE_BUILD) {
+            JSONObject status = new JSONObject();
+            try {
+                status.put("success", true);
+                status.put("available", false);
+                status.put("currentVersionCode", BuildConfig.VERSION_CODE);
+                status.put("currentVersionName", BuildConfig.VERSION_NAME);
+                status.put("distribution", "play");
+                status.put("message", "Atualizações gerenciadas pela Google Play.");
+            } catch (Exception ignored) { }
+            callJavascript("window.MouraUpdate.onCheckResult", status.toString());
+            return;
+        }
         executor.execute(() -> {
             JSONObject status = updateStatus();
             callJavascript("window.MouraUpdate.onCheckResult", status.toString());
@@ -668,6 +704,8 @@ public class MainActivity extends Activity {
                 info.put("versionName", BuildConfig.VERSION_NAME);
                 info.put("autoUpdate", autoUpdatesEnabled());
                 info.put("canInstall", canInstallPackages());
+                info.put("distribution",
+                        BuildConfig.PLAY_STORE_BUILD ? "play" : "sideload");
             } catch (Exception ignored) { }
             return info.toString();
         }
@@ -679,6 +717,10 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String setAutoUpdatesEnabled(boolean enabled) {
+            if (BuildConfig.PLAY_STORE_BUILD) {
+                return actionResult(true,
+                        "As atualizações são gerenciadas pela Google Play.").toString();
+            }
             getSharedPreferences(UPDATE_PREFS, MODE_PRIVATE).edit()
                     .putBoolean("auto_updates", enabled).apply();
             return actionResult(true, enabled
@@ -688,6 +730,10 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String prepareAppUpdates() {
+            if (BuildConfig.PLAY_STORE_BUILD) {
+                return actionResult(false,
+                        "Esta versão recebe atualizações pela Google Play.").toString();
+            }
             if (canInstallPackages()) {
                 return actionResult(true, "O aparelho já está preparado para atualizações.").toString();
             }
@@ -700,6 +746,10 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public String startAppUpdate(String url, String sha256, String version) {
             try {
+                if (BuildConfig.PLAY_STORE_BUILD) {
+                    return actionResult(false,
+                            "Esta versão recebe atualizações pela Google Play.").toString();
+                }
                 if (url == null || !url.startsWith(
                         "https://github.com/Leandroxx10/MusicaDownloader/releases/download/")) {
                     return actionResult(false, "Endereço de atualização inválido.").toString();
@@ -958,48 +1008,14 @@ public class MainActivity extends Activity {
         public String getAppShareInfo() {
             JSONObject info = new JSONObject();
             try {
-                info.put("url", APP_DOWNLOAD_URL);
                 info.put("version", BuildConfig.VERSION_NAME);
                 info.put("developer", "Leandro Moura");
-                info.put("qrDataUrl", qrCodeDataUrl(APP_DOWNLOAD_URL));
+                info.put("qrDataUrl", qrCodeDataUrl(
+                        BuildConfig.PLAY_STORE_BUILD ? PLAY_STORE_URL : APP_DOWNLOAD_URL));
             } catch (Exception error) {
                 try { info.put("error", safeMessage(error)); } catch (Exception ignored) { }
             }
             return info.toString();
-        }
-
-        @JavascriptInterface
-        public String copyAppLink() {
-            try {
-                ClipboardManager clipboard =
-                        (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-                if (clipboard == null) {
-                    return actionResult(false, "Área de transferência indisponível.").toString();
-                }
-                clipboard.setPrimaryClip(
-                        ClipData.newPlainText("Baixar Moura Downloads", APP_DOWNLOAD_URL));
-                return actionResult(true, "Link do aplicativo copiado.").toString();
-            } catch (Exception error) {
-                return actionResult(false, safeMessage(error)).toString();
-            }
-        }
-
-        @JavascriptInterface
-        public String shareAppLink() {
-            try {
-                Intent share = new Intent(Intent.ACTION_SEND);
-                share.setType("text/plain");
-                share.putExtra(Intent.EXTRA_SUBJECT, "Moura Downloads");
-                share.putExtra(Intent.EXTRA_TEXT,
-                        "Baixe o Moura Downloads completo para Android:\n"
-                                + APP_DOWNLOAD_URL
-                                + "\n\nDesenvolvido por Leandro Moura.");
-                runOnUiThread(() ->
-                        startActivity(Intent.createChooser(share, "Compartilhar aplicativo")));
-                return actionResult(true, "Menu de compartilhamento aberto.").toString();
-            } catch (Exception error) {
-                return actionResult(false, safeMessage(error)).toString();
-            }
         }
     }
 

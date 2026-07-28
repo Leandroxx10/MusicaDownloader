@@ -11,7 +11,6 @@
   };
 
   const DEFAULT_CATEGORIES = ['Músicas', 'Vídeos', 'Podcasts', 'Clipes', 'Outros'];
-  const COMPLETE_APP_URL = 'https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk';
   const isAndroid = Boolean(window.AndroidBridge?.appMode && window.AndroidBridge.appMode() === 'android-local');
 
   const state = {
@@ -78,7 +77,6 @@
     confirmText: $('#confirmText'),
     appQrCode: $('#appQrCode'),
     qrPlaceholder: $('#qrPlaceholder'),
-    appShareUrl: $('#appShareUrl'),
     updateBanner: $('#updateBanner'),
     updateBannerTitle: $('#updateBannerTitle'),
     updateBannerText: $('#updateBannerText'),
@@ -521,7 +519,13 @@
     }
     try {
       const installed = JSON.parse(window.AndroidBridge.getInstalledVersion());
-      els.installedVersion.textContent = `${installed.versionName || '—'} Super App`;
+      const isPlayBuild = installed.distribution === 'play';
+      els.installedVersion.textContent = `${installed.versionName || '—'} ${isPlayBuild ? 'Google Play' : 'Super App'}`;
+      if (isPlayBuild) {
+        $('#updateCard')?.classList.add('hidden');
+        els.updateBanner.classList.add('hidden');
+        return;
+      }
       els.autoUpdateToggle.checked = installed.autoUpdate !== false;
     } catch { /* A verificação online atualizará os dados. */ }
     setTimeout(() => checkForUpdates(false), 900);
@@ -754,46 +758,17 @@
   }
 
   function setupAppSharing() {
-    let info = { url: isAndroid ? COMPLETE_APP_URL : location.href };
-    if (isAndroid) {
-      try {
-        const nativeInfo = JSON.parse(window.AndroidBridge.getAppShareInfo());
-        if (!nativeInfo.error) info = nativeInfo;
-      } catch { /* Mantém o link universal sem QR quando a geração falhar. */ }
-    }
-    els.appShareUrl.textContent = info.url;
+    if (!isAndroid) return;
+    let info = {};
+    try {
+      const nativeInfo = JSON.parse(window.AndroidBridge.getAppShareInfo());
+      if (!nativeInfo.error) info = nativeInfo;
+    } catch { /* Mantém somente o aviso quando a geração falhar. */ }
     if (info.qrDataUrl) {
       els.appQrCode.src = info.qrDataUrl;
       els.appQrCode.classList.remove('hidden');
       els.qrPlaceholder.classList.add('hidden');
     }
-  }
-
-  async function copyAppLink() {
-    if (isAndroid) {
-      const result = nativeAction('copyAppLink');
-      return toast(result.message, !result.success);
-    }
-    try {
-      await navigator.clipboard.writeText(location.href);
-      toast('Link do site copiado.');
-    } catch {
-      toast('Não foi possível copiar o link.', true);
-    }
-  }
-
-  async function shareAppLink() {
-    if (isAndroid) {
-      const result = nativeAction('shareAppLink');
-      return toast(result.message, !result.success);
-    }
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: 'Moura Downloads', text: 'Baixe o Moura Downloads para Android', url: location.href });
-        return;
-      } catch { return; }
-    }
-    copyAppLink();
   }
 
   $$('.nav-item[data-view]').forEach(item => item.addEventListener('click', () => showView(item.dataset.view)));
@@ -828,8 +803,6 @@
     toast(result.message, !result.success);
     if (!result.success) els.autoUpdateToggle.checked = !els.autoUpdateToggle.checked;
   });
-  $('#copyAppLinkBtn').addEventListener('click', copyAppLink);
-  $('#shareAppBtn').addEventListener('click', shareAppLink);
   $('#refreshLibraryBtn').addEventListener('click', () => { refreshLibrary(); toast('Biblioteca atualizada.'); });
   els.continueListeningBtn.addEventListener('click', () => {
     if (!state.continueMediaId) return;

@@ -65,15 +65,18 @@ jobs:
 
       - name: Gerar APKs e pacote da Play Store assinados
         working-directory: native-android
-        run: gradle assembleRelease bundleRelease --stacktrace
+        run: gradle assembleSideloadRelease bundlePlayRelease --stacktrace
+
+      - name: Confirmar manifesto oficial da Google Play
+        run: python3 scripts/validate-play-manifest.py
 
       - name: Preparar APKs, Play Store e atualização automática
         run: |
           mkdir -p release
-          cp native-android/app/build/outputs/apk/release/app-universal-release.apk release/moura-downloads.apk
-          cp native-android/app/build/outputs/apk/release/app-arm64-v8a-release.apk release/moura-downloads-arm64.apk
-          cp native-android/app/build/outputs/apk/release/app-armeabi-v7a-release.apk release/moura-downloads-32bit.apk
-          cp native-android/app/build/outputs/bundle/release/app-release.aab release/moura-downloads-play-store.aab
+          cp native-android/app/build/outputs/apk/sideload/release/app-sideload-universal-release.apk release/moura-downloads.apk
+          cp native-android/app/build/outputs/apk/sideload/release/app-sideload-arm64-v8a-release.apk release/moura-downloads-arm64.apk
+          cp native-android/app/build/outputs/apk/sideload/release/app-sideload-armeabi-v7a-release.apk release/moura-downloads-32bit.apk
+          cp native-android/app/build/outputs/bundle/playRelease/app-play-release.aab release/moura-downloads-play-store.aab
           test -s release/moura-downloads.apk
           test -s release/moura-downloads-arm64.apk
           test -s release/moura-downloads-32bit.apk

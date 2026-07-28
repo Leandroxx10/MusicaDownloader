@@ -26,6 +26,18 @@ android {
         }
     }
 
+    flavorDimensions 'distribution'
+    productFlavors {
+        sideload {
+            dimension 'distribution'
+            buildConfigField 'boolean', 'PLAY_STORE_BUILD', 'false'
+        }
+        play {
+            dimension 'distribution'
+            buildConfigField 'boolean', 'PLAY_STORE_BUILD', 'true'
+        }
+    }
+
     splits {
         abi {
             enable true
