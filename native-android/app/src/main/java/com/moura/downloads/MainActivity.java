@@ -25,6 +25,7 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
@@ -44,6 +45,7 @@ import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -75,6 +77,9 @@ public class MainActivity extends Activity {
             "https://play.google.com/store/apps/details?id=com.moura.downloads";
 
     private WebView webView;
+    private FrameLayout root;
+    private View fullscreenView;
+    private WebChromeClient.CustomViewCallback fullscreenCallback;
     private String pendingSharedText;
     private String pendingUpdateUrl;
     private String pendingUpdateSha256;
@@ -82,6 +87,7 @@ public class MainActivity extends Activity {
     private boolean activityVisible;
     private boolean refreshUpdatesOnResume;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private UiUpdateManager uiUpdateManager;
 
     private final BroadcastReceiver downloadReceiver = new BroadcastReceiver() {
         @Override
@@ -113,7 +119,7 @@ public class MainActivity extends Activity {
 
         webView = new WebView(this);
         webView.setBackgroundColor(Color.rgb(5, 11, 8));
-        FrameLayout root = new FrameLayout(this);
+        root = new FrameLayout(this);
         root.setBackgroundColor(Color.rgb(5, 11, 8));
         root.addView(webView, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -129,6 +135,8 @@ public class MainActivity extends Activity {
         ViewCompat.requestApplyInsets(root);
 
         configureWebView();
+        uiUpdateManager = new UiUpdateManager(this);
+        discardInterfaceFromAnotherNativeRevision();
         registerAppReceivers();
         requestRuntimePermissions();
         readSharedText(getIntent());
@@ -143,10 +151,11 @@ public class MainActivity extends Activity {
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setUserAgentString(settings.getUserAgentString() + " MouraDownloadsAndroid/4.0");
 
         webView.addJavascriptInterface(new AndroidBridge(), "AndroidBridge");
-        webView.setWebChromeClient(new WebChromeClient());
+        webView.setWebChromeClient(new AppWebChromeClient());
         webView.setWebViewClient(new LocalAssetClient());
     }
 
@@ -499,28 +508,50 @@ public class MainActivity extends Activity {
             JSONObject manifest = new JSONObject(fetchUpdateManifest());
             int latestCode = manifest.optInt("versionCode", 0);
             String latestName = manifest.optString("versionName", "");
-            boolean available = latestCode > BuildConfig.VERSION_CODE;
+            int latestNativeRevision = manifest.optInt("nativeRevision", latestCode);
+            int installedContentVersion = installedContentVersion();
+            boolean nativeAvailable = latestNativeRevision > BuildConfig.NATIVE_REVISION;
+            JSONObject interfaceBundle = manifest.optJSONObject("interfaceBundle");
+            int latestContentVersion = interfaceBundle == null
+                    ? 0 : interfaceBundle.optInt("contentVersion", 0);
+            int requiredNativeRevision = interfaceBundle == null
+                    ? Integer.MAX_VALUE
+                    : interfaceBundle.optInt("requiredNativeRevision", Integer.MAX_VALUE);
+            boolean interfaceAvailable = !nativeAvailable
+                    && requiredNativeRevision <= BuildConfig.NATIVE_REVISION
+                    && latestContentVersion > installedContentVersion;
+            boolean available = nativeAvailable || interfaceAvailable;
             JSONObject apks = manifest.optJSONObject("apks");
             JSONObject selected = apks == null ? null : apks.optJSONObject(preferredApkKey());
             if (selected == null && apks != null) selected = apks.optJSONObject("universal");
 
             result.put("success", true);
             result.put("available", available);
+            result.put("updateType", nativeAvailable
+                    ? "full" : interfaceAvailable ? "interface" : "none");
             result.put("currentVersionCode", BuildConfig.VERSION_CODE);
             result.put("currentVersionName", BuildConfig.VERSION_NAME);
+            result.put("currentNativeRevision", BuildConfig.NATIVE_REVISION);
+            result.put("currentContentVersion", installedContentVersion);
             result.put("versionCode", latestCode);
             result.put("versionName", latestName);
+            result.put("nativeRevision", latestNativeRevision);
+            result.put("contentVersion", latestContentVersion);
             result.put("notes", manifest.optString("notes", ""));
             result.put("mandatory", manifest.optBoolean("mandatory", false));
             result.put("publishedAt", manifest.optString("publishedAt", ""));
             result.put("autoUpdate", autoUpdatesEnabled());
             result.put("unmetered", isUnmeteredConnection());
             result.put("canInstall", canInstallPackages());
-            if (selected != null) {
+            if (nativeAvailable && selected != null) {
                 result.put("apkUrl", selected.optString("url", ""));
                 result.put("sha256", selected.optString("sha256", ""));
                 result.put("size", selected.optLong("size", 0L));
                 result.put("architecture", selected.optString("architecture", preferredApkKey()));
+            } else if (interfaceAvailable && interfaceBundle != null) {
+                result.put("bundleUrl", interfaceBundle.optString("url", ""));
+                result.put("sha256", interfaceBundle.optString("sha256", ""));
+                result.put("size", interfaceBundle.optLong("size", 0L));
             }
         } catch (Exception error) {
             try {
@@ -532,6 +563,35 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) { }
         }
         return result;
+    }
+
+    private int installedContentVersion() {
+        return getSharedPreferences(UPDATE_PREFS, MODE_PRIVATE)
+                .getInt("content_version", BuildConfig.PACKAGED_CONTENT_VERSION);
+    }
+
+    private void discardInterfaceFromAnotherNativeRevision() {
+        android.content.SharedPreferences preferences =
+                getSharedPreferences(UPDATE_PREFS, MODE_PRIVATE);
+        int contentNativeRevision = preferences.getInt(
+                "content_native_revision", BuildConfig.NATIVE_REVISION);
+        if (contentNativeRevision == BuildConfig.NATIVE_REVISION) return;
+        deleteRecursively(UiUpdateManager.currentDirectory(this));
+        preferences.edit()
+                .remove("content_version")
+                .remove("content_native_revision")
+                .apply();
+    }
+
+    private void deleteRecursively(File target) {
+        if (target == null || !target.exists()) return;
+        if (target.isDirectory()) {
+            File[] children = target.listFiles();
+            if (children != null) {
+                for (File child : children) deleteRecursively(child);
+            }
+        }
+        target.delete();
     }
 
     private boolean autoUpdatesEnabled() {
@@ -556,10 +616,13 @@ public class MainActivity extends Activity {
                 || !status.optBoolean("success")
                 || !status.optBoolean("available")
                 || !autoUpdatesEnabled()
-                || !isUnmeteredConnection()
-                || !canInstallPackages()) return;
+                || !isUnmeteredConnection()) return;
+        String updateType = status.optString("updateType", "full");
+        if ("full".equals(updateType) && !canInstallPackages()) return;
         String version = status.optString("versionName", "");
-        String url = status.optString("apkUrl", "");
+        String url = "interface".equals(updateType)
+                ? status.optString("bundleUrl", "")
+                : status.optString("apkUrl", "");
         if (url.isEmpty()) return;
 
         android.content.SharedPreferences preferences =
@@ -573,7 +636,12 @@ public class MainActivity extends Activity {
                 .putString("last_auto_version", version)
                 .putLong("last_auto_attempt", System.currentTimeMillis())
                 .apply();
-        startUpdateService(url, status.optString("sha256", ""), version);
+        if ("interface".equals(updateType)) {
+            startUiUpdate(url, status.optString("sha256", ""),
+                    status.optInt("contentVersion", 0));
+        } else {
+            startUpdateService(url, status.optString("sha256", ""), version);
+        }
     }
 
     private void checkForUpdatesAsync() {
@@ -605,6 +673,35 @@ public class MainActivity extends Activity {
         service.putExtra(UpdateService.EXTRA_VERSION, version);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(service);
         else startService(service);
+    }
+
+    private boolean startUiUpdate(String url, String sha256, int contentVersion) {
+        if (uiUpdateManager == null) return false;
+        return uiUpdateManager.start(url, sha256, contentVersion,
+                new UiUpdateManager.Listener() {
+                    @Override
+                    public void onEvent(String status, int progress, String message) {
+                        JSONObject payload = new JSONObject();
+                        try {
+                            payload.put("status", status);
+                            payload.put("progress", progress);
+                            payload.put("message", message);
+                        } catch (Exception ignored) { }
+                        callJavascript("window.MouraUpdate.onProgress", payload.toString());
+                    }
+
+                    @Override
+                    public void onActivated(int activatedVersion) {
+                        getSharedPreferences(UPDATE_PREFS, MODE_PRIVATE).edit()
+                                .putInt("content_version", activatedVersion)
+                                .putInt("content_native_revision", BuildConfig.NATIVE_REVISION)
+                                .remove("last_auto_version")
+                                .apply();
+                        runOnUiThread(() -> {
+                            if (webView != null) webView.postDelayed(webView::reload, 900L);
+                        });
+                    }
+                });
     }
 
     private void requestInstallPermission() {
@@ -671,13 +768,29 @@ public class MainActivity extends Activity {
         try { unregisterReceiver(downloadReceiver); } catch (Exception ignored) { }
         try { unregisterReceiver(updateReceiver); } catch (Exception ignored) { }
         executor.shutdownNow();
+        if (uiUpdateManager != null) uiUpdateManager.shutdown();
         if (webView != null) webView.destroy();
         super.onDestroy();
     }
 
     @Override
     public void onBackPressed() {
-        if (webView.canGoBack()) webView.goBack(); else super.onBackPressed();
+        if (fullscreenView != null) {
+            hideFullscreenVideo();
+        } else if (webView.canGoBack()) {
+            webView.goBack();
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+    private void hideFullscreenVideo() {
+        if (fullscreenView == null || root == null) return;
+        root.removeView(fullscreenView);
+        fullscreenView = null;
+        webView.setVisibility(View.VISIBLE);
+        if (fullscreenCallback != null) fullscreenCallback.onCustomViewHidden();
+        fullscreenCallback = null;
     }
 
     public class AndroidBridge {
@@ -702,6 +815,8 @@ public class MainActivity extends Activity {
             try {
                 info.put("versionCode", BuildConfig.VERSION_CODE);
                 info.put("versionName", BuildConfig.VERSION_NAME);
+                info.put("nativeRevision", BuildConfig.NATIVE_REVISION);
+                info.put("contentVersion", installedContentVersion());
                 info.put("autoUpdate", autoUpdatesEnabled());
                 info.put("canInstall", canInstallPackages());
                 info.put("distribution",
@@ -773,7 +888,25 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String startInterfaceUpdate(
+                String url, String sha256, int contentVersion) {
+            try {
+                if (BuildConfig.PLAY_STORE_BUILD) {
+                    return actionResult(false,
+                            "Esta versão recebe atualizações pela Google Play.").toString();
+                }
+                boolean started = startUiUpdate(url, sha256, contentVersion);
+                return actionResult(started, started
+                        ? "Atualização rápida iniciada."
+                        : "Já existe uma atualização rápida em andamento.").toString();
+            } catch (Exception error) {
+                return actionResult(false, safeMessage(error)).toString();
+            }
+        }
+
+        @JavascriptInterface
         public String cancelAppUpdate() {
+            if (uiUpdateManager != null) uiUpdateManager.cancel();
             Intent cancel = new Intent(MainActivity.this, UpdateService.class);
             cancel.setAction(UpdateService.ACTION_CANCEL);
             runOnUiThread(() -> startService(cancel));
@@ -1031,6 +1164,16 @@ public class MainActivity extends Activity {
                     return new WebResourceResponse("text/plain", "UTF-8", 403, "Forbidden", null, null);
                 }
                 try {
+                    File contentRoot = UiUpdateManager.currentDirectory(
+                            MainActivity.this).getCanonicalFile();
+                    File updatedAsset = new File(contentRoot, path).getCanonicalFile();
+                    if (updatedAsset.isFile()
+                            && updatedAsset.getPath().startsWith(
+                            contentRoot.getPath() + File.separator)) {
+                        return new WebResourceResponse(
+                                mimeForAsset(path), "UTF-8",
+                                new FileInputStream(updatedAsset));
+                    }
                     InputStream stream = getAssets().open("www/" + path);
                     return new WebResourceResponse(mimeForAsset(path), "UTF-8", stream);
                 } catch (IOException ignored) {
@@ -1049,6 +1192,7 @@ public class MainActivity extends Activity {
         public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
             Uri uri = request.getUrl();
             if ("app.local".equals(uri.getHost())) return false;
+            if (!request.isForMainFrame()) return false;
             if ("https".equals(uri.getScheme()) || "http".equals(uri.getScheme())) {
                 startActivity(new Intent(Intent.ACTION_VIEW, uri));
             }
@@ -1068,6 +1212,27 @@ public class MainActivity extends Activity {
             if (mime != null) return mime;
             if (path.endsWith(".webmanifest")) return "application/manifest+json";
             return "application/octet-stream";
+        }
+    }
+
+    private class AppWebChromeClient extends WebChromeClient {
+        @Override
+        public void onShowCustomView(View view, CustomViewCallback callback) {
+            if (fullscreenView != null) {
+                callback.onCustomViewHidden();
+                return;
+            }
+            fullscreenView = view;
+            fullscreenCallback = callback;
+            webView.setVisibility(View.GONE);
+            root.addView(view, new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT));
+        }
+
+        @Override
+        public void onHideCustomView() {
+            hideFullscreenVideo();
         }
     }
 }

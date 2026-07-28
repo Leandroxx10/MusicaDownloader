@@ -125,6 +125,16 @@ def validate_required_features() -> None:
         / "moura"
         / "downloads"
         / "EnergyVisualizerView.java",
+        ROOT
+        / "native-android"
+        / "app"
+        / "src"
+        / "main"
+        / "java"
+        / "com"
+        / "moura"
+        / "downloads"
+        / "UiUpdateManager.java",
     ]
     missing = [str(path.relative_to(ROOT)) for path in required if not path.is_file()]
     if missing:
@@ -167,6 +177,10 @@ def validate_required_features() -> None:
     ).read_text(encoding="utf-8")
     energy_processor = required[9].read_text(encoding="utf-8")
     energy_view = required[10].read_text(encoding="utf-8")
+    ui_update_manager = required[11].read_text(encoding="utf-8")
+    update_generator = (
+        ROOT / "scripts" / "generate-update-manifest.py"
+    ).read_text(encoding="utf-8")
 
     checks = {
         "build Android release": "assembleSideloadRelease" in workflow,
@@ -208,6 +222,16 @@ def validate_required_features() -> None:
         and "bookmarkKey" in player_activity
         and "visualThemeNames" in player_activity,
         "atualização com SHA-256": "sha256(temp)" in update_service,
+        "atualização rápida de interface": "NATIVE_REVISION" in gradle
+        and "interfaceBundle" in update_generator
+        and "release/*.zip" in workflow
+        and "MAX_EXTRACTED_BYTES" in ui_update_manager
+        and "startInterfaceUpdate" in main_activity
+        and "UiUpdateManager.currentDirectory" in main_activity,
+        "central oficial do YouTube": 'id="view-youtube"' in index
+        and "youtube-nocookie.com/embed/" in app_js
+        and "Reprodução oficial e segura" in index
+        and "data-view=\"youtube\"" in index,
         "download completo no site": "moura-downloads.apk" in index
         and "moura-downloads-arm64.apk" not in index,
         "somente QR Code no app": 'id="appQrCode"' in index

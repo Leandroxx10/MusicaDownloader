@@ -18,6 +18,7 @@ jobs:
     env:
       MOURA_VERSION_CODE: ${{ github.run_number }}
       MOURA_VERSION_NAME: 4.0.${{ github.run_number }}
+      MOURA_NATIVE_REVISION: 2
     steps:
       - name: Baixar projeto
         uses: actions/checkout@v6
@@ -81,8 +82,8 @@ jobs:
           test -s release/moura-downloads-arm64.apk
           test -s release/moura-downloads-32bit.apk
           test -s release/moura-downloads-play-store.aab
-          sha256sum release/*.apk release/*.aab > release/SHA256SUMS.txt
           python3 scripts/generate-update-manifest.py
+          sha256sum release/*.apk release/*.aab release/*.zip release/update.json > release/SHA256SUMS.txt
           ls -lh release
 
       - name: Verificar tamanho e arquiteturas dos APKs
@@ -114,11 +115,11 @@ jobs:
           if gh release view latest >/dev/null 2>&1; then
             gh release upload latest release/* --clobber
             gh release edit latest \
-              --title "Moura Downloads 4.0 — Atualizações inteligentes" \
-              --notes "App completo desenvolvido por Leandro Moura. No site, use moura-downloads.apk. A release também inclui atualizações otimizadas e o pacote AAB para publicação no Google Play. Commit: $GITHUB_SHA"
+              --title "Moura Downloads 4.0 — Super App" \
+              --notes "App completo desenvolvido por Leandro Moura. No site, use moura-downloads.apk. A release inclui atualizações rápidas de interface, APKs assinados e o pacote AAB para publicação no Google Play. Commit: $GITHUB_SHA"
           else
             gh release create latest release/* \
               --target "$GITHUB_SHA" \
-              --title "Moura Downloads 4.0 — Atualizações inteligentes" \
-              --notes "App completo desenvolvido por Leandro Moura. No site, use moura-downloads.apk. A release também inclui atualizações otimizadas e o pacote AAB para publicação no Google Play. Commit: $GITHUB_SHA"
+              --title "Moura Downloads 4.0 — Super App" \
+              --notes "App completo desenvolvido por Leandro Moura. No site, use moura-downloads.apk. A release inclui atualizações rápidas de interface, APKs assinados e o pacote AAB para publicação no Google Play. Commit: $GITHUB_SHA"
           fi

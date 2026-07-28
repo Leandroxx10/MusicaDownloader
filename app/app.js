@@ -25,6 +25,9 @@
     continueMediaId: null,
     update: null,
     updateDownloading: false,
+    youtubeSaved: storage.get('moura_youtube_saved_v1', []),
+    youtubeRecent: storage.get('moura_youtube_recent_v1', []),
+    youtubeCurrent: null,
     modalMode: null,
     modalPayload: null,
     pendingDownload: null,
@@ -92,6 +95,14 @@
     checkUpdateBtn: $('#checkUpdateBtn'),
     startUpdateBtn: $('#startUpdateBtn'),
     cancelUpdateBtn: $('#cancelUpdateBtn'),
+    youtubeUrl: $('#youtubeUrl'),
+    youtubePlayer: $('#youtubePlayer'),
+    youtubePlayerEmpty: $('#youtubePlayerEmpty'),
+    youtubeNowPlaying: $('#youtubeNowPlaying'),
+    youtubeCurrentLabel: $('#youtubeCurrentLabel'),
+    youtubeSaveBtn: $('#youtubeSaveBtn'),
+    youtubeSavedList: $('#youtubeSavedList'),
+    youtubeRecentList: $('#youtubeRecentList'),
     toast: $('#toast')
   };
 
@@ -108,6 +119,7 @@
     $$('.nav-item[data-view]').forEach(item => item.classList.toggle('active', item.dataset.view === name));
     if (name === 'downloads') refreshLibrary();
     if (name === 'configuracoes') renderCategoryManager();
+    if (name === 'youtube') renderYouTubeLists();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -138,6 +150,141 @@
       if (host.includes('vimeo')) return 'Vimeo';
       return host || 'Link externo';
     } catch { return 'Aguardando link'; }
+  }
+
+  function youtubeVideoId(value) {
+    const normalized = normalizeUrl(value);
+    if (!normalized) return '';
+    try {
+      const url = new URL(normalized);
+      const host = url.hostname.replace(/^www\./, '').toLowerCase();
+      let candidate = '';
+      if (host === 'youtu.be') {
+        candidate = url.pathname.split('/').filter(Boolean)[0] || '';
+      } else if (
+        host === 'youtube.com' ||
+        host === 'm.youtube.com' ||
+        host === 'music.youtube.com' ||
+        host === 'youtube-nocookie.com'
+      ) {
+        const parts = url.pathname.split('/').filter(Boolean);
+        candidate = url.searchParams.get('v') || (
+          ['shorts', 'embed', 'live'].includes(parts[0]) ? parts[1] || '' : ''
+        );
+      }
+      return /^[A-Za-z0-9_-]{11}$/.test(candidate) ? candidate : '';
+    } catch {
+      return '';
+    }
+  }
+
+  function youtubeItem(id) {
+    return {
+      id,
+      url: `https://www.youtube.com/watch?v=${id}`,
+      label: `Vídeo ${id}`,
+      watchedAt: Date.now()
+    };
+  }
+
+  function youtubeThumbnail(id) {
+    return `https://i.ytimg.com/vi/${encodeURIComponent(id)}/mqdefault.jpg`;
+  }
+
+  function playYouTubeVideo(itemOrId, remember = true) {
+    const item = typeof itemOrId === 'string' ? youtubeItem(itemOrId) : itemOrId;
+    if (!item?.id || !/^[A-Za-z0-9_-]{11}$/.test(item.id)) {
+      return toast('Cole um link público válido do YouTube.', true);
+    }
+    const origin = location.origin.startsWith('https://')
+      ? `&origin=${encodeURIComponent(location.origin)}` : '';
+    els.youtubePlayer.src =
+      `https://www.youtube-nocookie.com/embed/${encodeURIComponent(item.id)}` +
+      `?playsinline=1&rel=0&enablejsapi=1${origin}`;
+    els.youtubePlayer.classList.remove('hidden');
+    els.youtubePlayerEmpty.classList.add('hidden');
+    els.youtubeNowPlaying.classList.remove('hidden');
+    els.youtubeCurrentLabel.textContent = item.label || `Vídeo ${item.id}`;
+    state.youtubeCurrent = { ...item, watchedAt: Date.now() };
+    if (remember) {
+      state.youtubeRecent = [
+        state.youtubeCurrent,
+        ...state.youtubeRecent.filter(video => video.id !== item.id)
+      ].slice(0, 16);
+      storage.set('moura_youtube_recent_v1', state.youtubeRecent);
+    }
+    updateYouTubeSaveButton();
+    renderYouTubeLists();
+  }
+
+  function loadYouTubeFromInput() {
+    const id = youtubeVideoId(els.youtubeUrl?.value);
+    if (!id) return toast('Use um link válido de vídeo ou Short do YouTube.', true);
+    playYouTubeVideo(id);
+  }
+
+  function updateYouTubeSaveButton() {
+    if (!els.youtubeSaveBtn) return;
+    const saved = Boolean(state.youtubeCurrent &&
+      state.youtubeSaved.some(video => video.id === state.youtubeCurrent.id));
+    els.youtubeSaveBtn.textContent = saved ? '★ Salvo em Ver depois' : '☆ Ver depois';
+  }
+
+  function toggleCurrentYouTubeSaved() {
+    if (!state.youtubeCurrent) return;
+    const alreadySaved = state.youtubeSaved.some(
+      video => video.id === state.youtubeCurrent.id);
+    state.youtubeSaved = alreadySaved
+      ? state.youtubeSaved.filter(video => video.id !== state.youtubeCurrent.id)
+      : [state.youtubeCurrent, ...state.youtubeSaved].slice(0, 30);
+    storage.set('moura_youtube_saved_v1', state.youtubeSaved);
+    updateYouTubeSaveButton();
+    renderYouTubeLists();
+    toast(alreadySaved ? 'Removido de Ver depois.' : 'Salvo em Ver depois neste aparelho.');
+  }
+
+  function renderYouTubeList(container, items, emptyMessage) {
+    if (!container) return;
+    container.innerHTML = items.length ? items.map(item => `
+      <button class="youtube-local-item" type="button" data-youtube-play="${escapeHtml(item.id)}">
+        <img src="${youtubeThumbnail(item.id)}" alt="" loading="lazy" referrerpolicy="no-referrer">
+        <span>
+          <strong>${escapeHtml(item.label || `Vídeo ${item.id}`)}</strong>
+          <small>${new Date(item.watchedAt || Date.now()).toLocaleString('pt-BR')}</small>
+        </span>
+        <span class="youtube-local-play">▶</span>
+      </button>`).join('')
+      : `<div class="youtube-list-empty">${escapeHtml(emptyMessage)}</div>`;
+  }
+
+  function renderYouTubeLists() {
+    renderYouTubeList(els.youtubeSavedList, state.youtubeSaved,
+      'Seus vídeos salvos aparecerão aqui.');
+    renderYouTubeList(els.youtubeRecentList, state.youtubeRecent,
+      'Os vídeos vistos no Moura aparecerão aqui.');
+  }
+
+  async function pasteYouTubeLink() {
+    try {
+      const text = isAndroid
+        ? window.AndroidBridge.readClipboard()
+        : await navigator.clipboard.readText();
+      const match = String(text || '').match(/https?:\/\/[^\s]+/i);
+      els.youtubeUrl.value = match ? match[0] : String(text || '').trim();
+      if (youtubeVideoId(els.youtubeUrl.value)) loadYouTubeFromInput();
+      else toast('A área de transferência não contém um link válido do YouTube.', true);
+    } catch {
+      toast('Não foi possível ler a área de transferência.', true);
+    }
+  }
+
+  function openCurrentYouTubeExternally() {
+    if (!state.youtubeCurrent?.url) return;
+    if (isAndroid) {
+      location.href = state.youtubeCurrent.url;
+    } else {
+      window.open(state.youtubeCurrent.url, '_blank', 'noopener,noreferrer');
+    }
   }
 
   function selectedFormat() {
@@ -395,7 +542,8 @@
       return;
     }
 
-    els.installedVersion.textContent = `${data.currentVersionName || '—'} Super App`;
+    els.installedVersion.textContent =
+      `${data.currentVersionName || '—'} • interface ${data.currentContentVersion || data.currentVersionCode || '—'}`;
     els.autoUpdateToggle.checked = Boolean(data.autoUpdate);
     if (!data.available) {
       els.updateBanner.classList.add('hidden');
@@ -414,14 +562,27 @@
       return;
     }
 
-    const size = data.size ? ` • ${formatBytes(data.size)}` : '';
+    const isInterfaceUpdate = data.updateType === 'interface';
+    const size = data.size ? formatBytes(data.size) : 'tamanho calculado ao iniciar';
+    const updateKind = isInterfaceUpdate
+      ? `Atualização rápida da interface • ${size}`
+      : `Atualização completa do aplicativo • ${size}`;
     els.updateBanner.classList.remove('hidden');
-    els.updateBannerTitle.textContent = `Moura ${data.versionName} disponível`;
-    els.updateBannerText.textContent = data.notes || 'Nova versão pronta para atualizar dentro do aplicativo.';
-    els.updateStatusBadge.textContent = 'Nova versão';
-    els.updateTitle.textContent = `Atualização ${data.versionName} disponível`;
-    els.updateDescription.textContent = `${data.notes || 'Melhorias de velocidade, segurança e experiência.'}${size}`;
-    els.startUpdateBtn.textContent = `Atualizar para ${data.versionName}`;
+    els.updateBannerTitle.textContent = isInterfaceUpdate
+      ? 'Melhorias rápidas disponíveis'
+      : `Moura ${data.versionName} disponível`;
+    els.updateBannerText.textContent =
+      `${updateKind}. ${data.notes || 'Nova experiência pronta para instalar.'}`;
+    els.updateStatusBadge.textContent = isInterfaceUpdate ? 'Atualização rápida' : 'Atualização completa';
+    els.updateTitle.textContent = isInterfaceUpdate
+      ? 'Nova interface disponível'
+      : `Atualização ${data.versionName} disponível`;
+    els.updateDescription.textContent = isInterfaceUpdate
+      ? `${data.notes || 'Melhorias de telas e experiência.'} Este pacote não reinstala o APK.`
+      : `${data.notes || 'Melhorias no motor Android e na experiência.'} O tamanho corresponde ao instalador completo exigido pelo Android fora da Play Store.`;
+    els.startUpdateBtn.textContent = isInterfaceUpdate
+      ? `Aplicar atualização rápida (${size})`
+      : `Baixar atualização completa (${size})`;
     els.startUpdateBtn.classList.remove('hidden');
   }
 
@@ -450,17 +611,22 @@
       toast(result.message, !result.success);
       return;
     }
-    if (!update?.available || !update.apkUrl) {
+    if (!update?.available) {
       return checkForUpdates(true);
     }
-    const result = nativeAction('startAppUpdate', update.apkUrl, update.sha256 || '', update.versionName || '');
+    const isInterfaceUpdate = update.updateType === 'interface';
+    const result = isInterfaceUpdate
+      ? nativeAction('startInterfaceUpdate', update.bundleUrl || '', update.sha256 || '', Number(update.contentVersion) || 0)
+      : nativeAction('startAppUpdate', update.apkUrl || '', update.sha256 || '', update.versionName || '');
     toast(result.message, !result.success);
     if (!result.success) return;
-    state.updateDownloading = !result.permissionRequired;
+    state.updateDownloading = isInterfaceUpdate || !result.permissionRequired;
     els.startUpdateBtn.classList.add('hidden');
     els.cancelUpdateBtn.classList.toggle('hidden', Boolean(result.permissionRequired));
     setUpdateProgress(!result.permissionRequired, 1,
-      result.permissionRequired ? 'Aguardando autorização do Android' : 'Iniciando atualização');
+      result.permissionRequired
+        ? 'Aguardando autorização do Android'
+        : isInterfaceUpdate ? 'Iniciando atualização rápida' : 'Iniciando atualização completa');
   }
 
   function cancelAppUpdate() {
@@ -474,13 +640,16 @@
     },
     onProgress(event) {
       if (!event) return;
-      if (['downloading', 'verifying'].includes(event.status)) {
+      if (['downloading', 'verifying', 'ui-downloading', 'ui-verifying'].includes(event.status)) {
+        const interfaceProgress = event.status.startsWith('ui-');
+        const verifying = event.status.includes('verifying');
         state.updateDownloading = true;
-        els.updateStatusBadge.textContent = event.status === 'verifying' ? 'Verificando' : 'Baixando';
+        els.updateStatusBadge.textContent = verifying
+          ? 'Verificando' : interfaceProgress ? 'Atualizando interface' : 'Baixando';
         els.startUpdateBtn.classList.add('hidden');
         els.cancelUpdateBtn.classList.remove('hidden');
         setUpdateProgress(true, event.progress,
-          event.status === 'verifying' ? 'Verificando a segurança da atualização' : event.message);
+          verifying ? 'Verificando a segurança da atualização' : event.message);
         return;
       }
       state.updateDownloading = false;
@@ -491,6 +660,15 @@
         els.updateDescription.textContent = 'Confirme a instalação na tela do Android. Seus arquivos e preferências serão mantidos.';
         setUpdateProgress(true, 100, 'Download concluído');
         toast('Atualização pronta. Confirme a instalação no Android.');
+        return;
+      }
+      if (event.status === 'ui-ready') {
+        els.updateStatusBadge.textContent = 'Atualizado';
+        els.updateTitle.textContent = 'Nova experiência aplicada';
+        els.updateDescription.textContent =
+          'A interface foi atualizada sem reinstalar o aplicativo. Reabrindo o Moura…';
+        setUpdateProgress(true, 100, 'Atualização rápida concluída');
+        toast('Interface atualizada com sucesso.');
         return;
       }
       setUpdateProgress(false);
@@ -520,7 +698,9 @@
     try {
       const installed = JSON.parse(window.AndroidBridge.getInstalledVersion());
       const isPlayBuild = installed.distribution === 'play';
-      els.installedVersion.textContent = `${installed.versionName || '—'} ${isPlayBuild ? 'Google Play' : 'Super App'}`;
+      els.installedVersion.textContent = isPlayBuild
+        ? `${installed.versionName || '—'} Google Play`
+        : `${installed.versionName || '—'} • interface ${installed.contentVersion || installed.versionCode || '—'}`;
       if (isPlayBuild) {
         $('#updateCard')?.classList.add('hidden');
         els.updateBanner.classList.add('hidden');
@@ -781,6 +961,40 @@
     $('#como-instalar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
   $('#pasteBtn').addEventListener('click', pasteClipboard);
+  $('#youtubePasteBtn').addEventListener('click', pasteYouTubeLink);
+  $('#youtubeWatchBtn').addEventListener('click', loadYouTubeFromInput);
+  els.youtubeUrl.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      loadYouTubeFromInput();
+    }
+  });
+  els.youtubeSaveBtn.addEventListener('click', toggleCurrentYouTubeSaved);
+  $('#youtubeOpenBtn').addEventListener('click', openCurrentYouTubeExternally);
+  $('#youtubeClearSavedBtn').addEventListener('click', () => {
+    state.youtubeSaved = [];
+    storage.set('moura_youtube_saved_v1', []);
+    updateYouTubeSaveButton();
+    renderYouTubeLists();
+    toast('Lista Ver depois limpa.');
+  });
+  $('#youtubeClearRecentBtn').addEventListener('click', () => {
+    state.youtubeRecent = [];
+    storage.set('moura_youtube_recent_v1', []);
+    renderYouTubeLists();
+    toast('Histórico de vídeos limpo.');
+  });
+  [els.youtubeSavedList, els.youtubeRecentList].forEach(list =>
+    list.addEventListener('click', event => {
+      const button = event.target.closest('[data-youtube-play]');
+      if (!button) return;
+      const item = [...state.youtubeSaved, ...state.youtubeRecent]
+        .find(video => video.id === button.dataset.youtubePlay);
+      playYouTubeVideo(item || button.dataset.youtubePlay);
+      setTimeout(() => els.youtubePlayer.scrollIntoView({
+        behavior: 'smooth', block: 'center'
+      }), 80);
+    }));
   els.analyzeBtn.addEventListener('click', verifyLink);
   els.downloadBtn.addEventListener('click', startDownload);
   els.cancelDownloadBtn.addEventListener('click', cancelDownload);
@@ -933,6 +1147,7 @@
   restoreDownloadPreferences();
   renderCategoryManager();
   renderHistory();
+  renderYouTubeLists();
   refreshLibrary();
   consumeSharedUrl();
   setupAppSharing();

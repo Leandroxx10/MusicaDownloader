@@ -9,8 +9,8 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=10">
-  <link rel="stylesheet" href="./download.css?v=10">
+  <link rel="stylesheet" href="./styles.css?v=11">
+  <link rel="stylesheet" href="./download.css?v=11">
   <title>Moura Downloads</title>
 </head>
 <body>
@@ -22,6 +22,7 @@
       </div>
       <nav class="side-nav">
         <button class="nav-item active" data-view="inicio"><span>⌂</span>Início</button>
+        <button class="nav-item" data-view="youtube"><span>▶</span>YouTube</button>
         <button class="nav-item" data-view="downloads"><span>⇩</span>Biblioteca</button>
         <button class="nav-item" data-view="historico"><span>◷</span>Histórico</button>
         <button class="nav-item" data-view="configuracoes"><span>⚙</span>Ajustes</button>
@@ -148,6 +149,75 @@
         </section>
       </section>
 
+      <section id="view-youtube" class="view">
+        <div class="page-title youtube-title">
+          <div>
+            <span class="eyebrow">CENTRAL YOUTUBE</span>
+            <h1>Assista sem sair do Moura</h1>
+            <p>Cole o link de um vídeo público e reproduza no player oficial, com modo de privacidade aprimorada e sua lista salva somente neste aparelho.</p>
+          </div>
+          <span class="youtube-official-badge">PLAYER OFICIAL</span>
+        </div>
+
+        <section class="youtube-studio" aria-labelledby="youtubePlayerTitle">
+          <div class="youtube-input-card">
+            <label for="youtubeUrl">Link do vídeo público</label>
+            <div class="youtube-url-field">
+              <span>▶</span>
+              <input id="youtubeUrl" type="url" inputmode="url" autocomplete="url" placeholder="https://youtu.be/..." aria-describedby="youtubeHelp">
+              <button id="youtubePasteBtn" class="secondary-button compact" type="button">Colar</button>
+              <button id="youtubeWatchBtn" class="primary-button compact" type="button">Assistir</button>
+            </div>
+            <p id="youtubeHelp" class="helper">Compatível com links youtube.com, youtu.be e Shorts. Vídeos privados, restritos ou indisponíveis dependem do próprio YouTube.</p>
+          </div>
+
+          <div id="youtubePlayerShell" class="youtube-player-shell">
+            <div id="youtubePlayerEmpty" class="youtube-player-empty">
+              <span>▶</span>
+              <strong>Sua sessão começa aqui</strong>
+              <small>Cole um link acima. O histórico e a lista “Ver depois” ficam somente neste aparelho.</small>
+            </div>
+            <iframe id="youtubePlayer" class="hidden" title="Player oficial do YouTube"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+
+          <div id="youtubeNowPlaying" class="youtube-now-playing hidden">
+            <div>
+              <span class="eyebrow">REPRODUZINDO AGORA</span>
+              <strong id="youtubeCurrentLabel">Vídeo do YouTube</strong>
+              <small>Use os controles oficiais no próprio player.</small>
+            </div>
+            <div class="youtube-player-actions">
+              <button id="youtubeSaveBtn" class="secondary-button compact" type="button">☆ Ver depois</button>
+              <button id="youtubeOpenBtn" class="secondary-button compact" type="button">Abrir no YouTube ↗</button>
+            </div>
+          </div>
+        </section>
+
+        <div class="youtube-grid">
+          <section class="youtube-list-card">
+            <div class="youtube-list-heading">
+              <div><span class="eyebrow">VER DEPOIS</span><h2>Sua lista local</h2></div>
+              <button id="youtubeClearSavedBtn" class="ghost-button" type="button">Limpar</button>
+            </div>
+            <div id="youtubeSavedList" class="youtube-local-list"></div>
+          </section>
+          <section class="youtube-list-card">
+            <div class="youtube-list-heading">
+              <div><span class="eyebrow">RECENTES</span><h2>Vistos neste aparelho</h2></div>
+              <button id="youtubeClearRecentBtn" class="ghost-button" type="button">Limpar</button>
+            </div>
+            <div id="youtubeRecentList" class="youtube-local-list"></div>
+          </section>
+        </div>
+
+        <aside class="youtube-policy-note">
+          <span>ⓘ</span>
+          <p><strong>Reprodução oficial e segura.</strong> Esta central apenas incorpora o player do YouTube. Downloads do conteúdo do YouTube não são oferecidos aqui; use os recursos oficiais da plataforma e respeite direitos autorais, privacidade e os termos do serviço.</p>
+        </aside>
+      </section>
+
       <section id="view-downloads" class="view">
         <div class="page-title library-title-row">
           <div><span class="eyebrow">ARQUIVOS NO CELULAR</span><h1>Minha biblioteca</h1><p>Seu player pessoal, inteligente e totalmente local.</p></div>
@@ -214,7 +284,7 @@
             </div>
             <label class="update-toggle">
               <input id="autoUpdateToggle" type="checkbox" checked>
-              <span><strong>Baixar automaticamente no Wi-Fi</strong><small>Não utiliza seus dados móveis. O Android mostrará a confirmação final de instalação.</small></span>
+              <span><strong>Atualizar automaticamente no Wi-Fi</strong><small>Mudanças visuais chegam em um pacote rápido. Só mudanças no motor Android exigem baixar o instalador completo e confirmar a instalação.</small></span>
             </label>
             <div id="updateProgress" class="update-progress hidden">
               <div><span id="updateProgressText">Preparando atualização</span><strong id="updateProgressPercent">0%</strong></div>
@@ -243,6 +313,7 @@
 
     <nav class="bottom-nav" aria-label="Navegação inferior">
       <button class="nav-item active" data-view="inicio"><span>⌂</span><small>Início</small></button>
+      <button class="nav-item" data-view="youtube"><span>▶</span><small>YouTube</small></button>
       <button class="nav-item" data-view="downloads"><span>⇩</span><small>Biblioteca</small></button>
       <button class="nav-item" data-view="historico"><span>◷</span><small>Histórico</small></button>
       <button class="nav-item" data-view="configuracoes"><span>⚙</span><small>Ajustes</small></button>
@@ -286,6 +357,6 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="./app.js?v=10" defer></script>
+  <script src="./app.js?v=11" defer></script>
 </body>
 </html>

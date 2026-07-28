@@ -6,6 +6,12 @@ Aplicativo Android desenvolvido por **Leandro Moura**, com processamento local, 
 
 ## Novidades da versão 4
 
+- Atualizações de interface em pacote rápido verificado, normalmente com menos de 1 MB.
+- Separação clara entre **atualização rápida** e **atualização completa** do motor Android.
+- Reversão segura para a interface anterior se um pacote estiver incompleto ou inválido.
+- Central YouTube com player oficial incorporado, suporte a vídeos, links curtos e Shorts.
+- Lista **Ver depois** e histórico de vídeos armazenados somente no aparelho.
+- Reprodução do YouTube em tela cheia sem sair do Moura.
 - Verificação de nova versão ao abrir o aplicativo.
 - Download automático de atualizações em conexões Wi-Fi.
 - Atualização manual em **Ajustes**, sem precisar procurar o APK no site.
@@ -61,10 +67,16 @@ o arquivo correto nas atualizações futuras. O usuário não precisa escolher e
 Depois que a versão 4.0 assinada estiver instalada:
 
 1. o app verifica a release `latest` ao abrir;
-2. em Wi-Fi, o APK correto pode ser baixado automaticamente;
-3. o arquivo é conferido por SHA-256;
-4. o Android mostra a tela final de instalação;
-5. arquivos, favoritos, categorias e preferências são mantidos.
+2. mudanças de telas, textos e recursos visuais chegam pelo pacote rápido;
+3. mudanças no motor Android baixam o APK correto para o celular;
+4. todo pacote é conferido por SHA-256 antes de ser ativado;
+5. somente uma atualização completa abre a confirmação de instalação do Android;
+6. arquivos, favoritos, categorias, listas e preferências são mantidos.
+
+O valor próximo de 59 MB corresponde ao APK arm64 completo. Ele só aparece quando
+há alteração nativa. Atualizações rápidas usam `moura-interface.zip`, atualmente
+com menos de 1 MB, e são aplicadas dentro do app com validação de caminhos, limite
+de tamanho, troca atômica e retorno seguro à interface anterior.
 
 Na variante oficial da Google Play, a própria loja verifica, baixa e instala as
 atualizações. O atualizador de APK é incluído somente na versão distribuída pelo
@@ -104,6 +116,20 @@ O `netlify.toml` na raiz já contém a configuração necessária. Cada novo env
 9. Use **Minha Mix** para embaralhar a biblioteca e **Redescobrir** para ouvir faixas menos tocadas.
 10. Para usar outro reprodutor instalado, abra o menu `⋮` e escolha **Abrir em outro app**.
 
+## Central YouTube
+
+1. Abra **YouTube** na barra inferior.
+2. Cole um link público de `youtube.com`, `youtu.be` ou Shorts.
+3. Toque em **Assistir** para usar o player oficial incorporado.
+4. Use **Ver depois** para salvar o vídeo somente neste aparelho.
+5. Abra **Recentes** para retornar aos últimos vídeos vistos.
+6. Use **Abrir no YouTube** quando quiser continuar no aplicativo oficial.
+
+A Central YouTube não transforma o player oficial em ferramenta de download. Ela
+mantém a reprodução separada do processador geral de links para respeitar as
+políticas da plataforma. Vídeos privados, restritos, removidos ou bloqueados por
+região continuam sujeitos às regras do próprio YouTube.
+
 ## Compartilhar por QR Code
 
 1. Abra **Ajustes**.
@@ -124,6 +150,7 @@ o código.
 - `EnergyVisualizerView.java`: animação nativa de energia, onda, partículas e temas.
 - `DownloadService.java`: downloads e perfis de qualidade.
 - `UpdateService.java`: download, verificação e instalação de novas versões.
+- `UiUpdateManager.java`: pacote rápido de interface, SHA-256, extração segura, ativação e reversão.
 - `scripts/generate-update-manifest.py`: gera `update.json` com versão, arquitetura e SHA-256.
 - `scripts/validate-play-manifest.py`: impede que a variante Google Play solicite instalação de APKs.
 - `play-store/`: ficha em português e roteiro seguro para a publicação oficial.
@@ -141,7 +168,7 @@ Ao enviar uma alteração para `main`, o GitHub Actions:
 4. compila os APKs da variante direta e o AAB separado da variante Google Play;
 5. confirma que todos usam o certificado permanente esperado;
 6. bloqueia APKs com arquitetura errada, tamanho excessivo ou manifesto inválido e confirma que o AAB não instala APKs;
-7. gera checksums SHA-256 e o manifesto `update.json`;
+7. gera o pacote leve `moura-interface.zip`, checksums SHA-256 e o manifesto `update.json`;
 8. guarda os arquivos como artefato da execução;
 9. substitui os arquivos da release `latest`, preservando os links públicos.
 
