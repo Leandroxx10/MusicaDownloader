@@ -1,6 +1,7 @@
 package com.moura.downloads;
 
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Handler;
@@ -11,8 +12,12 @@ import androidx.annotation.Nullable;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
+import androidx.media3.common.audio.AudioProcessor;
 import androidx.media3.common.util.UnstableApi;
+import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.audio.AudioSink;
+import androidx.media3.exoplayer.audio.DefaultAudioSink;
 import androidx.media3.session.MediaSession;
 import androidx.media3.session.MediaSessionService;
 
@@ -68,7 +73,28 @@ public class PlaybackService extends MediaSessionService {
     @Override
     public void onCreate() {
         super.onCreate();
-        player = new ExoPlayer.Builder(this).build();
+        EnergyAudioProcessor energyProcessor = new EnergyAudioProcessor();
+        DefaultRenderersFactory renderersFactory =
+                new DefaultRenderersFactory(this) {
+                    @Override
+                    protected AudioSink buildAudioSink(
+                            Context context,
+                            boolean enableFloatOutput,
+                            boolean enableAudioTrackPlaybackParams) {
+                        return new DefaultAudioSink.Builder(context)
+                                .setAudioProcessors(new AudioProcessor[]{
+                                        energyProcessor
+                                })
+                                .setEnableFloatOutput(false)
+                                .setEnableAudioTrackPlaybackParams(
+                                        enableAudioTrackPlaybackParams)
+                                .build();
+                    }
+                };
+        player = new ExoPlayer.Builder(this, renderersFactory)
+                .setSeekBackIncrementMs(10_000L)
+                .setSeekForwardIncrementMs(10_000L)
+                .build();
         player.addListener(listener);
         Intent openPlayer = new Intent(this, PlayerActivity.class);
         openPlayer.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);

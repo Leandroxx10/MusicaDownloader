@@ -105,6 +105,26 @@ def validate_required_features() -> None:
         / "play"
         / "AndroidManifest.xml",
         ROOT / "scripts" / "validate-play-manifest.py",
+        ROOT
+        / "native-android"
+        / "app"
+        / "src"
+        / "main"
+        / "java"
+        / "com"
+        / "moura"
+        / "downloads"
+        / "EnergyAudioProcessor.java",
+        ROOT
+        / "native-android"
+        / "app"
+        / "src"
+        / "main"
+        / "java"
+        / "com"
+        / "moura"
+        / "downloads"
+        / "EnergyVisualizerView.java",
     ]
     missing = [str(path.relative_to(ROOT)) for path in required if not path.is_file()]
     if missing:
@@ -145,6 +165,8 @@ def validate_required_features() -> None:
     manifest = (
         ROOT / "native-android" / "app" / "src" / "main" / "AndroidManifest.xml"
     ).read_text(encoding="utf-8")
+    energy_processor = required[9].read_text(encoding="utf-8")
+    energy_view = required[10].read_text(encoding="utf-8")
 
     checks = {
         "build Android release": "assembleSideloadRelease" in workflow,
@@ -174,6 +196,17 @@ def validate_required_features() -> None:
         and "rediscover" in app_js
         and 'id="smartLibrary"' in index,
         "timer do player": "ACTION_SET_SLEEP_TIMER" in playback_service,
+        "visualizador ligado ao áudio real": "EnergyAudioProcessor"
+        in playback_service
+        and "AudioEnergyBus.publish" in energy_processor
+        and "FFT_SIZE" in energy_processor
+        and "EnergyVisualizerView" in player_activity
+        and "android.permission.RECORD_AUDIO" not in manifest,
+        "player de energia completo": "ENERGIA AO VIVO" in energy_view
+        and "seekRelative(-10_000L)" in player_activity
+        and "seekRelative(10_000L)" in player_activity
+        and "bookmarkKey" in player_activity
+        and "visualThemeNames" in player_activity,
         "atualização com SHA-256": "sha256(temp)" in update_service,
         "download completo no site": "moura-downloads.apk" in index
         and "moura-downloads-arm64.apk" not in index,

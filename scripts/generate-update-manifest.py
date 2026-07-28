@@ -55,8 +55,8 @@ def main() -> None:
         "publishedAt": datetime.now(timezone.utc).isoformat(),
         "commit": os.environ.get("GITHUB_SHA", ""),
         "notes": (
-            "Atualizações dentro do app, instalação mais simples, "
-            "preferências lembradas e melhorias de velocidade e confiabilidade."
+            "Novo player Energia ao Vivo sincronizado com voz e batidas, "
+            "controles rápidos, temas visuais e pontos salvos nas músicas."
         ),
         "apks": {
             "arm64": apk_info("moura-downloads-arm64.apk", "arm64-v8a"),

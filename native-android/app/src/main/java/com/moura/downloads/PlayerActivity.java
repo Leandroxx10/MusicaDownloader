@@ -8,12 +8,17 @@ import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -53,6 +58,12 @@ public class PlayerActivity extends Activity {
     private static final String STATE_MEDIA_ID = "media_id";
 
     private PlayerView playerView;
+    private EnergyVisualizerView energyVisualizer;
+    private LinearLayout audioControls;
+    private SeekBar positionSeekBar;
+    private TextView elapsedView;
+    private TextView durationView;
+    private Button playPauseButton;
     private Player player;
     private MediaController controller;
     private ListenableFuture<MediaController> controllerFuture;
@@ -64,7 +75,11 @@ public class PlayerActivity extends Activity {
     private Button repeatButton;
     private Button speedButton;
     private Button sleepButton;
+    private Button visualButton;
+    private Button bookmarkButton;
+    private Button jumpBookmarkButton;
 
+    private final Handler uiHandler = new Handler(Looper.getMainLooper());
     private Uri mediaUri;
     private String mediaId;
     private String mediaName;
@@ -72,11 +87,24 @@ public class PlayerActivity extends Activity {
     private String queueJson;
     private boolean initialShuffle;
     private boolean restoreExistingSession;
+    private boolean userSeeking;
     private long playbackPosition;
     private int speedIndex;
+    private int visualThemeIndex;
 
     private final float[] speeds = {1f, 1.25f, 1.5f, 2f};
     private final int[] sleepOptions = {0, 15, 30, 45, 60};
+    private final String[] visualThemeNames = {
+            "Energia", "Neon", "Aurora"
+    };
+
+    private final Runnable positionUpdater = new Runnable() {
+        @Override
+        public void run() {
+            updatePositionUi();
+            uiHandler.postDelayed(this, 250L);
+        }
+    };
 
     private final Player.Listener playerListener = new Player.Listener() {
         @Override
@@ -92,6 +120,16 @@ public class PlayerActivity extends Activity {
         @Override
         public void onRepeatModeChanged(int repeatMode) {
             updatePlayerButtons();
+        }
+
+        @Override
+        public void onIsPlayingChanged(boolean isPlaying) {
+            updatePlaybackUi();
+        }
+
+        @Override
+        public void onPlaybackStateChanged(int playbackState) {
+            updatePlaybackUi();
         }
     };
 
@@ -177,18 +215,160 @@ public class PlayerActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        FrameLayout mediaStage = new FrameLayout(this);
+        mediaStage.setBackgroundColor(Color.rgb(3, 9, 8));
+
+        energyVisualizer = new EnergyVisualizerView(this);
+        mediaStage.addView(energyVisualizer, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+
         playerView = new PlayerView(this);
-        playerView.setBackgroundColor(Color.BLACK);
+        playerView.setBackgroundColor(Color.TRANSPARENT);
+        playerView.setShutterBackgroundColor(Color.TRANSPARENT);
         playerView.setUseController(true);
         playerView.setControllerAutoShow(true);
         playerView.setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING);
-        root.addView(playerView, new LinearLayout.LayoutParams(
+        mediaStage.addView(playerView, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+
+        audioControls = buildAudioControls();
+        FrameLayout.LayoutParams audioParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM);
+        audioParams.setMargins(dp(10), 0, dp(10), dp(8));
+        mediaStage.addView(audioControls, audioParams);
+
+        root.addView(mediaStage, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
         root.addView(buildExperiencePanel(), new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         return root;
+    }
+
+    private LinearLayout buildAudioControls() {
+        LinearLayout controls = new LinearLayout(this);
+        controls.setOrientation(LinearLayout.VERTICAL);
+        controls.setPadding(dp(10), dp(6), dp(10), dp(8));
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(Color.argb(218, 5, 17, 11));
+        background.setCornerRadius(dp(18));
+        background.setStroke(dp(1), Color.argb(110, 88, 255, 150));
+        controls.setBackground(background);
+
+        positionSeekBar = new SeekBar(this);
+        positionSeekBar.setMax(1000);
+        positionSeekBar.setProgressTintList(
+                android.content.res.ColorStateList.valueOf(
+                        Color.rgb(70, 255, 145)));
+        positionSeekBar.setThumbTintList(
+                android.content.res.ColorStateList.valueOf(Color.WHITE));
+        positionSeekBar.setOnSeekBarChangeListener(
+                new SeekBar.OnSeekBarChangeListener() {
+                    @Override
+                    public void onProgressChanged(
+                            SeekBar seekBar, int progress, boolean fromUser) {
+                        if (!fromUser || player == null) return;
+                        long duration = player.getDuration();
+                        if (duration > 0L && duration != C.TIME_UNSET) {
+                            elapsedView.setText(formatTime(
+                                    duration * progress / 1000L));
+                        }
+                    }
+
+                    @Override
+                    public void onStartTrackingTouch(SeekBar seekBar) {
+                        userSeeking = true;
+                    }
+
+                    @Override
+                    public void onStopTrackingTouch(SeekBar seekBar) {
+                        if (player != null) {
+                            long duration = player.getDuration();
+                            if (duration > 0L && duration != C.TIME_UNSET) {
+                                player.seekTo(
+                                        duration * seekBar.getProgress() / 1000L);
+                            }
+                        }
+                        userSeeking = false;
+                    }
+                });
+        controls.addView(positionSeekBar, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
+
+        LinearLayout timeRow = new LinearLayout(this);
+        elapsedView = timeText("0:00", Gravity.START);
+        durationView = timeText("0:00", Gravity.END);
+        timeRow.addView(elapsedView, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        timeRow.addView(durationView, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        controls.addView(timeRow);
+
+        LinearLayout playbackRow = controlRow();
+        Button previousButton = audioControlButton("Anterior");
+        previousButton.setOnClickListener(view -> {
+            if (player != null && player.hasPreviousMediaItem()) {
+                player.seekToPreviousMediaItem();
+            } else if (player != null) {
+                player.seekTo(0L);
+            }
+        });
+        Button rewindButton = audioControlButton("-10s");
+        rewindButton.setOnClickListener(view -> seekRelative(-10_000L));
+        playPauseButton = audioControlButton("Pausar");
+        playPauseButton.setTextColor(Color.rgb(4, 18, 10));
+        GradientDrawable playBackground = new GradientDrawable();
+        playBackground.setColor(Color.rgb(85, 255, 145));
+        playBackground.setCornerRadius(dp(15));
+        playPauseButton.setBackground(playBackground);
+        playPauseButton.setOnClickListener(view -> togglePlayback());
+        Button forwardButton = audioControlButton("+10s");
+        forwardButton.setOnClickListener(view -> seekRelative(10_000L));
+        Button nextButton = audioControlButton("Próxima");
+        nextButton.setOnClickListener(view -> {
+            if (player != null && player.hasNextMediaItem()) {
+                player.seekToNextMediaItem();
+            }
+        });
+        playbackRow.addView(previousButton, audioButtonParams());
+        playbackRow.addView(rewindButton, audioButtonParams());
+        playbackRow.addView(playPauseButton, audioButtonParams());
+        playbackRow.addView(forwardButton, audioButtonParams());
+        playbackRow.addView(nextButton, audioButtonParams());
+        LinearLayout.LayoutParams playbackParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(42));
+        playbackParams.setMargins(0, dp(3), 0, 0);
+        controls.addView(playbackRow, playbackParams);
+        return controls;
+    }
+
+    private TextView timeText(String value, int gravity) {
+        TextView text = new TextView(this);
+        text.setText(value);
+        text.setTextColor(Color.rgb(180, 211, 190));
+        text.setTextSize(10);
+        text.setGravity(gravity);
+        text.setPadding(dp(5), 0, dp(5), 0);
+        return text;
+    }
+
+    private Button audioControlButton(String text) {
+        Button button = headerButton(text);
+        button.setTextSize(9);
+        button.setPadding(dp(2), 0, dp(2), 0);
+        return button;
+    }
+
+    private LinearLayout.LayoutParams audioButtonParams() {
+        LinearLayout.LayoutParams params =
+                new LinearLayout.LayoutParams(0, dp(40), 1f);
+        params.setMargins(dp(2), 0, dp(2), 0);
+        return params;
     }
 
     private LinearLayout buildExperiencePanel() {
@@ -254,6 +434,22 @@ public class PlayerActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         secondParams.setMargins(0, dp(8), 0, 0);
         panel.addView(secondRow, secondParams);
+
+        LinearLayout thirdRow = controlRow();
+        visualButton = controlButton("Visual: Energia");
+        visualButton.setOnClickListener(view -> cycleVisualTheme());
+        bookmarkButton = controlButton("Marcar ponto");
+        bookmarkButton.setOnClickListener(view -> saveBookmark());
+        jumpBookmarkButton = controlButton("Ir ao ponto");
+        jumpBookmarkButton.setOnClickListener(view -> jumpToBookmark());
+        thirdRow.addView(visualButton, weightedButtonParams());
+        thirdRow.addView(bookmarkButton, weightedButtonParams());
+        thirdRow.addView(jumpBookmarkButton, weightedButtonParams());
+        LinearLayout.LayoutParams thirdParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        thirdParams.setMargins(0, dp(8), 0, 0);
+        panel.addView(thirdRow, thirdParams);
         return panel;
     }
 
@@ -324,6 +520,8 @@ public class PlayerActivity extends Activity {
         player = resolved;
         player.addListener(playerListener);
         playerView.setPlayer(player);
+        uiHandler.removeCallbacks(positionUpdater);
+        uiHandler.post(positionUpdater);
 
         boolean hasRequestedQueue = mediaUri != null
                 || (queueJson != null && !queueJson.trim().isEmpty());
@@ -353,6 +551,8 @@ public class PlayerActivity extends Activity {
             restorePlayerPreferences();
         }
         updatePlayerButtons();
+        updateMediaMode();
+        updatePlaybackUi();
     }
 
     private List<MediaItem> buildQueue() {
@@ -402,6 +602,12 @@ public class PlayerActivity extends Activity {
         if (!initialShuffle) {
             player.setShuffleModeEnabled(prefs.getBoolean("shuffle", false));
         }
+        visualThemeIndex = Math.max(0, Math.min(
+                visualThemeNames.length - 1,
+                prefs.getInt("visual_theme", 0)));
+        if (energyVisualizer != null) {
+            energyVisualizer.setTheme(visualThemeIndex);
+        }
         updateSleepButton();
     }
 
@@ -418,6 +624,7 @@ public class PlayerActivity extends Activity {
         }
         if (titleView != null) titleView.setText(mediaName);
         if (nowPlayingView != null) nowPlayingView.setText(mediaName);
+        updateMediaMode();
         updatePlayerButtons();
     }
 
@@ -429,6 +636,8 @@ public class PlayerActivity extends Activity {
             queueStatusView.setText(count > 1
                     ? "Faixa " + current + " de " + count
                             + " • reprodução continua em segundo plano"
+                    : isAudioMedia()
+                    ? "Energia ao vivo • continua em segundo plano"
                     : "Reprodução local • continua em segundo plano");
         }
         if (favoriteButton != null && mediaId != null) {
@@ -449,6 +658,160 @@ public class PlayerActivity extends Activity {
         if (speedButton != null) {
             speedButton.setText(formatSpeed(speeds[speedIndex]));
         }
+        if (visualButton != null) {
+            visualButton.setText(
+                    "Visual: " + visualThemeNames[visualThemeIndex]);
+        }
+        updateBookmarkButtons();
+    }
+
+    private void updateMediaMode() {
+        if (playerView == null || energyVisualizer == null
+                || audioControls == null) return;
+        boolean audio = isAudioMedia();
+        AudioEnergyBus.setEnabled(audio);
+        playerView.setVisibility(audio ? View.INVISIBLE : View.VISIBLE);
+        energyVisualizer.setVisibility(audio ? View.VISIBLE : View.GONE);
+        audioControls.setVisibility(audio ? View.VISIBLE : View.GONE);
+        energyVisualizer.setPlaying(
+                audio && player != null && player.isPlaying());
+    }
+
+    private boolean isAudioMedia() {
+        String mime = mediaMime == null ? "" : mediaMime.toLowerCase();
+        if (mime.startsWith("audio/")) return true;
+        if (mime.startsWith("video/")) return false;
+        String name = mediaName == null ? "" : mediaName.toLowerCase();
+        return !(name.endsWith(".mp4")
+                || name.endsWith(".mkv")
+                || name.endsWith(".webm")
+                || name.endsWith(".mov")
+                || name.endsWith(".avi"));
+    }
+
+    private void updatePlaybackUi() {
+        if (playPauseButton != null && player != null) {
+            playPauseButton.setText(player.isPlaying() ? "Pausar" : "Tocar");
+        }
+        if (energyVisualizer != null) {
+            energyVisualizer.setPlaying(
+                    isAudioMedia() && player != null && player.isPlaying());
+        }
+        updatePositionUi();
+    }
+
+    private void updatePositionUi() {
+        if (player == null || positionSeekBar == null) return;
+        long position = Math.max(0L, player.getCurrentPosition());
+        long duration = player.getDuration();
+        if (duration == C.TIME_UNSET || duration <= 0L) {
+            if (!userSeeking) positionSeekBar.setProgress(0);
+            elapsedView.setText(formatTime(position));
+            durationView.setText("--:--");
+            return;
+        }
+        if (!userSeeking) {
+            positionSeekBar.setProgress((int) Math.min(
+                    1000L, position * 1000L / duration));
+            elapsedView.setText(formatTime(position));
+        }
+        durationView.setText(formatTime(duration));
+    }
+
+    private void togglePlayback() {
+        if (player == null) return;
+        if (player.isPlaying()) player.pause();
+        else {
+            if (player.getPlaybackState() == Player.STATE_ENDED) {
+                player.seekTo(0L);
+            }
+            player.play();
+        }
+    }
+
+    private void seekRelative(long offsetMs) {
+        if (player == null) return;
+        long duration = player.getDuration();
+        long destination = Math.max(0L, player.getCurrentPosition() + offsetMs);
+        if (duration != C.TIME_UNSET && duration > 0L) {
+            destination = Math.min(duration, destination);
+        }
+        player.seekTo(destination);
+        updatePositionUi();
+    }
+
+    private void cycleVisualTheme() {
+        visualThemeIndex =
+                (visualThemeIndex + 1) % visualThemeNames.length;
+        getSharedPreferences(PlaybackService.PLAYER_PREFS, MODE_PRIVATE)
+                .edit().putInt("visual_theme", visualThemeIndex).apply();
+        if (energyVisualizer != null) {
+            energyVisualizer.setTheme(visualThemeIndex);
+        }
+        updatePlayerButtons();
+        Toast.makeText(this,
+                "Visual " + visualThemeNames[visualThemeIndex] + " ativado.",
+                Toast.LENGTH_SHORT).show();
+    }
+
+    private void saveBookmark() {
+        if (player == null || mediaId == null) return;
+        long position = Math.max(0L, player.getCurrentPosition());
+        getSharedPreferences(PlaybackService.PLAYER_PREFS, MODE_PRIVATE)
+                .edit().putLong(bookmarkKey(mediaId), position).apply();
+        updateBookmarkButtons();
+        Toast.makeText(this,
+                "Ponto marcado em " + formatTime(position) + ".",
+                Toast.LENGTH_SHORT).show();
+    }
+
+    private void jumpToBookmark() {
+        if (player == null || mediaId == null) return;
+        SharedPreferences prefs =
+                getSharedPreferences(PlaybackService.PLAYER_PREFS, MODE_PRIVATE);
+        String key = bookmarkKey(mediaId);
+        if (!prefs.contains(key)) {
+            Toast.makeText(this,
+                    "Marque primeiro um ponto desta música.",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        long position = Math.max(0L, prefs.getLong(key, 0L));
+        player.seekTo(position);
+        updatePositionUi();
+        Toast.makeText(this,
+                "Voltando ao ponto " + formatTime(position) + ".",
+                Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateBookmarkButtons() {
+        if (bookmarkButton == null || jumpBookmarkButton == null
+                || mediaId == null) return;
+        SharedPreferences prefs =
+                getSharedPreferences(PlaybackService.PLAYER_PREFS, MODE_PRIVATE);
+        boolean saved = prefs.contains(bookmarkKey(mediaId));
+        bookmarkButton.setText(saved ? "Atualizar ponto" : "Marcar ponto");
+        jumpBookmarkButton.setEnabled(saved);
+        jumpBookmarkButton.setAlpha(saved ? 1f : 0.48f);
+    }
+
+    private String bookmarkKey(String id) {
+        return "bookmark_" + id;
+    }
+
+    private String formatTime(long milliseconds) {
+        long totalSeconds = Math.max(0L, milliseconds / 1000L);
+        long hours = totalSeconds / 3600L;
+        long minutes = (totalSeconds % 3600L) / 60L;
+        long seconds = totalSeconds % 60L;
+        if (hours > 0L) {
+            return String.format(
+                    java.util.Locale.getDefault(),
+                    "%d:%02d:%02d", hours, minutes, seconds);
+        }
+        return String.format(
+                java.util.Locale.getDefault(),
+                "%d:%02d", minutes, seconds);
     }
 
     private void toggleFavorite() {
@@ -585,6 +948,9 @@ public class PlayerActivity extends Activity {
     @Override
     protected void onStop() {
         savePosition();
+        uiHandler.removeCallbacks(positionUpdater);
+        AudioEnergyBus.setEnabled(false);
+        if (energyVisualizer != null) energyVisualizer.setPlaying(false);
         if (player != null) player.removeListener(playerListener);
         if (playerView != null) playerView.setPlayer(null);
         player = null;

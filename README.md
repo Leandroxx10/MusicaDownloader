@@ -18,6 +18,10 @@ Aplicativo Android desenvolvido por **Leandro Moura**, com processamento local, 
 - Fluxo de download simplificado, sem caixa de confirmação de propriedade.
 - Progresso baseado nos dados reais da transferência, com fases de preparação, processamento e finalização.
 - Player para áudio e vídeo com reprodução em segundo plano e controles na notificação.
+- **Energia ao Vivo** analisa o áudio real e anima frequências, voz e batidas sem usar o microfone.
+- Espectro circular, onda dinâmica, partículas e três temas: **Energia**, **Neon** e **Aurora**.
+- Tela de áudio própria, sem fundo preto, com barra de progresso e controles de ±10 segundos.
+- Pontos salvos por música para marcar e retornar rapidamente a um trecho favorito.
 - Retomada automática do ponto em que a reprodução parou.
 - Fila automática com toda a biblioteca, modo aleatório e repetição de faixa ou fila.
 - Controle de velocidade e temporizador para pausar sozinho.
@@ -92,10 +96,13 @@ O `netlify.toml` na raiz já contém a configuração necessária. Cada novo env
 1. Abra **Biblioteca** dentro do aplicativo.
 2. Toque no botão `▶` de um áudio ou vídeo.
 3. Use a fila, o modo aleatório, a repetição, a velocidade ou o temporizador.
-4. Pode apagar a tela ou sair do app: a reprodução continua pela notificação do Android.
-5. Ao pausar ou fechar o player, a posição é salva automaticamente em **Continuar ouvindo**.
-6. Use **Minha Mix** para embaralhar a biblioteca e **Redescobrir** para ouvir faixas menos tocadas.
-7. Para usar outro reprodutor instalado, abra o menu `⋮` e escolha **Abrir em outro app**.
+4. Em áudios, o **Energia ao Vivo** acompanha as frequências reais da música; troque entre os temas Energia, Neon e Aurora.
+5. Use `-10s`, `+10s`, faixa anterior/próxima e a barra de progresso sem sair da animação.
+6. Toque em **Marcar ponto** para guardar um trecho e em **Ir ao ponto** para retornar a ele.
+7. Pode apagar a tela ou sair do app: a reprodução continua pela notificação do Android.
+8. Ao pausar ou fechar o player, a posição é salva automaticamente em **Continuar ouvindo**.
+9. Use **Minha Mix** para embaralhar a biblioteca e **Redescobrir** para ouvir faixas menos tocadas.
+10. Para usar outro reprodutor instalado, abra o menu `⋮` e escolha **Abrir em outro app**.
 
 ## Compartilhar por QR Code
 
@@ -113,6 +120,8 @@ o código.
 - `native-android/`: aplicativo Android.
 - `PlayerActivity.java`: interface do player baseada em AndroidX Media3.
 - `PlaybackService.java`: reprodução em segundo plano, fila, notificação e temporizador.
+- `EnergyAudioProcessor.java`: análise PCM e espectro FFT da música em reprodução.
+- `EnergyVisualizerView.java`: animação nativa de energia, onda, partículas e temas.
 - `DownloadService.java`: downloads e perfis de qualidade.
 - `UpdateService.java`: download, verificação e instalação de novas versões.
 - `scripts/generate-update-manifest.py`: gera `update.json` com versão, arquitetura e SHA-256.
