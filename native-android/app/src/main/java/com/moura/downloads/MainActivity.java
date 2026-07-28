@@ -573,10 +573,12 @@ public class MainActivity extends Activity {
     private void discardInterfaceFromAnotherNativeRevision() {
         android.content.SharedPreferences preferences =
                 getSharedPreferences(UPDATE_PREFS, MODE_PRIVATE);
+        File currentInterface = UiUpdateManager.currentDirectory(this);
+        if (!currentInterface.isDirectory()) return;
         int contentNativeRevision = preferences.getInt(
-                "content_native_revision", BuildConfig.NATIVE_REVISION);
+                "content_native_revision", -1);
         if (contentNativeRevision == BuildConfig.NATIVE_REVISION) return;
-        deleteRecursively(UiUpdateManager.currentDirectory(this));
+        deleteRecursively(currentInterface);
         preferences.edit()
                 .remove("content_version")
                 .remove("content_native_revision")
