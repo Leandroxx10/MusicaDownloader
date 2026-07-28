@@ -18,7 +18,7 @@ jobs:
     env:
       MOURA_VERSION_CODE: ${{ github.run_number }}
       MOURA_VERSION_NAME: 4.0.${{ github.run_number }}
-      MOURA_NATIVE_REVISION: 2
+      MOURA_NATIVE_REVISION: 3
     steps:
       - name: Baixar projeto
         uses: actions/checkout@v6

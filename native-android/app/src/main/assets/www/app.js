@@ -11,7 +11,13 @@
   };
 
   const DEFAULT_CATEGORIES = ['Músicas', 'Vídeos', 'Podcasts', 'Clipes', 'Outros'];
-  const isAndroid = Boolean(window.AndroidBridge?.appMode && window.AndroidBridge.appMode() === 'android-local');
+  const appModeRequested = new URLSearchParams(location.search).get('app') === 'android';
+  const isTrustedAppPage = appModeRequested && (
+    ['127.0.0.1', 'localhost'].includes(location.hostname) ||
+    location.hostname === 'music-bd7a7.web.app'
+  );
+  const isAndroid = isTrustedAppPage ||
+    Boolean(window.AndroidBridge?.appMode && window.AndroidBridge.appMode() === 'android-local');
 
   const state = {
     history: storage.get('moura_history_v2', []),
@@ -28,6 +34,9 @@
     youtubeSaved: storage.get('moura_youtube_saved_v1', []),
     youtubeRecent: storage.get('moura_youtube_recent_v1', []),
     youtubeCurrent: null,
+    youtubePlayerApi: null,
+    youtubeApiPromise: null,
+    spotifyCurrent: null,
     modalMode: null,
     modalPayload: null,
     pendingDownload: null,
@@ -98,11 +107,18 @@
     youtubeUrl: $('#youtubeUrl'),
     youtubePlayer: $('#youtubePlayer'),
     youtubePlayerEmpty: $('#youtubePlayerEmpty'),
+    youtubePlayerError: $('#youtubePlayerError'),
+    youtubeErrorTitle: $('#youtubeErrorTitle'),
+    youtubeErrorText: $('#youtubeErrorText'),
     youtubeNowPlaying: $('#youtubeNowPlaying'),
     youtubeCurrentLabel: $('#youtubeCurrentLabel'),
     youtubeSaveBtn: $('#youtubeSaveBtn'),
     youtubeSavedList: $('#youtubeSavedList'),
     youtubeRecentList: $('#youtubeRecentList'),
+    spotifyUrl: $('#spotifyUrl'),
+    spotifyPlayer: $('#spotifyPlayer'),
+    spotifyPlayerShell: $('#spotifyPlayerShell'),
+    spotifyActions: $('#spotifyActions'),
     toast: $('#toast')
   };
 
@@ -143,6 +159,7 @@
     try {
       const host = new URL(value).hostname.replace(/^www\./, '').toLowerCase();
       if (host.includes('youtu')) return 'YouTube';
+      if (host.includes('spotify')) return 'Spotify';
       if (host.includes('instagram')) return 'Instagram';
       if (host.includes('facebook') || host.includes('fb.watch')) return 'Facebook';
       if (host.includes('tiktok')) return 'TikTok';
@@ -191,18 +208,81 @@
     return `https://i.ytimg.com/vi/${encodeURIComponent(id)}/mqdefault.jpg`;
   }
 
-  function playYouTubeVideo(itemOrId, remember = true) {
+  function loadYouTubeApi() {
+    if (window.YT?.Player) return Promise.resolve(window.YT);
+    if (state.youtubeApiPromise) return state.youtubeApiPromise;
+    state.youtubeApiPromise = new Promise((resolve, reject) => {
+      const previousReady = window.onYouTubeIframeAPIReady;
+      let finished = false;
+      const finish = value => {
+        if (finished) return;
+        finished = true;
+        resolve(value);
+      };
+      window.onYouTubeIframeAPIReady = () => {
+        if (typeof previousReady === 'function') previousReady();
+        finish(window.YT);
+      };
+      const existing = document.querySelector('script[data-moura-youtube-api]');
+      if (!existing) {
+        const script = document.createElement('script');
+        script.src = 'https://www.youtube.com/iframe_api';
+        script.async = true;
+        script.dataset.mouraYoutubeApi = 'true';
+        script.onerror = () => reject(new Error('Não foi possível carregar o player oficial.'));
+        document.head.appendChild(script);
+      }
+      setTimeout(() => {
+        if (window.YT?.Player) finish(window.YT);
+        else reject(new Error('O YouTube demorou demais para responder.'));
+      }, 15000);
+    }).catch(error => {
+      state.youtubeApiPromise = null;
+      throw error;
+    });
+    return state.youtubeApiPromise;
+  }
+
+  function youtubeErrorMessage(code) {
+    if ([101, 150].includes(Number(code))) {
+      return ['O canal bloqueou o player incorporado',
+        'Este vídeo só pode ser assistido diretamente no YouTube.'];
+    }
+    if (Number(code) === 100) {
+      return ['Vídeo indisponível',
+        'O vídeo foi removido, ficou privado ou o endereço não está mais disponível.'];
+    }
+    if (Number(code) === 153) {
+      return ['O YouTube não reconheceu o aplicativo',
+        'Atualize o Moura e tente novamente. Se continuar, abra este vídeo no YouTube.'];
+    }
+    return ['Não foi possível reproduzir este vídeo',
+      'O YouTube recusou a reprodução neste aparelho. Você pode abrir o mesmo link no YouTube.'];
+  }
+
+  function showYouTubeError(codeOrError) {
+    const [title, message] = typeof codeOrError === 'number'
+      ? youtubeErrorMessage(codeOrError)
+      : ['O player oficial não carregou',
+        codeOrError?.message || 'Verifique sua internet e tente novamente.'];
+    els.youtubeErrorTitle.textContent = title;
+    els.youtubeErrorText.textContent = message;
+    els.youtubePlayerEmpty.classList.add('hidden');
+    els.youtubePlayerError.classList.remove('hidden');
+    toast(message, true);
+  }
+
+  async function playYouTubeVideo(itemOrId, remember = true) {
     const item = typeof itemOrId === 'string' ? youtubeItem(itemOrId) : itemOrId;
     if (!item?.id || !/^[A-Za-z0-9_-]{11}$/.test(item.id)) {
       return toast('Cole um link público válido do YouTube.', true);
     }
-    const origin = location.origin.startsWith('https://')
-      ? `&origin=${encodeURIComponent(location.origin)}` : '';
-    els.youtubePlayer.src =
-      `https://www.youtube-nocookie.com/embed/${encodeURIComponent(item.id)}` +
-      `?playsinline=1&rel=0&enablejsapi=1${origin}`;
-    els.youtubePlayer.classList.remove('hidden');
-    els.youtubePlayerEmpty.classList.add('hidden');
+    els.youtubePlayerError.classList.add('hidden');
+    els.youtubePlayerEmpty.classList.remove('hidden');
+    const emptyTitle = els.youtubePlayerEmpty.querySelector('strong');
+    const emptyText = els.youtubePlayerEmpty.querySelector('small');
+    if (emptyTitle) emptyTitle.textContent = 'Abrindo o player oficial…';
+    if (emptyText) emptyText.textContent = 'O vídeo será preparado sem sair do Moura.';
     els.youtubeNowPlaying.classList.remove('hidden');
     els.youtubeCurrentLabel.textContent = item.label || `Vídeo ${item.id}`;
     state.youtubeCurrent = { ...item, watchedAt: Date.now() };
@@ -215,6 +295,34 @@
     }
     updateYouTubeSaveButton();
     renderYouTubeLists();
+    try {
+      const YT = await loadYouTubeApi();
+      const playerVars = {
+        playsinline: 1,
+        rel: 0,
+        enablejsapi: 1,
+        origin: location.origin
+      };
+      if (state.youtubePlayerApi?.cueVideoById) {
+        state.youtubePlayerApi.cueVideoById(item.id);
+        els.youtubePlayerEmpty.classList.add('hidden');
+        return;
+      }
+      state.youtubePlayerApi = new YT.Player('youtubePlayer', {
+        width: '100%',
+        height: '100%',
+        videoId: item.id,
+        host: 'https://www.youtube-nocookie.com',
+        playerVars,
+        events: {
+          onReady: () => els.youtubePlayerEmpty.classList.add('hidden'),
+          onError: event => showYouTubeError(Number(event.data)),
+          onAutoplayBlocked: () => toast('Toque no botão de play do vídeo para começar.')
+        }
+      });
+    } catch (error) {
+      showYouTubeError(error);
+    }
   }
 
   function loadYouTubeFromInput() {
@@ -285,6 +393,71 @@
     } else {
       window.open(state.youtubeCurrent.url, '_blank', 'noopener,noreferrer');
     }
+  }
+
+  function spotifyResource(value) {
+    const normalized = normalizeUrl(value);
+    if (!normalized) return null;
+    try {
+      const url = new URL(normalized);
+      const host = url.hostname.replace(/^www\./, '').toLowerCase();
+      if (host !== 'open.spotify.com' && host !== 'spotify.link') return null;
+      if (host === 'spotify.link') {
+        return { url: normalized, embed: '', label: 'Link compartilhado do Spotify' };
+      }
+      const parts = url.pathname.split('/').filter(Boolean);
+      const marketOffset = parts[0]?.startsWith('intl-') ? 1 : 0;
+      const type = parts[marketOffset] || '';
+      const id = parts[marketOffset + 1] || '';
+      const allowed = ['track', 'album', 'playlist', 'artist', 'episode', 'show'];
+      if (!allowed.includes(type) || !/^[A-Za-z0-9]{10,40}$/.test(id)) return null;
+      return {
+        url: `https://open.spotify.com/${type}/${id}`,
+        embed: `https://open.spotify.com/embed/${type}/${id}?utm_source=moura_downloads&theme=0`,
+        label: type
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  function loadSpotifyFromInput() {
+    const resource = spotifyResource(els.spotifyUrl?.value);
+    if (!resource) {
+      return toast('Cole um link válido do Spotify.', true);
+    }
+    state.spotifyCurrent = resource;
+    if (!resource.embed) {
+      els.spotifyPlayerShell.classList.add('hidden');
+      els.spotifyActions.classList.remove('hidden');
+      toast('Este link curto será aberto no Spotify para garantir segurança.');
+      return;
+    }
+    els.spotifyPlayer.src = resource.embed;
+    els.spotifyPlayerShell.classList.remove('hidden');
+    els.spotifyActions.classList.remove('hidden');
+    toast('Player oficial do Spotify aberto.');
+  }
+
+  async function pasteSpotifyLink() {
+    try {
+      const text = isAndroid
+        ? window.AndroidBridge.readClipboard()
+        : await navigator.clipboard.readText();
+      const match = String(text || '').match(/https?:\/\/[^\s]+/i);
+      els.spotifyUrl.value = match ? match[0] : String(text || '').trim();
+      if (spotifyResource(els.spotifyUrl.value)) loadSpotifyFromInput();
+      else toast('A área de transferência não contém um link do Spotify.', true);
+    } catch {
+      toast('Não foi possível ler a área de transferência.', true);
+    }
+  }
+
+  function openCurrentSpotifyExternally() {
+    const resource = state.spotifyCurrent || spotifyResource(els.spotifyUrl?.value);
+    if (!resource?.url) return toast('Cole primeiro um link do Spotify.', true);
+    if (isAndroid) location.href = resource.url;
+    else window.open(resource.url, '_blank', 'noopener');
   }
 
   function selectedFormat() {
@@ -410,6 +583,14 @@
   function verifyLink() {
     const url = normalizeUrl(els.mediaUrl.value);
     if (!url) return toast('Cole um link válido iniciado por http:// ou https://.', true);
+    const spotify = spotifyResource(url);
+    if (spotify) {
+      els.mediaTitle.textContent = 'Link oficial do Spotify';
+      els.mediaMeta.textContent = 'Reprodução segura no player oficial';
+      els.mediaThumb.textContent = 'S';
+      els.analysisPanel.classList.remove('hidden');
+      return toast('O catálogo do Spotify pode ser ouvido no player oficial, mas não exportado como MP3.');
+    }
     const platform = platformFromUrl(url);
     els.mediaTitle.textContent = `${platform} identificado`;
     els.mediaMeta.textContent = `${selectedFormat().toUpperCase()} • ${els.downloadCategory.value} • ${selectedQualityLabel()}`;
@@ -421,6 +602,13 @@
   function startDownload() {
     const url = normalizeUrl(els.mediaUrl.value);
     if (!url) return toast('Cole um link válido iniciado por http:// ou https://.', true);
+    const spotify = spotifyResource(url);
+    if (spotify) {
+      els.spotifyUrl.value = url;
+      showView('youtube');
+      setTimeout(loadSpotifyFromInput, 120);
+      return toast('Abrimos o Spotify oficial. Para ouvir offline, use o download do Spotify Premium.', true);
+    }
     if (!isAndroid) {
       $('#como-instalar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return toast('Instale o APK no Android para baixar no próprio celular.', true);
@@ -953,6 +1141,7 @@
 
   $$('.nav-item[data-view]').forEach(item => item.addEventListener('click', () => showView(item.dataset.view)));
   $('#openLibraryBtn').addEventListener('click', () => showView('downloads'));
+  $('#openAccountBtn').addEventListener('click', () => showView('conta'));
   $('#heroLibraryBtn').addEventListener('click', () => {
     if (isAndroid) {
       showView('downloads');
@@ -971,6 +1160,7 @@
   });
   els.youtubeSaveBtn.addEventListener('click', toggleCurrentYouTubeSaved);
   $('#youtubeOpenBtn').addEventListener('click', openCurrentYouTubeExternally);
+  $('#youtubeFallbackBtn').addEventListener('click', openCurrentYouTubeExternally);
   $('#youtubeClearSavedBtn').addEventListener('click', () => {
     state.youtubeSaved = [];
     storage.set('moura_youtube_saved_v1', []);
@@ -995,6 +1185,15 @@
         behavior: 'smooth', block: 'center'
       }), 80);
     }));
+  $('#spotifyPasteBtn').addEventListener('click', pasteSpotifyLink);
+  $('#spotifyListenBtn').addEventListener('click', loadSpotifyFromInput);
+  $('#spotifyOpenBtn').addEventListener('click', openCurrentSpotifyExternally);
+  els.spotifyUrl.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      loadSpotifyFromInput();
+    }
+  });
   els.analyzeBtn.addEventListener('click', verifyLink);
   els.downloadBtn.addEventListener('click', startDownload);
   els.cancelDownloadBtn.addEventListener('click', cancelDownload);
@@ -1135,6 +1334,12 @@
     $('#heroDescription').textContent = 'Cole um link autorizado, escolha áudio ou vídeo e use o player interno sem sair do aplicativo.';
     $('#heroLibraryBtn').textContent = 'Ver biblioteca';
   }
+
+  window.MouraUI = Object.freeze({
+    showView,
+    toast,
+    isAndroid
+  });
 
   if (!isAndroid && 'serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));

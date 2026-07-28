@@ -1,7 +1,7 @@
 {
   "name": "Moura Downloads",
   "short_name": "Moura DL",
-  "description": "Super app Android com player, biblioteca, QR Code e atualizações inteligentes dentro do aplicativo.",
+  "description": "Super app Android com player, biblioteca, YouTube e Spotify oficiais, conta, feedback e atualizações inteligentes.",
   "id": "/",
   "start_url": "./",
   "scope": "./",

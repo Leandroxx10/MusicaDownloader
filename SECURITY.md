@@ -3,7 +3,9 @@
 ## Arquitetura
 
 - O processamento ocorre localmente no Android.
-- Não há backend, chave secreta, conta obrigatória ou banco externo.
+- A conta é opcional e usa Firebase Authentication com Realtime Database.
+- A configuração web pública do Firebase não concede acesso por si só; as regras do banco fazem a autorização.
+- Firestore e Firebase Storage não são usados.
 - Histórico, categorias e favoritos permanecem no aparelho.
 - Os arquivos finais ficam em `Downloads/Moura Downloads`.
 
@@ -30,6 +32,10 @@
 - Serviço de download não é exportado para outros aplicativos.
 - Broadcasts de progresso são restritos ao pacote do aplicativo.
 - Sem localização, câmera, microfone, contatos ou SMS.
+- Regras do Realtime Database negam tudo por padrão e isolam perfil, feedback e mensagens pelo UID autenticado.
+- O painel administrativo exige autenticação e um UID marcado manualmente em `admins`.
+- Clientes não podem criar administradores nem enviar mensagens como administrador.
+- Senhas permanecem no Firebase Authentication e nunca são copiadas para o banco.
 
 ## Riscos e limitações
 
@@ -40,15 +46,22 @@
 - O mecanismo local utiliza componentes GPL-3.0; distribua o código-fonte correspondente e preserve os avisos de licença.
 - A confirmação final da instalação é controlada pelo Android e não pode ser removida em uma distribuição direta por APK.
 
-## LGPD
+## LGPD e GDPR
 
-O projeto não exige identificação do usuário e não envia o histórico ao responsável pelo aplicativo. Caso sejam adicionados analytics, anúncios, login, crash reporting ou nuvem, atualize a política de privacidade, a base legal, a retenção, os operadores envolvidos e os mecanismos para exercício de direitos.
+O login envia somente UID, nome, e-mail, provedor e datas necessárias à conta.
+Feedback, respostas e mensagens também ficam na nuvem. Biblioteca, histórico de
+mídia, categorias, favoritos e posições de reprodução continuam locais. A área
+**Minha conta** fornece um canal privado para acesso, correção, portabilidade,
+oposição e exclusão. A política informa operadores, transferência internacional,
+retenção e direitos do titular.
 
 ## Publicação
 
 Antes de distribuir:
 
-- Substitua o contato genérico da política de privacidade.
+- Acrescente um e-mail público do controlador na política quando esse canal existir.
+- Substitua imediatamente as regras de teste pelas regras em `firebase/database.rules.json`.
+- Cadastre o UID de Leandro no nó `admins` pelo Firebase Console.
 - Faça análise de dependências e vulnerabilidades.
 - Teste exclusão, compartilhamento e permissões em Android 8 a 16.
 - Guarde uma cópia privada da chave de assinatura; perdê-la impede atualizações compatíveis.

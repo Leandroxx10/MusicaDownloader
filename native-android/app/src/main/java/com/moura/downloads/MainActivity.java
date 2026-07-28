@@ -19,6 +19,7 @@ import android.provider.Settings;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
 import android.webkit.MimeTypeMap;
+import android.webkit.CookieManager;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -63,7 +64,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
-    private static final String APP_ORIGIN = "https://app.local/";
+    private static final String APP_HOST = "music-bd7a7.web.app";
+    private static final String APP_ORIGIN = "https://" + APP_HOST + "/";
     private static final int STORAGE_PERMISSION_REQUEST = 40;
     private static final int NOTIFICATION_PERMISSION_REQUEST = 41;
     private static final String PREFS = "moura_library";
@@ -140,7 +142,7 @@ public class MainActivity extends Activity {
         registerAppReceivers();
         requestRuntimePermissions();
         readSharedText(getIntent());
-        webView.loadUrl(APP_ORIGIN + "index.html");
+        webView.loadUrl(APP_ORIGIN + "index.html?app=android");
     }
 
     private void configureWebView() {
@@ -155,6 +157,10 @@ public class MainActivity extends Activity {
         settings.setUserAgentString(settings.getUserAgentString() + " MouraDownloadsAndroid/4.0");
 
         webView.addJavascriptInterface(new AndroidBridge(), "AndroidBridge");
+        CookieManager.getInstance().setAcceptCookie(true);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
+        }
         webView.setWebChromeClient(new AppWebChromeClient());
         webView.setWebViewClient(new LocalAssetClient());
     }
@@ -218,8 +224,11 @@ public class MainActivity extends Activity {
         if (webView == null) return;
         String encoded = Base64.encodeToString(
                 jsonPayload.getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP);
-        runOnUiThread(() -> webView.evaluateJavascript(
-                functionName + "(JSON.parse(decodeURIComponent(escape(atob('" + encoded + "')))));", null));
+        String js = "(function(){const parts='" + functionName + "'.split('.');let target=window;" +
+                "for(const part of parts){if(part==='window')continue;target=target&&target[part];}" +
+                "if(typeof target==='function'){target(JSON.parse(decodeURIComponent(escape(atob('" +
+                encoded + "')))));}})();";
+        runOnUiThread(() -> webView.evaluateJavascript(js, null));
     }
 
     private File outputDirectory() {
@@ -518,7 +527,7 @@ public class MainActivity extends Activity {
                     ? Integer.MAX_VALUE
                     : interfaceBundle.optInt("requiredNativeRevision", Integer.MAX_VALUE);
             boolean interfaceAvailable = !nativeAvailable
-                    && requiredNativeRevision <= BuildConfig.NATIVE_REVISION
+                    && requiredNativeRevision == BuildConfig.NATIVE_REVISION
                     && latestContentVersion > installedContentVersion;
             boolean available = nativeAvailable || interfaceAvailable;
             JSONObject apks = manifest.optJSONObject("apks");
@@ -1158,7 +1167,7 @@ public class MainActivity extends Activity {
         @Override
         public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
             Uri uri = request.getUrl();
-            if ("app.local".equals(uri.getHost())) {
+            if (APP_HOST.equals(uri.getHost())) {
                 String path = uri.getPath();
                 if (path == null || path.equals("/") || path.trim().isEmpty()) path = "/index.html";
                 path = path.replaceFirst("^/", "");
@@ -1193,7 +1202,7 @@ public class MainActivity extends Activity {
         @Override
         public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
             Uri uri = request.getUrl();
-            if ("app.local".equals(uri.getHost())) return false;
+            if (APP_HOST.equals(uri.getHost())) return false;
             if (!request.isForMainFrame()) return false;
             if ("https".equals(uri.getScheme()) || "http".equals(uri.getScheme())) {
                 startActivity(new Intent(Intent.ACTION_VIEW, uri));

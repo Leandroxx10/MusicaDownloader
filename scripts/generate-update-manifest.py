@@ -88,8 +88,8 @@ def main() -> None:
         "publishedAt": datetime.now(timezone.utc).isoformat(),
         "commit": os.environ.get("GITHUB_SHA", ""),
         "notes": (
-            "Atualizações rápidas, Central YouTube, listas locais, interface "
-            "mais clara e melhorias de velocidade, privacidade e acessibilidade."
+            "Player YouTube com erros explicados, Spotify oficial, controles "
+            "simplificados, conta, feedback, mensagens privadas e painel administrativo."
         ),
         "interfaceBundle": {
             "contentVersion": version_code,

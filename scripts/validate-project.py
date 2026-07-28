@@ -135,6 +135,9 @@ def validate_required_features() -> None:
         / "moura"
         / "downloads"
         / "UiUpdateManager.java",
+        WEB_DIR / "cloud.js",
+        ROOT / "firebase" / "database.rules.json",
+        ROOT / "FIREBASE-SETUP.md",
     ]
     missing = [str(path.relative_to(ROOT)) for path in required if not path.is_file()]
     if missing:
@@ -227,11 +230,25 @@ def validate_required_features() -> None:
         and "release/*.zip" in workflow
         and "MAX_EXTRACTED_BYTES" in ui_update_manager
         and "startInterfaceUpdate" in main_activity
+        and "requiredNativeRevision == BuildConfig.NATIVE_REVISION"
+        in main_activity
         and "UiUpdateManager.currentDirectory" in main_activity,
         "central oficial do YouTube": 'id="view-youtube"' in index
-        and "youtube-nocookie.com/embed/" in app_js
+        and "youtube-nocookie.com" in app_js
+        and "youtube.com/iframe_api" in app_js
+        and "youtubeErrorMessage" in app_js
         and "Reprodução oficial e segura" in index
         and "data-view=\"youtube\"" in index,
+        "Spotify oficial sem extração protegida": 'id="spotifyPlayer"' in index
+        and "open.spotify.com/embed/" in app_js
+        and "isSpotifyUrl" in download_service,
+        "conta e suporte no Realtime Database": 'id="view-conta"' in index
+        and "firebase-database.js" in required[12].read_text(encoding="utf-8")
+        and "firebase-firestore" not in required[12].read_text(encoding="utf-8")
+        and "firebase-storage" not in required[12].read_text(encoding="utf-8")
+        and '"admins"' in required[13].read_text(encoding="utf-8")
+        and '"feedback"' in required[13].read_text(encoding="utf-8")
+        and '"messages"' in required[13].read_text(encoding="utf-8"),
         "download completo no site": "moura-downloads.apk" in index
         and "moura-downloads-arm64.apk" not in index,
         "somente QR Code no app": 'id="appQrCode"' in index

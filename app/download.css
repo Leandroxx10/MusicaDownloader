@@ -1064,3 +1064,636 @@ body.netlify-mode .main-content {
     display: grid;
   }
 }
+
+#youtubePlayer {
+  width: 100%;
+  height: 100%;
+  min-width: 200px;
+  min-height: 200px;
+}
+
+.youtube-player-error {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  padding: 26px;
+  background: rgba(3, 9, 6, .94);
+  text-align: center;
+}
+
+.youtube-player-error > span {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 92, 108, .14);
+  color: #ff9ba7;
+  font-size: 22px;
+  font-weight: 950;
+}
+
+.youtube-player-error strong {
+  margin-top: 13px;
+  font-size: 18px;
+}
+
+.youtube-player-error small {
+  max-width: 480px;
+  margin: 7px 0 15px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.spotify-studio {
+  margin-top: 15px;
+  padding: 22px;
+  border: 1px solid rgba(42, 215, 110, .22);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 92% 0, rgba(30, 215, 96, .13), transparent 34%),
+    linear-gradient(155deg, rgba(13, 28, 19, .98), rgba(6, 14, 9, .98));
+  box-shadow: var(--shadow);
+}
+
+.spotify-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.spotify-heading h2 {
+  margin: 6px 0 7px;
+  font-size: 24px;
+}
+
+.spotify-heading p,
+.spotify-actions p {
+  max-width: 720px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.spotify-badge {
+  flex: none;
+  padding: 8px 12px;
+  border: 1px solid rgba(30, 215, 96, .3);
+  border-radius: 999px;
+  background: rgba(30, 215, 96, .1);
+  color: #baffd0;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .1em;
+}
+
+.spotify-url-field {
+  margin-top: 17px;
+}
+
+.spotify-url-field > span {
+  color: #1ed760;
+}
+
+.spotify-player-shell {
+  width: 100%;
+  min-height: 352px;
+  margin-top: 17px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #121212;
+}
+
+.spotify-player-shell iframe {
+  display: block;
+  width: 100%;
+  min-height: 352px;
+  border: 0;
+}
+
+.spotify-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 13px;
+  padding: 13px 15px;
+  border: 1px solid rgba(30, 215, 96, .16);
+  border-radius: 15px;
+  background: rgba(30, 215, 96, .05);
+}
+
+.spotify-actions strong {
+  color: #d6ffe3;
+}
+
+.account-shortcut {
+  min-width: 78px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-title {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.account-grid,
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+}
+
+.account-card,
+.admin-panel,
+.admin-card {
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 94% 0, rgba(66, 245, 123, .09), transparent 30%),
+    linear-gradient(155deg, rgba(13, 28, 19, .98), rgba(6, 14, 9, .98));
+  box-shadow: var(--shadow);
+}
+
+.account-card {
+  padding: 22px;
+}
+
+.account-card h2,
+.admin-heading h2 {
+  margin: 6px 0 8px;
+  font-size: 24px;
+}
+
+.account-card > p,
+.admin-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.account-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.account-form label {
+  margin-top: 5px;
+  color: #d0e2d5;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.account-form label small {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.account-form input:not([type="checkbox"]),
+.account-form select,
+.account-form textarea,
+.card-heading input,
+.card-heading select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  outline: 0;
+  background: #061009;
+  color: var(--text);
+  padding: 12px 13px;
+}
+
+.account-form textarea {
+  min-height: 116px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.account-form input:focus,
+.account-form select:focus,
+.account-form textarea:focus,
+.card-heading input:focus,
+.card-heading select:focus {
+  border-color: rgba(66, 245, 123, .55);
+  box-shadow: 0 0 0 3px rgba(66, 245, 123, .08);
+}
+
+.privacy-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 0;
+  line-height: 1.45;
+}
+
+.privacy-consent input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--green);
+}
+
+.account-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.account-actions > * {
+  flex: 1;
+}
+
+.text-button {
+  justify-self: start;
+  border: 0;
+  background: transparent;
+  color: #baffcc;
+  padding: 8px 0;
+  font-size: 12px;
+}
+
+.google-button {
+  display: flex;
+  width: 100%;
+  min-height: 50px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 18px;
+  border: 1px solid #d7dfda;
+  border-radius: 14px;
+  background: #fff;
+  color: #18211b;
+  font-weight: 900;
+}
+
+.google-button span {
+  color: #4285f4;
+  font-size: 19px;
+  font-weight: 950;
+}
+
+.privacy-mini {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: rgba(66, 245, 123, .05);
+}
+
+.privacy-mini strong,
+.privacy-mini small {
+  display: block;
+}
+
+.privacy-mini small {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.account-profile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.profile-avatar {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--green), var(--green-2));
+  color: #041008;
+  font-size: 23px;
+  font-weight: 950;
+}
+
+.profile-copy h2 {
+  margin: 4px 0 3px;
+}
+
+.profile-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.profile-actions {
+  margin: 0;
+}
+
+.form-counter,
+.card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.form-counter {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.card-heading h2,
+.card-heading h3,
+.admin-card > h3 {
+  margin: 5px 0 0;
+}
+
+.card-heading input,
+.card-heading select {
+  width: min(230px, 48%);
+}
+
+.message-count {
+  display: grid;
+  min-width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--green);
+  color: #041008;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.cloud-list,
+.admin-list,
+.admin-feedback-list {
+  display: grid;
+  gap: 9px;
+  margin-top: 16px;
+}
+
+.cloud-item,
+.admin-user,
+.admin-feedback {
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: rgba(5, 14, 8, .75);
+}
+
+.cloud-item-head,
+.admin-user {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cloud-item strong,
+.cloud-item small,
+.admin-user strong,
+.admin-user small {
+  display: block;
+}
+
+.cloud-item small,
+.admin-user small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.cloud-item p,
+.admin-feedback p {
+  margin: 9px 0 0;
+  color: #cfdfd3;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.cloud-reply {
+  margin-top: 10px;
+  padding: 10px 11px;
+  border-left: 3px solid var(--green);
+  border-radius: 8px;
+  background: rgba(66, 245, 123, .06);
+}
+
+.cloud-reply strong {
+  color: #caffd8;
+  font-size: 11px;
+}
+
+.empty-cloud {
+  padding: 24px 12px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 12px;
+}
+
+.status-chip {
+  flex: none;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(255, 200, 87, .1);
+  color: #ffe49a;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.status-chip.respondido,
+.status-chip.resolvido {
+  background: rgba(66, 245, 123, .1);
+  color: #baffce;
+}
+
+.admin-panel {
+  margin-top: 15px;
+  padding: 22px;
+  border-color: rgba(66, 245, 123, .3);
+}
+
+.admin-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.admin-badge {
+  flex: none;
+  padding: 8px 11px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--green), var(--green-2));
+  color: #041008;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: .1em;
+}
+
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.admin-stats article {
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(66, 245, 123, .06);
+}
+
+.admin-stats strong,
+.admin-stats small {
+  display: block;
+}
+
+.admin-stats strong {
+  font-size: 25px;
+}
+
+.admin-stats small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.admin-card {
+  padding: 18px;
+  border-radius: 18px;
+  box-shadow: none;
+}
+
+.admin-user {
+  cursor: pointer;
+}
+
+.admin-user:hover,
+.admin-user.selected {
+  border-color: rgba(66, 245, 123, .46);
+  background: rgba(66, 245, 123, .08);
+}
+
+.admin-feedback-card {
+  margin-top: 14px;
+}
+
+.admin-feedback textarea {
+  width: 100%;
+  min-height: 76px;
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  outline: 0;
+  background: #061009;
+  color: var(--text);
+  padding: 10px;
+  resize: vertical;
+}
+
+.admin-feedback-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 9px;
+}
+
+.admin-feedback-actions select {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #061009;
+  color: var(--text);
+  padding: 10px;
+}
+
+.admin-feedback-actions button {
+  min-height: 40px;
+}
+
+@media (max-width: 900px) {
+  .bottom-nav {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .account-grid,
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .account-shortcut {
+    display: none;
+  }
+}
+
+@media (max-width: 680px) {
+  .spotify-heading,
+  .spotify-actions,
+  .account-title,
+  .admin-heading {
+    display: block;
+  }
+
+  .spotify-badge,
+  .admin-badge {
+    display: inline-block;
+    margin-top: 12px;
+  }
+
+  .spotify-actions button {
+    width: 100%;
+    margin-top: 11px;
+  }
+
+  .account-profile {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .profile-actions {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .admin-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .account-card,
+  .admin-panel,
+  .spotify-studio {
+    padding: 15px;
+    border-radius: 19px;
+  }
+
+  .account-actions,
+  .profile-actions,
+  .admin-feedback-actions {
+    display: grid;
+  }
+
+  .card-heading {
+    align-items: flex-start;
+  }
+
+  .card-heading input,
+  .card-heading select {
+    width: 46%;
+  }
+}

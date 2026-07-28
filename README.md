@@ -1,6 +1,6 @@
 # Moura Downloads 4.0 — Atualizações inteligentes
 
-Aplicativo Android desenvolvido por **Leandro Moura**, com processamento local, player interno, biblioteca completa, compartilhamento por QR Code e atualização de versão dentro do próprio app. A página estática está pronta para publicação no Netlify e oferece um único botão para baixar o aplicativo completo.
+Aplicativo Android desenvolvido por **Leandro Moura**, com processamento local, player interno, biblioteca completa, players oficiais do YouTube e Spotify, conta com suporte privado, compartilhamento por QR Code e atualização de versão dentro do próprio app. A página estática está pronta para publicação no Netlify e oferece um único botão para baixar o aplicativo completo.
 
 > Use somente com conteúdo próprio, autorizado, licenciado ou em domínio público. O projeto não inclui bypass de DRM, cookies de contas, acesso a conteúdo privado ou quebra de controles de acesso.
 
@@ -10,6 +10,12 @@ Aplicativo Android desenvolvido por **Leandro Moura**, com processamento local, 
 - Separação clara entre **atualização rápida** e **atualização completa** do motor Android.
 - Reversão segura para a interface anterior se um pacote estiver incompleto ou inválido.
 - Central YouTube com player oficial incorporado, suporte a vídeos, links curtos e Shorts.
+- Códigos de erro do YouTube explicados e botão seguro para abrir vídeos que bloqueiam incorporação.
+- Player oficial do Spotify para faixas, álbuns, playlists, artistas e podcasts.
+- Conta por e-mail e senha usando Firebase Authentication.
+- Feedback privado, caixa de entrada e painel administrativo protegido por UID.
+- Regras do Realtime Database com acesso negado por padrão e isolamento por usuário.
+- Controles principais do player simplificados; recursos extras ficam em **Mais opções**.
 - Lista **Ver depois** e histórico de vídeos armazenados somente no aparelho.
 - Reprodução do YouTube em tela cheia sem sair do Moura.
 - Verificação de nova versão ao abrir o aplicativo.
@@ -107,10 +113,10 @@ O `netlify.toml` na raiz já contém a configuração necessária. Cada novo env
 
 1. Abra **Biblioteca** dentro do aplicativo.
 2. Toque no botão `▶` de um áudio ou vídeo.
-3. Use a fila, o modo aleatório, a repetição, a velocidade ou o temporizador.
+3. Use **Favoritar**, **Misturar** e **Repetir**. Velocidade, timer, animação e ponto salvo ficam em **Mais opções**.
 4. Em áudios, o **Energia ao Vivo** acompanha as frequências reais da música; troque entre os temas Energia, Neon e Aurora.
 5. Use `-10s`, `+10s`, faixa anterior/próxima e a barra de progresso sem sair da animação.
-6. Toque em **Marcar ponto** para guardar um trecho e em **Ir ao ponto** para retornar a ele.
+6. Toque em **Salvar ponto** para guardar um trecho e em **Voltar ao ponto** para retornar a ele.
 7. Pode apagar a tela ou sair do app: a reprodução continua pela notificação do Android.
 8. Ao pausar ou fechar o player, a posição é salva automaticamente em **Continuar ouvindo**.
 9. Use **Minha Mix** para embaralhar a biblioteca e **Redescobrir** para ouvir faixas menos tocadas.
@@ -130,6 +136,33 @@ mantém a reprodução separada do processador geral de links para respeitar as
 políticas da plataforma. Vídeos privados, restritos, removidos ou bloqueados por
 região continuam sujeitos às regras do próprio YouTube.
 
+## Spotify oficial
+
+1. Abra **YouTube** e localize **Spotify oficial**.
+2. Cole um link de faixa, álbum, playlist, artista, podcast ou episódio.
+3. Toque em **Ouvir** para carregar o player oficial.
+4. Use **Abrir no Spotify** quando a reprodução exigir o aplicativo ou login.
+
+O Moura não remove DRM nem exporta o catálogo do Spotify como MP3. Para ouvir
+offline, use o download oficial do Spotify Premium.
+
+## Conta, feedback e painel administrativo
+
+O aplicativo usa somente Firebase Authentication e Realtime Database. Firestore
+e Firebase Storage não são usados. Depois de instalar:
+
+1. abra **Minha conta**;
+2. crie uma conta com nome, e-mail e senha;
+3. envie ideias, problemas ou pedidos de privacidade;
+4. receba respostas e avisos na caixa de entrada.
+
+Para ativar o painel de Leandro Moura e publicar as regras seguras, siga
+[`FIREBASE-SETUP.md`](FIREBASE-SETUP.md). O painel lista os perfis mínimos das
+pessoas que já entraram pelo aplicativo; listar diretamente todos os usuários do
+Firebase Authentication exigiria Admin SDK em um servidor confiável.
+
+O contato público de suporte e privacidade é `leandro12done@gmail.com`.
+
 ## Compartilhar por QR Code
 
 1. Abra **Ajustes**.
@@ -143,6 +176,9 @@ o código.
 ## Estrutura
 
 - `app/`: site/PWA publicado pelo Netlify.
+- `app/cloud.js`: Authentication, perfis mínimos, feedback, mensagens e painel.
+- `firebase/database.rules.json`: regras seguras para copiar no Realtime Database.
+- `FIREBASE-SETUP.md`: ativação do administrador e configuração do Firebase.
 - `native-android/`: aplicativo Android.
 - `PlayerActivity.java`: interface do player baseada em AndroidX Media3.
 - `PlaybackService.java`: reprodução em segundo plano, fila, notificação e temporizador.

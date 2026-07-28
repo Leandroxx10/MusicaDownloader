@@ -78,6 +78,8 @@ public class PlayerActivity extends Activity {
     private Button visualButton;
     private Button bookmarkButton;
     private Button jumpBookmarkButton;
+    private Button moreOptionsButton;
+    private LinearLayout advancedControls;
 
     private final Handler uiHandler = new Handler(Looper.getMainLooper());
     private Uri mediaUri;
@@ -310,7 +312,8 @@ public class PlayerActivity extends Activity {
         controls.addView(timeRow);
 
         LinearLayout playbackRow = controlRow();
-        Button previousButton = audioControlButton("Anterior");
+        Button previousButton = audioControlButton("⏮");
+        previousButton.setContentDescription("Música anterior");
         previousButton.setOnClickListener(view -> {
             if (player != null && player.hasPreviousMediaItem()) {
                 player.seekToPreviousMediaItem();
@@ -318,18 +321,22 @@ public class PlayerActivity extends Activity {
                 player.seekTo(0L);
             }
         });
-        Button rewindButton = audioControlButton("-10s");
+        Button rewindButton = audioControlButton("↶ 10");
+        rewindButton.setContentDescription("Voltar 10 segundos");
         rewindButton.setOnClickListener(view -> seekRelative(-10_000L));
         playPauseButton = audioControlButton("Pausar");
+        playPauseButton.setContentDescription("Pausar música");
         playPauseButton.setTextColor(Color.rgb(4, 18, 10));
         GradientDrawable playBackground = new GradientDrawable();
         playBackground.setColor(Color.rgb(85, 255, 145));
         playBackground.setCornerRadius(dp(15));
         playPauseButton.setBackground(playBackground);
         playPauseButton.setOnClickListener(view -> togglePlayback());
-        Button forwardButton = audioControlButton("+10s");
+        Button forwardButton = audioControlButton("10 ↷");
+        forwardButton.setContentDescription("Avançar 10 segundos");
         forwardButton.setOnClickListener(view -> seekRelative(10_000L));
-        Button nextButton = audioControlButton("Próxima");
+        Button nextButton = audioControlButton("⏭");
+        nextButton.setContentDescription("Próxima música");
         nextButton.setOnClickListener(view -> {
             if (player != null && player.hasNextMediaItem()) {
                 player.seekToNextMediaItem();
@@ -397,23 +404,72 @@ public class PlayerActivity extends Activity {
         panel.addView(queueStatusView);
 
         LinearLayout firstRow = controlRow();
-        favoriteButton = controlButton("☆ Favorito");
+        favoriteButton = controlButton("☆ Favoritar");
+        favoriteButton.setContentDescription(
+                "Favoritar ou remover esta música dos favoritos");
         favoriteButton.setOnClickListener(view -> toggleFavorite());
-        shuffleButton = controlButton("Aleatório");
+        shuffleButton = controlButton("Misturar");
+        shuffleButton.setContentDescription(
+                "Misturar a ordem das músicas");
         shuffleButton.setOnClickListener(view -> toggleShuffle());
-        repeatButton = controlButton("Repetir");
+        repeatButton = controlButton("Repetir: não");
+        repeatButton.setContentDescription(
+                "Escolher como as músicas serão repetidas");
         repeatButton.setOnClickListener(view -> cycleRepeat());
         firstRow.addView(favoriteButton, weightedButtonParams());
         firstRow.addView(shuffleButton, weightedButtonParams());
         firstRow.addView(repeatButton, weightedButtonParams());
         panel.addView(firstRow);
 
+        TextView simpleHelp = new TextView(this);
+        simpleHelp.setText(
+                "Favoritar salva a música. Misturar muda a ordem. "
+                        + "Repetir toca novamente.");
+        simpleHelp.setTextColor(Color.rgb(151, 177, 160));
+        simpleHelp.setTextSize(10);
+        simpleHelp.setGravity(Gravity.CENTER);
+        simpleHelp.setPadding(dp(6), dp(7), dp(6), dp(4));
+        panel.addView(simpleHelp);
+
+        moreOptionsButton = controlButton("Mais opções");
+        moreOptionsButton.setContentDescription(
+                "Mostrar velocidade, timer, animação e ponto salvo");
+        moreOptionsButton.setOnClickListener(view -> {
+            boolean show = advancedControls.getVisibility() != View.VISIBLE;
+            advancedControls.setVisibility(show ? View.VISIBLE : View.GONE);
+            moreOptionsButton.setText(show
+                    ? "Ocultar opções extras" : "Mais opções");
+        });
+        LinearLayout.LayoutParams moreParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(42));
+        moreParams.setMargins(dp(3), dp(4), dp(3), 0);
+        panel.addView(moreOptionsButton, moreParams);
+
+        advancedControls = new LinearLayout(this);
+        advancedControls.setOrientation(LinearLayout.VERTICAL);
+        advancedControls.setVisibility(View.GONE);
+
+        TextView advancedHelp = new TextView(this);
+        advancedHelp.setText(
+                "Extras: mude a velocidade, programe para parar, "
+                        + "troque a animação ou salve um ponto da música.");
+        advancedHelp.setTextColor(Color.rgb(151, 177, 160));
+        advancedHelp.setTextSize(10);
+        advancedHelp.setGravity(Gravity.CENTER);
+        advancedHelp.setPadding(dp(6), dp(8), dp(6), dp(7));
+        advancedControls.addView(advancedHelp);
+
         LinearLayout secondRow = controlRow();
-        speedButton = controlButton("1×");
+        speedButton = controlButton("Velocidade: 1×");
+        speedButton.setContentDescription("Mudar a velocidade da música");
         speedButton.setOnClickListener(view -> cycleSpeed());
-        sleepButton = controlButton("Timer");
+        sleepButton = controlButton("Parar depois");
+        sleepButton.setContentDescription(
+                "Programar o player para pausar sozinho");
         sleepButton.setOnClickListener(view -> cycleSleepTimer());
-        Button mixButton = controlButton("Minha Mix");
+        Button mixButton = controlButton("Tocar aleatório");
+        mixButton.setContentDescription(
+                "Tocar todas as músicas em ordem aleatória");
         mixButton.setOnClickListener(view -> {
             if (player == null || player.getMediaItemCount() < 2) {
                 Toast.makeText(this,
@@ -432,15 +488,20 @@ public class PlayerActivity extends Activity {
         LinearLayout.LayoutParams secondParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
-        secondParams.setMargins(0, dp(8), 0, 0);
-        panel.addView(secondRow, secondParams);
+        advancedControls.addView(secondRow, secondParams);
 
         LinearLayout thirdRow = controlRow();
-        visualButton = controlButton("Visual: Energia");
+        visualButton = controlButton("Mudar animação");
+        visualButton.setContentDescription(
+                "Trocar o estilo da animação que acompanha a música");
         visualButton.setOnClickListener(view -> cycleVisualTheme());
-        bookmarkButton = controlButton("Marcar ponto");
+        bookmarkButton = controlButton("Salvar ponto");
+        bookmarkButton.setContentDescription(
+                "Salvar o trecho atual para voltar depois");
         bookmarkButton.setOnClickListener(view -> saveBookmark());
-        jumpBookmarkButton = controlButton("Ir ao ponto");
+        jumpBookmarkButton = controlButton("Voltar ao ponto");
+        jumpBookmarkButton.setContentDescription(
+                "Voltar ao trecho salvo nesta música");
         jumpBookmarkButton.setOnClickListener(view -> jumpToBookmark());
         thirdRow.addView(visualButton, weightedButtonParams());
         thirdRow.addView(bookmarkButton, weightedButtonParams());
@@ -449,7 +510,8 @@ public class PlayerActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         thirdParams.setMargins(0, dp(8), 0, 0);
-        panel.addView(thirdRow, thirdParams);
+        advancedControls.addView(thirdRow, thirdParams);
+        panel.addView(advancedControls);
         return panel;
     }
 
@@ -643,24 +705,25 @@ public class PlayerActivity extends Activity {
         if (favoriteButton != null && mediaId != null) {
             boolean favorite = getSharedPreferences(LIBRARY_PREFS, MODE_PRIVATE)
                     .getBoolean("fav_" + mediaId, false);
-            favoriteButton.setText(favorite ? "★ Favorito" : "☆ Favorito");
+            favoriteButton.setText(favorite ? "★ Favoritada" : "☆ Favoritar");
         }
         if (shuffleButton != null) {
             shuffleButton.setText(player.getShuffleModeEnabled()
-                    ? "Aleatório ✓" : "Aleatório");
+                    ? "Misturar: sim" : "Misturar: não");
         }
         if (repeatButton != null) {
             String label = player.getRepeatMode() == Player.REPEAT_MODE_ONE
-                    ? "Repetir 1" : player.getRepeatMode() == Player.REPEAT_MODE_ALL
-                    ? "Repetir tudo" : "Repetir";
+                    ? "Repetir: uma" : player.getRepeatMode() == Player.REPEAT_MODE_ALL
+                    ? "Repetir: tudo" : "Repetir: não";
             repeatButton.setText(label);
         }
         if (speedButton != null) {
-            speedButton.setText(formatSpeed(speeds[speedIndex]));
+            speedButton.setText(
+                    "Velocidade: " + formatSpeed(speeds[speedIndex]));
         }
         if (visualButton != null) {
             visualButton.setText(
-                    "Visual: " + visualThemeNames[visualThemeIndex]);
+                    "Animação: " + visualThemeNames[visualThemeIndex]);
         }
         updateBookmarkButtons();
     }
@@ -692,6 +755,8 @@ public class PlayerActivity extends Activity {
     private void updatePlaybackUi() {
         if (playPauseButton != null && player != null) {
             playPauseButton.setText(player.isPlaying() ? "Pausar" : "Tocar");
+            playPauseButton.setContentDescription(
+                    player.isPlaying() ? "Pausar música" : "Tocar música");
         }
         if (energyVisualizer != null) {
             energyVisualizer.setPlaying(
@@ -790,7 +855,7 @@ public class PlayerActivity extends Activity {
         SharedPreferences prefs =
                 getSharedPreferences(PlaybackService.PLAYER_PREFS, MODE_PRIVATE);
         boolean saved = prefs.contains(bookmarkKey(mediaId));
-        bookmarkButton.setText(saved ? "Atualizar ponto" : "Marcar ponto");
+        bookmarkButton.setText(saved ? "Atualizar ponto" : "Salvar ponto");
         jumpBookmarkButton.setEnabled(saved);
         jumpBookmarkButton.setAlpha(saved ? 1f : 0.48f);
     }
@@ -887,10 +952,10 @@ public class PlayerActivity extends Activity {
         long remaining = prefs.getLong("sleep_deadline", 0L)
                 - System.currentTimeMillis();
         if (remaining <= 0L) {
-            sleepButton.setText("Timer");
+            sleepButton.setText("Parar depois");
         } else {
             long minutes = Math.max(1L, (remaining + 59_999L) / 60_000L);
-            sleepButton.setText("Timer " + minutes + "m");
+            sleepButton.setText("Parar em " + minutes + "m");
         }
     }
 

@@ -97,6 +97,13 @@ public class DownloadService extends Service {
             stopSelf(startId);
             return START_NOT_STICKY;
         }
+        if (isSpotifyUrl(url)) {
+            sendEvent("error", 0, 0,
+                    "O catálogo do Spotify usa proteção própria e não pode ser exportado. "
+                            + "Ouça pelo player oficial do Moura ou use o modo offline do Spotify Premium.");
+            stopSelf(startId);
+            return START_NOT_STICKY;
+        }
         running = true;
         cancelRequested = false;
         displayedProgress = 0;
@@ -245,6 +252,20 @@ public class DownloadService extends Service {
                     || normalized.endsWith(".youtube.com")
                     || normalized.equals("youtube-nocookie.com")
                     || normalized.endsWith(".youtube-nocookie.com");
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private boolean isSpotifyUrl(String value) {
+        try {
+            String host = Uri.parse(value).getHost();
+            if (host == null) return false;
+            String normalized = host.toLowerCase(Locale.ROOT);
+            return normalized.equals("open.spotify.com")
+                    || normalized.endsWith(".spotify.com")
+                    || normalized.equals("spotify.link")
+                    || normalized.endsWith(".spotify.link");
         } catch (Exception ignored) {
             return false;
         }

@@ -9,8 +9,8 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=11">
-  <link rel="stylesheet" href="./download.css?v=11">
+  <link rel="stylesheet" href="./styles.css?v=12">
+  <link rel="stylesheet" href="./download.css?v=12">
   <title>Moura Downloads</title>
 </head>
 <body>
@@ -25,6 +25,7 @@
         <button class="nav-item" data-view="youtube"><span>▶</span>YouTube</button>
         <button class="nav-item" data-view="downloads"><span>⇩</span>Biblioteca</button>
         <button class="nav-item" data-view="historico"><span>◷</span>Histórico</button>
+        <button class="nav-item" data-view="conta"><span>●</span>Minha conta</button>
         <button class="nav-item" data-view="configuracoes"><span>⚙</span>Ajustes</button>
       </nav>
       <div class="sidebar-note">
@@ -38,6 +39,7 @@
         <div class="mobile-brand"><img src="./assets/logo.png" alt=""><strong>Moura</strong></div>
         <div class="top-actions">
           <span id="modeBadge" class="connection-badge">Modo de demonstração</span>
+          <button id="openAccountBtn" class="ghost-button account-shortcut" type="button">Entrar</button>
           <button id="openLibraryBtn" class="icon-button" aria-label="Abrir biblioteca">⇩</button>
         </div>
       </header>
@@ -177,9 +179,13 @@
               <strong>Sua sessão começa aqui</strong>
               <small>Cole um link acima. O histórico e a lista “Ver depois” ficam somente neste aparelho.</small>
             </div>
-            <iframe id="youtubePlayer" class="hidden" title="Player oficial do YouTube"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+            <div id="youtubePlayer" aria-label="Player oficial do YouTube"></div>
+            <div id="youtubePlayerError" class="youtube-player-error hidden">
+              <span>!</span>
+              <strong id="youtubeErrorTitle">Este vídeo não abriu no player</strong>
+              <small id="youtubeErrorText">Alguns vídeos bloqueiam a reprodução incorporada. Você ainda pode abri-los com segurança no YouTube.</small>
+              <button id="youtubeFallbackBtn" class="secondary-button compact" type="button">Abrir no YouTube</button>
+            </div>
           </div>
 
           <div id="youtubeNowPlaying" class="youtube-now-playing hidden">
@@ -192,6 +198,27 @@
               <button id="youtubeSaveBtn" class="secondary-button compact" type="button">☆ Ver depois</button>
               <button id="youtubeOpenBtn" class="secondary-button compact" type="button">Abrir no YouTube ↗</button>
             </div>
+          </div>
+        </section>
+
+        <section class="spotify-studio" aria-labelledby="spotifyTitle">
+          <div class="spotify-heading">
+            <div><span class="eyebrow">SPOTIFY OFICIAL</span><h2 id="spotifyTitle">Ouça seus links do Spotify</h2><p>Cole uma música, álbum, playlist, artista, podcast ou episódio. O Moura usa o player oficial, sem copiar nem remover a proteção do catálogo.</p></div>
+            <span class="spotify-badge">PLAYER OFICIAL</span>
+          </div>
+          <div class="youtube-url-field spotify-url-field">
+            <span>♫</span>
+            <input id="spotifyUrl" type="url" inputmode="url" autocomplete="url" placeholder="https://open.spotify.com/track/..." aria-label="Link do Spotify">
+            <button id="spotifyPasteBtn" class="secondary-button compact" type="button">Colar</button>
+            <button id="spotifyListenBtn" class="primary-button compact" type="button">Ouvir</button>
+          </div>
+          <div id="spotifyPlayerShell" class="spotify-player-shell hidden">
+            <iframe id="spotifyPlayer" title="Player oficial do Spotify" loading="lazy"
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
+          </div>
+          <div id="spotifyActions" class="spotify-actions hidden">
+            <p><strong>Quer ouvir offline?</strong> Use o botão de download dentro do aplicativo oficial do Spotify Premium. O catálogo do Spotify não pode ser exportado como MP3 pelo Moura.</p>
+            <button id="spotifyOpenBtn" class="secondary-button compact" type="button">Abrir no Spotify ↗</button>
           </div>
         </section>
 
@@ -270,6 +297,116 @@
         <div id="historyList" class="history-list"></div>
       </section>
 
+      <section id="view-conta" class="view">
+        <div class="page-title account-title">
+          <div><span class="eyebrow">CONTA E SUPORTE</span><h1>Minha conta</h1><p>Entre para enviar sugestões, receber avisos do desenvolvedor e acompanhar respostas com privacidade.</p></div>
+          <span id="cloudStatusBadge" class="status-value">Conectando</span>
+        </div>
+
+        <div id="signedOutPanel" class="account-grid">
+          <section class="account-card">
+            <span class="eyebrow">ACESSO SEGURO</span>
+            <h2>Entrar com e-mail</h2>
+            <p>O Firebase protege sua senha. O Moura nunca recebe nem armazena a senha no Realtime Database.</p>
+            <form id="emailAuthForm" class="account-form">
+              <label for="authName">Seu nome <small>(somente para criar conta)</small></label>
+              <input id="authName" type="text" maxlength="80" autocomplete="name" placeholder="Como quer ser chamado">
+              <label for="authEmail">E-mail</label>
+              <input id="authEmail" type="email" maxlength="254" autocomplete="email" required placeholder="voce@exemplo.com">
+              <label for="authPassword">Senha</label>
+              <input id="authPassword" type="password" minlength="6" maxlength="128" autocomplete="current-password" required placeholder="Mínimo de 6 caracteres">
+              <label class="privacy-consent"><input id="privacyConsent" type="checkbox"><span>Li a <a href="./privacy.html" target="_blank" rel="noopener">Política de Privacidade</a> e os <a href="./terms.html" target="_blank" rel="noopener">Termos de Uso</a>.</span></label>
+              <div class="account-actions">
+                <button id="emailSignInBtn" class="primary-button" type="submit">Entrar</button>
+                <button id="emailSignUpBtn" class="secondary-button" type="button">Criar conta</button>
+              </div>
+              <button id="passwordResetBtn" class="text-button" type="button">Esqueci minha senha</button>
+            </form>
+          </section>
+          <section class="account-card social-login-card">
+            <span class="eyebrow">ACESSO RÁPIDO</span>
+            <h2>Continuar com Google</h2>
+            <p id="googleLoginHelp">No site, você pode usar a conta Google. No APK Android, e-mail e senha são a opção mais compatível.</p>
+            <button id="googleSignInBtn" class="google-button" type="button"><span>G</span> Entrar com Google</button>
+            <div class="privacy-mini">
+              <strong>Dados mínimos</strong>
+              <small>Guardamos somente UID, nome, e-mail, provedor, datas de acesso, mensagens e feedback. Biblioteca e histórico de mídia continuam apenas no aparelho.</small>
+            </div>
+          </section>
+        </div>
+
+        <div id="signedInPanel" class="hidden">
+          <section class="account-profile account-card">
+            <div class="profile-avatar" id="profileAvatar">M</div>
+            <div class="profile-copy"><span class="eyebrow">CONTA ATIVA</span><h2 id="profileName">Usuário</h2><p id="profileEmail">—</p></div>
+            <div class="account-actions profile-actions">
+              <button id="privacyRequestBtn" class="secondary-button" type="button">Meus dados e privacidade</button>
+              <button id="signOutBtn" class="secondary-button" type="button">Sair</button>
+            </div>
+          </section>
+
+          <div class="account-grid">
+            <section class="account-card">
+              <div class="card-heading"><div><span class="eyebrow">FALE COM LEANDRO</span><h2>Enviar sugestão</h2></div></div>
+              <form id="feedbackForm" class="account-form">
+                <label for="feedbackCategory">Assunto</label>
+                <select id="feedbackCategory">
+                  <option value="melhoria">Ideia de melhoria</option>
+                  <option value="problema">Algo não funcionou</option>
+                  <option value="privacidade">Meus dados e privacidade</option>
+                  <option value="outro">Outro assunto</option>
+                </select>
+                <label for="feedbackMessage">Mensagem</label>
+                <textarea id="feedbackMessage" maxlength="1500" required placeholder="Conte de forma simples o que aconteceu ou o que gostaria de ver no app."></textarea>
+                <div class="form-counter"><span>Só você e o administrador podem ler.</span><span id="feedbackCounter">0/1500</span></div>
+                <button class="primary-button" type="submit">Enviar para Leandro</button>
+              </form>
+              <div id="myFeedbackList" class="cloud-list"></div>
+            </section>
+
+            <section class="account-card">
+              <div class="card-heading"><div><span class="eyebrow">CAIXA DE ENTRADA</span><h2>Mensagens do app</h2></div><span id="unreadBadge" class="message-count hidden">0</span></div>
+              <p>Novidades, respostas e avisos enviados diretamente por Leandro Moura.</p>
+              <div id="myMessagesList" class="cloud-list"></div>
+            </section>
+          </div>
+
+          <section id="adminPanel" class="admin-panel hidden">
+            <div class="admin-heading">
+              <div><span class="eyebrow">ACESSO RESTRITO</span><h2>Painel de Leandro Moura</h2><p>Perfis que já entraram no Moura, feedbacks privados e mensagens individuais.</p></div>
+              <span class="admin-badge">ADMINISTRADOR</span>
+            </div>
+            <div class="admin-stats">
+              <article><strong id="adminUsersCount">0</strong><small>usuários no app</small></article>
+              <article><strong id="adminFeedbackCount">0</strong><small>feedbacks recebidos</small></article>
+              <article><strong id="adminOpenCount">0</strong><small>aguardando resposta</small></article>
+            </div>
+            <div class="admin-grid">
+              <section class="admin-card">
+                <div class="card-heading"><div><span class="eyebrow">USUÁRIOS</span><h3>Perfis da plataforma</h3></div><input id="adminUserSearch" type="search" placeholder="Buscar nome ou e-mail"></div>
+                <div id="adminUsersList" class="admin-list"></div>
+              </section>
+              <section class="admin-card">
+                <span class="eyebrow">NOVA MENSAGEM</span><h3>Enviar para um usuário</h3>
+                <form id="adminMessageForm" class="account-form">
+                  <label for="adminMessageUser">Destinatário</label>
+                  <select id="adminMessageUser" required><option value="">Selecione um usuário</option></select>
+                  <label for="adminMessageTitle">Título</label>
+                  <input id="adminMessageTitle" maxlength="90" required placeholder="Ex.: Nova versão disponível">
+                  <label for="adminMessageBody">Mensagem</label>
+                  <textarea id="adminMessageBody" maxlength="1200" required placeholder="Escreva uma mensagem clara e curta."></textarea>
+                  <button class="primary-button" type="submit">Enviar mensagem privada</button>
+                </form>
+              </section>
+            </div>
+            <section class="admin-card admin-feedback-card">
+              <div class="card-heading"><div><span class="eyebrow">FEEDBACKS</span><h3>Mensagens recebidas</h3></div><select id="adminFeedbackFilter"><option value="todos">Todos</option><option value="novo">Novos</option><option value="respondido">Respondidos</option><option value="resolvido">Resolvidos</option></select></div>
+              <div id="adminFeedbackList" class="admin-feedback-list"></div>
+            </section>
+          </section>
+        </div>
+      </section>
+
       <section id="view-configuracoes" class="view">
         <div class="page-title"><span class="eyebrow">AJUSTES</span><h1>Armazenamento e categorias</h1><p>Os downloads são salvos em <strong>Downloads/Moura Downloads</strong>.</p></div>
         <div class="settings-card">
@@ -316,6 +453,7 @@
       <button class="nav-item" data-view="youtube"><span>▶</span><small>YouTube</small></button>
       <button class="nav-item" data-view="downloads"><span>⇩</span><small>Biblioteca</small></button>
       <button class="nav-item" data-view="historico"><span>◷</span><small>Histórico</small></button>
+      <button class="nav-item" data-view="conta"><span>●</span><small>Conta</small></button>
       <button class="nav-item" data-view="configuracoes"><span>⚙</span><small>Ajustes</small></button>
     </nav>
   </div>
@@ -357,6 +495,7 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="./app.js?v=11" defer></script>
+  <script src="./app.js?v=12" defer></script>
+  <script src="./cloud.js?v=12" type="module"></script>
 </body>
 </html>
