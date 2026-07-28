@@ -60,6 +60,7 @@ public class MainActivity extends Activity {
     private static final int STORAGE_PERMISSION_REQUEST = 40;
     private static final int NOTIFICATION_PERMISSION_REQUEST = 41;
     private static final String PREFS = "moura_library";
+    private static final String PLAYER_PREFS = "moura_player";
     private static final String UPDATE_PREFS = "moura_updates";
     private static final String UPDATE_MANIFEST_URL =
             "https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/update.json";
@@ -239,6 +240,8 @@ public class MainActivity extends Activity {
     }
 
     private void migrateMetadata(File oldFile, File newFile) throws IOException {
+        String oldId = encodeFileId(oldFile);
+        String newId = encodeFileId(newFile);
         String oldCatKey = metadataKey("cat_", oldFile);
         String oldFavKey = metadataKey("fav_", oldFile);
         String category = getSharedPreferences(PREFS, MODE_PRIVATE).getString(oldCatKey, null);
@@ -248,11 +251,30 @@ public class MainActivity extends Activity {
         if (category != null) editor.putString(metadataKey("cat_", newFile), category);
         if (favorite) editor.putBoolean(metadataKey("fav_", newFile), true);
         editor.apply();
+
+        android.content.SharedPreferences playerPrefs =
+                getSharedPreferences(PLAYER_PREFS, MODE_PRIVATE);
+        android.content.SharedPreferences.Editor playerEditor = playerPrefs.edit();
+        long position = playerPrefs.getLong("position_" + oldId, 0L);
+        long lastPlayed = playerPrefs.getLong("last_played_" + oldId, 0L);
+        int playCount = playerPrefs.getInt("play_count_" + oldId, 0);
+        if (position > 0L) playerEditor.putLong("position_" + newId, position);
+        if (lastPlayed > 0L) playerEditor.putLong("last_played_" + newId, lastPlayed);
+        if (playCount > 0) playerEditor.putInt("play_count_" + newId, playCount);
+        if (oldId.equals(playerPrefs.getString("last_media_id", null))) {
+            playerEditor.putString("last_media_id", newId);
+        }
+        playerEditor.remove("position_" + oldId)
+                .remove("last_played_" + oldId)
+                .remove("play_count_" + oldId)
+                .apply();
     }
 
     private String libraryJson() {
         JSONArray items = new JSONArray();
         try {
+            android.content.SharedPreferences playerPrefs =
+                    getSharedPreferences(PLAYER_PREFS, MODE_PRIVATE);
             File dir = outputDirectory();
             File[] files = dir.listFiles(file -> file.isFile() && !file.getName().startsWith("."));
             if (files == null) files = new File[0];
@@ -260,7 +282,8 @@ public class MainActivity extends Activity {
             for (File file : files) {
                 JSONObject item = new JSONObject();
                 String mime = mimeForFile(file);
-                item.put("id", encodeFileId(file));
+                String id = encodeFileId(file);
+                item.put("id", id);
                 item.put("name", file.getName());
                 item.put("mime", mime);
                 item.put("type", mime.startsWith("audio/") ? "audio" : mime.startsWith("video/") ? "video" : "file");
@@ -268,6 +291,12 @@ public class MainActivity extends Activity {
                 item.put("modified", file.lastModified());
                 item.put("category", categoryFor(file));
                 item.put("favorite", favoriteFor(file));
+                item.put("resumePosition",
+                        playerPrefs.getLong("position_" + id, 0L));
+                item.put("lastPlayed",
+                        playerPrefs.getLong("last_played_" + id, 0L));
+                item.put("playCount",
+                        playerPrefs.getInt("play_count_" + id, 0));
                 items.put(item);
             }
         } catch (Exception error) {
@@ -288,6 +317,46 @@ public class MainActivity extends Activity {
         if (name.endsWith(".mp3") || name.endsWith(".m4a") || name.endsWith(".opus") || name.endsWith(".wav")) return "audio/*";
         if (name.endsWith(".mp4") || name.endsWith(".mkv") || name.endsWith(".webm") || name.endsWith(".mov")) return "video/*";
         return "application/octet-stream";
+    }
+
+    private File[] playableFiles() {
+        File[] files = outputDirectory().listFiles(file -> {
+            if (!file.isFile() || file.getName().startsWith(".")) return false;
+            String mime = mimeForFile(file);
+            return mime.startsWith("audio/") || mime.startsWith("video/");
+        });
+        if (files == null) files = new File[0];
+        Arrays.sort(files, Comparator.comparingLong(File::lastModified).reversed());
+        return files;
+    }
+
+    private Intent playerIntent(File selected, boolean shuffle) throws Exception {
+        String selectedId = encodeFileId(selected);
+        String selectedMime = mimeForFile(selected);
+        Uri selectedUri = FileProvider.getUriForFile(
+                this, getPackageName() + ".fileprovider", selected);
+        JSONArray queue = new JSONArray();
+        File[] files = playableFiles();
+        for (int index = 0; index < files.length && index < 200; index++) {
+            File file = files[index];
+            JSONObject item = new JSONObject();
+            item.put("id", encodeFileId(file));
+            item.put("name", file.getName());
+            item.put("mime", mimeForFile(file));
+            item.put("uri", FileProvider.getUriForFile(
+                    this, getPackageName() + ".fileprovider", file).toString());
+            queue.put(item);
+        }
+
+        Intent player = new Intent(this, PlayerActivity.class);
+        player.putExtra(PlayerActivity.EXTRA_MEDIA_URI, selectedUri.toString());
+        player.putExtra(PlayerActivity.EXTRA_MEDIA_ID, selectedId);
+        player.putExtra(PlayerActivity.EXTRA_MEDIA_NAME, selected.getName());
+        player.putExtra(PlayerActivity.EXTRA_MEDIA_MIME, selectedMime);
+        player.putExtra(PlayerActivity.EXTRA_QUEUE_JSON, queue.toString());
+        player.putExtra(PlayerActivity.EXTRA_SHUFFLE, shuffle);
+        player.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        return player;
     }
 
     private String sanitizeFilename(String value, String currentExtension) {
@@ -537,6 +606,10 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         activityVisible = true;
+        if (webView != null) {
+            callJavascript("window.onNativeDownloadEvent",
+                    "{\"status\":\"library-ready\"}");
+        }
         if (pendingUpdateUrl != null && canInstallPackages()) {
             String url = pendingUpdateUrl;
             String sha256 = pendingUpdateSha256;
@@ -726,6 +799,11 @@ public class MainActivity extends Activity {
                 String deletedPath = file.getAbsolutePath();
                 if (!file.delete()) return actionResult(false, "O Android não permitiu excluir o arquivo.").toString();
                 getSharedPreferences(PREFS, MODE_PRIVATE).edit().remove(catKey).remove(favKey).apply();
+                getSharedPreferences(PLAYER_PREFS, MODE_PRIVATE).edit()
+                        .remove("position_" + id)
+                        .remove("last_played_" + id)
+                        .remove("play_count_" + id)
+                        .apply();
                 android.media.MediaScannerConnection.scanFile(MainActivity.this, new String[]{deletedPath}, null, null);
                 return actionResult(true, "Arquivo excluído do celular.").toString();
             } catch (Exception error) {
@@ -785,16 +863,56 @@ public class MainActivity extends Activity {
                 if (!mime.startsWith("audio/") && !mime.startsWith("video/")) {
                     return actionResult(false, "Este tipo de arquivo não pode ser reproduzido no app.").toString();
                 }
-                Uri uri = FileProvider.getUriForFile(
-                        MainActivity.this, getPackageName() + ".fileprovider", file);
-                Intent player = new Intent(MainActivity.this, PlayerActivity.class);
-                player.putExtra(PlayerActivity.EXTRA_MEDIA_URI, uri.toString());
-                player.putExtra(PlayerActivity.EXTRA_MEDIA_ID, id);
-                player.putExtra(PlayerActivity.EXTRA_MEDIA_NAME, file.getName());
-                player.putExtra(PlayerActivity.EXTRA_MEDIA_MIME, mime);
-                player.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                Intent player = playerIntent(file, false);
                 runOnUiThread(() -> startActivity(player));
                 return actionResult(true, "Abrindo o reprodutor do Moura.").toString();
+            } catch (Exception error) {
+                return actionResult(false, safeMessage(error)).toString();
+            }
+        }
+
+        @JavascriptInterface
+        public String playSmartMix(String mode) {
+            try {
+                File[] files = playableFiles();
+                if (files.length == 0) {
+                    return actionResult(false,
+                            "Baixe uma música ou vídeo para criar sua Mix.").toString();
+                }
+                File selected = files[0];
+                String lastId = getSharedPreferences(PLAYER_PREFS, MODE_PRIVATE)
+                        .getString("last_media_id", null);
+                if ("continue".equalsIgnoreCase(mode) && lastId != null) {
+                    try {
+                        File previous = fileFromId(lastId);
+                        if (previous.exists()) selected = previous;
+                    } catch (Exception ignored) { }
+                }
+                if ("rediscover".equalsIgnoreCase(mode)) {
+                    android.content.SharedPreferences playerPrefs =
+                            getSharedPreferences(PLAYER_PREFS, MODE_PRIVATE);
+                    int lowestPlays = Integer.MAX_VALUE;
+                    long oldestPlay = Long.MAX_VALUE;
+                    for (File candidate : files) {
+                        String candidateId = encodeFileId(candidate);
+                        int plays = playerPrefs.getInt(
+                                "play_count_" + candidateId, 0);
+                        long lastPlayed = playerPrefs.getLong(
+                                "last_played_" + candidateId, 0L);
+                        if (plays < lowestPlays
+                                || (plays == lowestPlays && lastPlayed < oldestPlay)) {
+                            selected = candidate;
+                            lowestPlays = plays;
+                            oldestPlay = lastPlayed;
+                        }
+                    }
+                }
+                Intent player = playerIntent(
+                        selected, "shuffle".equalsIgnoreCase(mode)
+                                || "rediscover".equalsIgnoreCase(mode));
+                runOnUiThread(() -> startActivity(player));
+                return actionResult(true,
+                        "Minha Mix aberta no player em segundo plano.").toString();
             } catch (Exception error) {
                 return actionResult(false, safeMessage(error)).toString();
             }

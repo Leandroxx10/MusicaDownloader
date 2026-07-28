@@ -9,8 +9,8 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=7">
-  <link rel="stylesheet" href="./download.css?v=7">
+  <link rel="stylesheet" href="./styles.css?v=9">
+  <link rel="stylesheet" href="./download.css?v=9">
   <title>Moura Downloads</title>
 </head>
 <body>
@@ -141,18 +141,43 @@
         </section>
 
         <section class="dashboard-grid">
-          <article class="info-card"><span class="info-icon">▶</span><div><strong>Player interno</strong><small>Reproduza áudio e vídeo sem sair do Moura Downloads.</small></div></article>
+          <article class="info-card"><span class="info-icon">▶</span><div><strong>Player em segundo plano</strong><small>Ouça com a tela apagada e controle tudo pela notificação.</small></div></article>
           <article class="info-card"><span class="info-icon">⚡</span><div><strong>Modo rápido</strong><small>Downloads paralelos e perfis para economizar tempo e dados.</small></div></article>
-          <article class="info-card"><span class="info-icon">📂</span><div><strong>Biblioteca completa</strong><small>Categorias, favoritos, pesquisa e posição de reprodução salva.</small></div></article>
+          <article class="info-card"><span class="info-icon">✨</span><div><strong>Experiência inteligente</strong><small>Minha Mix, continuar ouvindo, redescoberta, fila e histórico privado.</small></div></article>
           <button id="openQrBtn" class="info-card info-card-button" type="button"><span class="info-icon">▦</span><div><strong>Compartilhar o app</strong><small>Mostre o QR Code para outra pessoa instalar.</small></div></button>
         </section>
       </section>
 
       <section id="view-downloads" class="view">
         <div class="page-title library-title-row">
-          <div><span class="eyebrow">ARQUIVOS NO CELULAR</span><h1>Minha biblioteca</h1><p>Gerencie somente os arquivos salvos pelo Moura Downloads.</p></div>
+          <div><span class="eyebrow">ARQUIVOS NO CELULAR</span><h1>Minha biblioteca</h1><p>Seu player pessoal, inteligente e totalmente local.</p></div>
           <button id="refreshLibraryBtn" class="secondary-button compact">Atualizar</button>
         </div>
+
+        <section id="smartLibrary" class="smart-library hidden" aria-labelledby="smartLibraryTitle">
+          <div class="smart-library-heading">
+            <div><span class="eyebrow">EXPERIÊNCIA MOURA</span><h2 id="smartLibraryTitle">Seu som, do seu jeito</h2><p>Mixes privadas criadas no próprio celular, sem anúncios e sem enviar seu histórico.</p></div>
+            <span id="smartLibraryStats" class="status-value">0 faixas</span>
+          </div>
+          <div class="smart-action-grid">
+            <button id="continueListeningBtn" class="smart-action continue hidden" type="button">
+              <span class="smart-action-icon">▶</span>
+              <span><small>CONTINUAR OUVINDO</small><strong id="continueListeningTitle">Última faixa</strong><em id="continueListeningMeta">Retomar do ponto salvo</em></span>
+            </button>
+            <button id="shuffleMixBtn" class="smart-action" type="button">
+              <span class="smart-action-icon">∞</span>
+              <span><small>MINHA MIX</small><strong>Embaralhar biblioteca</strong><em>Fila contínua e personalizada</em></span>
+            </button>
+            <button id="rediscoverMixBtn" class="smart-action" type="button">
+              <span class="smart-action-icon">✦</span>
+              <span><small>REDESCOBRIR</small><strong>Ouvir as esquecidas</strong><em>Prioriza o que você menos tocou</em></span>
+            </button>
+          </div>
+          <div id="recentlyPlayedSection" class="recently-played hidden">
+            <div class="smart-subheading"><strong>Tocados recentemente</strong><small>Toque para abrir na fila</small></div>
+            <div id="recentlyPlayedList" class="recently-played-list"></div>
+          </div>
+        </section>
 
         <div class="library-toolbar">
           <label class="search-field"><span>⌕</span><input id="librarySearch" type="search" placeholder="Pesquisar downloads"></label>
@@ -179,7 +204,7 @@
         <div class="page-title"><span class="eyebrow">AJUSTES</span><h1>Armazenamento e categorias</h1><p>Os downloads são salvos em <strong>Downloads/Moura Downloads</strong>.</p></div>
         <div class="settings-card">
           <div class="setting-row"><div><strong>Processamento no aparelho</strong><small>Não utiliza servidor de conversão.</small></div><span id="localEngineStatus" class="status-value">Somente APK</span></div>
-          <div class="setting-row"><div><strong>Versão instalada</strong><small>Player, QR Code e atualizações inteligentes.</small></div><span id="installedVersion" class="status-value">4.0</span></div>
+          <div class="setting-row"><div><strong>Versão instalada</strong><small>Player em segundo plano, Mixes, QR Code e atualizações inteligentes.</small></div><span id="installedVersion" class="status-value">4.0</span></div>
           <div class="setting-row"><div><strong>Desenvolvedor</strong><small>Identificação oficial do aplicativo.</small></div><span class="status-value">Leandro Moura</span></div>
           <div class="setting-row"><div><strong>Pasta de armazenamento</strong><small>Visível no gerenciador de arquivos e galeria.</small></div><span class="status-value">Moura Downloads</span></div>
           <div id="updateCard" class="update-card">
@@ -263,6 +288,6 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="./app.js?v=7" defer></script>
+  <script src="./app.js?v=9" defer></script>
 </body>
 </html>

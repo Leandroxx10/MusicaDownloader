@@ -87,6 +87,16 @@ def validate_required_features() -> None:
         / "moura"
         / "downloads"
         / "UpdateService.java",
+        ROOT
+        / "native-android"
+        / "app"
+        / "src"
+        / "main"
+        / "java"
+        / "com"
+        / "moura"
+        / "downloads"
+        / "PlaybackService.java",
     ]
     missing = [str(path.relative_to(ROOT)) for path in required if not path.is_file()]
     if missing:
@@ -98,6 +108,10 @@ def validate_required_features() -> None:
     app_js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
     download_service = required[4].read_text(encoding="utf-8")
     update_service = required[5].read_text(encoding="utf-8")
+    playback_service = required[6].read_text(encoding="utf-8")
+    manifest = (
+        ROOT / "native-android" / "app" / "src" / "main" / "AndroidManifest.xml"
+    ).read_text(encoding="utf-8")
 
     checks = {
         "build Android release": "assembleRelease" in workflow,
@@ -109,12 +123,25 @@ def validate_required_features() -> None:
         "atualização do processador no primeiro uso": "updateEngineWhenNeeded(false)"
         in download_service,
         "nova tentativa automática": 'sendEvent("retrying"' in download_service,
+        "progresso por etapas": "normalizedDownloadProgress" in download_service
+        and 'sendEvent("finalizing"' in download_service,
         "cancelamento de mídia": "cancelLocalDownload" in app_js
         and "ACTION_CANCEL" in download_service,
         "player interno": "playDownload" in app_js,
+        "player em segundo plano": "media3-session:" in gradle
+        and "MediaSessionService" in playback_service
+        and "FOREGROUND_SERVICE_MEDIA_PLAYBACK" in manifest,
+        "fila e mixes inteligentes": "playSmartMix" in app_js
+        and "rediscover" in app_js
+        and 'id="smartLibrary"' in index,
+        "timer do player": "ACTION_SET_SLEEP_TIMER" in playback_service,
         "atualização com SHA-256": "sha256(temp)" in update_service,
         "download completo no site": "moura-downloads.apk" in app_js
         and "moura-downloads-arm64.apk" not in index,
+        "Netlify limitado ao instalador": "netlify-mode" in app_js
+        and "body.netlify-mode .download-card" in (
+            WEB_DIR / "download.css"
+        ).read_text(encoding="utf-8"),
         "desenvolvedor identificado": "Leandro Moura" in index,
         "site pronto para celular": 'name="viewport"' in index,
     }

@@ -23,6 +23,7 @@
     library: [],
     activeCategory: 'Todas',
     selectedFile: null,
+    continueMediaId: null,
     update: null,
     updateDownloading: false,
     modalMode: null,
@@ -54,6 +55,13 @@
     categoryChips: $('#categoryChips'),
     librarySummary: $('#librarySummary'),
     downloadsLibrary: $('#downloadsLibrary'),
+    smartLibrary: $('#smartLibrary'),
+    smartLibraryStats: $('#smartLibraryStats'),
+    continueListeningBtn: $('#continueListeningBtn'),
+    continueListeningTitle: $('#continueListeningTitle'),
+    continueListeningMeta: $('#continueListeningMeta'),
+    recentlyPlayedSection: $('#recentlyPlayedSection'),
+    recentlyPlayedList: $('#recentlyPlayedList'),
     historyList: $('#historyList'),
     categoryManager: $('#categoryManager'),
     actionSheet: $('#actionSheet'),
@@ -277,7 +285,8 @@
     const category = els.downloadCategory.value || (format === 'mp3' ? 'Músicas' : 'Vídeos');
     const quality = els.downloadQuality?.value || 'fast';
     state.pendingDownload = { url, format, category, quality, platform: platformFromUrl(url), startedAt: new Date().toISOString() };
-    setProgress(true, 1, 'Preparando download', 'O processador local está sendo iniciado.');
+    setProgress(true, 0, 'Preparando download',
+      'O processador local está sendo iniciado.', true);
     els.downloadBtn.disabled = true;
     els.cancelDownloadBtn.disabled = false;
     els.cancelDownloadBtn.textContent = 'Cancelar';
@@ -298,14 +307,15 @@
     els.cancelDownloadBtn.disabled = true;
     els.cancelDownloadBtn.textContent = 'Cancelando…';
     setProgress(true, Number(els.progressPercent.textContent.replace('%', '')) || 0,
-      'Cancelando download', 'Removendo os arquivos temporários com segurança.');
+      'Cancelando download', 'Removendo os arquivos temporários com segurança.', true);
   }
 
-  function setProgress(visible, progress = 0, title = '', text = '') {
+  function setProgress(visible, progress = 0, title = '', text = '', indeterminate = false) {
     els.progressPanel.classList.toggle('hidden', !visible);
+    els.progressPanel.classList.toggle('is-indeterminate', Boolean(indeterminate));
     const value = Math.max(0, Math.min(100, Number(progress) || 0));
-    els.progressPercent.textContent = `${Math.round(value)}%`;
-    els.progressBar.style.width = `${value}%`;
+    els.progressPercent.textContent = indeterminate ? '•••' : `${Math.round(value)}%`;
+    els.progressBar.style.width = indeterminate ? '35%' : `${value}%`;
     if (title) els.progressTitle.textContent = title;
     if (text) els.progressText.textContent = text;
   }
@@ -315,13 +325,17 @@
       refreshLibrary();
       return;
     }
-    if (['initializing', 'retrying', 'running', 'cancelling'].includes(event.status)) {
+    if (['initializing', 'retrying', 'running', 'processing', 'finalizing', 'cancelling'].includes(event.status)) {
       els.cancelDownloadBtn.classList.remove('hidden');
       setProgress(true, event.progress || 1,
         event.status === 'initializing' ? 'Preparando processador'
           : event.status === 'retrying' ? 'Corrigindo compatibilidade'
+          : event.status === 'processing' ? 'Convertendo arquivo'
+          : event.status === 'finalizing' ? 'Finalizando download'
           : event.status === 'cancelling' ? 'Cancelando download' : 'Baixando no celular',
-        event.eta ? `${event.message} Tempo estimado: ${event.eta}s.` : event.message);
+        event.eta && event.status === 'running'
+          ? `${event.message} Tempo estimado: ${event.eta}s.` : event.message,
+        Boolean(event.indeterminate));
       return;
     }
     els.downloadBtn.disabled = false;
@@ -544,6 +558,52 @@
     return Number.isNaN(date.getTime()) ? 'Data desconhecida' : date.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
   }
 
+  function formatPlaybackTime(milliseconds) {
+    const seconds = Math.max(0, Math.floor((Number(milliseconds) || 0) / 1000));
+    const minutes = Math.floor(seconds / 60);
+    const rest = seconds % 60;
+    return `${minutes}:${String(rest).padStart(2, '0')}`;
+  }
+
+  function playSmartMode(mode) {
+    const result = nativeAction('playSmartMix', mode);
+    toast(result.message, !result.success);
+  }
+
+  function renderSmartLibrary() {
+    const playable = state.library.filter(file => ['audio', 'video'].includes(file.type));
+    const visible = isAndroid && playable.length > 0;
+    els.smartLibrary.classList.toggle('hidden', !visible);
+    if (!visible) return;
+
+    const favorites = playable.filter(file => file.favorite).length;
+    els.smartLibraryStats.textContent =
+      `${playable.length} faixa${playable.length === 1 ? '' : 's'} • ${favorites} favorita${favorites === 1 ? '' : 's'}`;
+
+    const continuing = playable
+      .filter(file => Number(file.resumePosition) >= 5000)
+      .sort((a, b) => (Number(b.lastPlayed) || 0) - (Number(a.lastPlayed) || 0))[0];
+    state.continueMediaId = continuing?.id || null;
+    els.continueListeningBtn.classList.toggle('hidden', !continuing);
+    if (continuing) {
+      els.continueListeningTitle.textContent = continuing.name;
+      els.continueListeningMeta.textContent =
+        `Retomar em ${formatPlaybackTime(continuing.resumePosition)} • posição salva`;
+    }
+
+    const recent = playable
+      .filter(file => Number(file.lastPlayed) > 0)
+      .sort((a, b) => Number(b.lastPlayed) - Number(a.lastPlayed))
+      .slice(0, 5);
+    els.recentlyPlayedSection.classList.toggle('hidden', recent.length === 0);
+    els.recentlyPlayedList.innerHTML = recent.map(file => `
+      <button class="recent-play" type="button" data-smart-play="${escapeHtml(file.id)}">
+        <span>${file.type === 'audio' ? '♫' : '▶'}</span>
+        <span><strong>${escapeHtml(file.name)}</strong><small>${Number(file.playCount) || 1} reproduç${Number(file.playCount) === 1 ? 'ão' : 'ões'} • ${formatDate(file.lastPlayed)}</small></span>
+        <em>▶</em>
+      </button>`).join('');
+  }
+
   function filteredLibrary() {
     const query = els.librarySearch.value.trim().toLocaleLowerCase('pt-BR');
     let files = state.library.filter(file => {
@@ -567,6 +627,7 @@
 
   function renderLibrary() {
     renderCategoryControls();
+    renderSmartLibrary();
     const files = filteredLibrary();
     const totalSize = files.reduce((sum, file) => sum + (Number(file.size) || 0), 0);
     els.librarySummary.innerHTML = `<span>${files.length} arquivo${files.length === 1 ? '' : 's'}</span><span>${formatBytes(totalSize)}</span>`;
@@ -770,6 +831,19 @@
   $('#copyAppLinkBtn').addEventListener('click', copyAppLink);
   $('#shareAppBtn').addEventListener('click', shareAppLink);
   $('#refreshLibraryBtn').addEventListener('click', () => { refreshLibrary(); toast('Biblioteca atualizada.'); });
+  els.continueListeningBtn.addEventListener('click', () => {
+    if (!state.continueMediaId) return;
+    const result = nativeAction('playDownload', state.continueMediaId);
+    toast(result.message, !result.success);
+  });
+  $('#shuffleMixBtn').addEventListener('click', () => playSmartMode('shuffle'));
+  $('#rediscoverMixBtn').addEventListener('click', () => playSmartMode('rediscover'));
+  els.recentlyPlayedList.addEventListener('click', event => {
+    const button = event.target.closest('[data-smart-play]');
+    if (!button) return;
+    const result = nativeAction('playDownload', button.dataset.smartPlay);
+    toast(result.message, !result.success);
+  });
   els.librarySearch.addEventListener('input', renderLibrary);
   els.librarySort.addEventListener('change', renderLibrary);
   els.historyList.addEventListener('click', event => {
@@ -863,7 +937,10 @@
 
   function configureInstallExperience() {
     const link = $('#downloadApkLink');
-    if (!isAndroid) return;
+    if (!isAndroid) {
+      document.body.classList.add('netlify-mode');
+      return;
+    }
     link?.classList.add('hidden');
     $('#como-instalar')?.classList.add('hidden');
     $('#webOnlyNotice')?.classList.add('hidden');

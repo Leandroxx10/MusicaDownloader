@@ -31,6 +31,8 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class DownloadService extends Service {
     public static final String ACTION_START = "com.moura.downloads.START_LOCAL_DOWNLOAD";
@@ -46,9 +48,13 @@ public class DownloadService extends Service {
     private static final int NOTIFICATION_ID = 2201;
     private static final String PREFS = "moura_library";
     private static final String DOWNLOAD_PROCESS_ID = "moura-active-download";
+    private static final Pattern PERCENT_PATTERN =
+            Pattern.compile("(\\d+(?:[.,]\\d+)?)%");
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private volatile boolean running;
     private volatile boolean cancelRequested;
+    private volatile int displayedProgress;
+    private volatile long lastProgressEventAt;
 
     public static File getOutputDirectory(Context context) {
         File downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
@@ -92,6 +98,8 @@ public class DownloadService extends Service {
         }
         running = true;
         cancelRequested = false;
+        displayedProgress = 0;
+        lastProgressEventAt = 0L;
         startAsForeground(buildNotification("Preparando download", 0, true, true));
         executor.execute(() -> runDownload(url, "mp3".equalsIgnoreCase(format) ? "mp3" : "mp4",
                 category == null || category.trim().isEmpty() ? "Outros" : category,
@@ -109,7 +117,7 @@ public class DownloadService extends Service {
         long startedAt = System.currentTimeMillis();
 
         try {
-            sendEvent("initializing", 1, 0, "Preparando o processador local no celular.");
+            sendEvent("initializing", 0, 0, "Preparando o processador local no celular.");
             YoutubeDL.getInstance().init(this);
             FFmpeg.getInstance().init(this);
             ensureNotCancelled();
@@ -118,8 +126,9 @@ public class DownloadService extends Service {
 
             String profileLabel = "best".equals(quality) ? "alta qualidade"
                     : "data".equals(quality) ? "economia de dados" : "modo rápido";
-            sendEvent("running", 2, 0,
-                    "Download iniciado no próprio celular em " + profileLabel + ".");
+            displayedProgress = 5;
+            sendEvent("running", displayedProgress, 0,
+                    "Conectando à mídia em " + profileLabel + ".");
             YoutubeDLResponse response;
             try {
                 response = executeRequest(buildRequest(url, format, quality, outputDir));
@@ -132,9 +141,14 @@ public class DownloadService extends Service {
                 updateNotification("Corrigindo compatibilidade", 0, true, true);
                 if (!engineUpdated) updateEngineWhenNeeded(true);
                 ensureNotCancelled();
+                displayedProgress = 5;
                 response = executeRequest(buildRequest(url, format, quality, outputDir));
             }
             ensureNotCancelled();
+            displayedProgress = Math.max(displayedProgress, 98);
+            updateNotification("Finalizando arquivo", displayedProgress, false, true);
+            sendEvent("finalizing", displayedProgress, 0,
+                    "Conferindo o arquivo e adicionando à biblioteca.");
 
             Set<File> completed = outputFilesFromResponse(response, outputDir);
             File[] after = outputDir.listFiles(file -> isFinalFile(file) &&
@@ -212,11 +226,55 @@ public class DownloadService extends Service {
     private YoutubeDLResponse executeRequest(YoutubeDLRequest request) throws Exception {
         return YoutubeDL.getInstance().execute(
                 request, DOWNLOAD_PROCESS_ID, false, (progress, etaInSeconds, line) -> {
-                    int value = (int) Math.max(0, Math.min(100, Math.round(progress)));
-                    updateNotification("Baixando no celular", value, value < 100, true);
-                    sendEvent("running", value, etaInSeconds, "Baixando e processando arquivo.");
+                    String outputLine = line == null ? "" : line;
+                    String lower = outputLine.toLowerCase(Locale.ROOT);
+                    boolean postProcessing = lower.contains("[extractaudio]")
+                            || lower.contains("[merger]")
+                            || lower.contains("[metadata]")
+                            || lower.contains("[fixup")
+                            || lower.contains("[videoconvertor]")
+                            || lower.contains("[videoremuxer]")
+                            || lower.contains("deleting original file");
+                    int value;
+                    String message;
+                    if (postProcessing) {
+                        value = lower.contains("[merger]") || lower.contains("[videoremuxer]")
+                                ? 96 : 94;
+                        message = lower.contains("[extractaudio]")
+                                ? "Convertendo o áudio para o formato escolhido."
+                                : "Mesclando e preparando o arquivo final.";
+                    } else {
+                        double normalized = normalizedDownloadProgress(progress, outputLine);
+                        value = 7 + (int) Math.round(normalized * 0.85);
+                        message = "Transferindo a mídia para o celular.";
+                    }
+                    value = Math.max(displayedProgress, Math.min(97, value));
+                    long now = System.currentTimeMillis();
+                    if (value > displayedProgress || now - lastProgressEventAt >= 900L) {
+                        displayedProgress = value;
+                        lastProgressEventAt = now;
+                        updateNotification(postProcessing ? "Processando arquivo" : "Baixando no celular",
+                                value, false, true);
+                        sendEvent(postProcessing ? "processing" : "running",
+                                value, etaInSeconds, message);
+                    }
                     return kotlin.Unit.INSTANCE;
                 });
+    }
+
+    private double normalizedDownloadProgress(float progress, String line) {
+        Matcher matcher = PERCENT_PATTERN.matcher(line == null ? "" : line);
+        double value;
+        if (matcher.find()) {
+            try {
+                value = Double.parseDouble(matcher.group(1).replace(',', '.'));
+            } catch (NumberFormatException ignored) {
+                value = progress;
+            }
+        } else {
+            value = progress > 0f && progress <= 1f ? progress * 100d : progress;
+        }
+        return Math.max(0d, Math.min(100d, value));
     }
 
     private Set<File> outputFilesFromResponse(YoutubeDLResponse response, File outputDir) {
@@ -316,7 +374,7 @@ public class DownloadService extends Service {
             return false;
         }
         try {
-            sendEvent("initializing", 1, 0,
+            sendEvent("initializing", 0, 0,
                     lastUpdate == 0L
                             ? "Preparando a compatibilidade do primeiro download."
                             : "Verificando atualização do processador local.");
@@ -345,6 +403,8 @@ public class DownloadService extends Service {
             json.put("progress", progress);
             json.put("eta", eta);
             json.put("message", message);
+            json.put("indeterminate", "initializing".equals(status)
+                    || "retrying".equals(status) || "cancelling".equals(status));
             Intent broadcast = new Intent(ACTION_DOWNLOAD_EVENT);
             broadcast.setPackage(getPackageName());
             broadcast.putExtra(EXTRA_PAYLOAD, json.toString());

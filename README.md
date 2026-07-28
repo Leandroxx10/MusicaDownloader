@@ -16,8 +16,12 @@ Aplicativo Android desenvolvido por **Leandro Moura**, com processamento local, 
 - Formato, qualidade e categoria do último download são lembrados.
 - Botão para repetir um item diretamente pelo histórico.
 - Fluxo de download simplificado, sem caixa de confirmação de propriedade.
-- Player interno para áudio e vídeo.
+- Progresso baseado nos dados reais da transferência, com fases de preparação, processamento e finalização.
+- Player para áudio e vídeo com reprodução em segundo plano e controles na notificação.
 - Retomada automática do ponto em que a reprodução parou.
+- Fila automática com toda a biblioteca, modo aleatório e repetição de faixa ou fila.
+- Controle de velocidade e temporizador para pausar sozinho.
+- **Minha Mix**, **Continuar ouvindo** e **Redescobrir** com histórico processado somente no celular.
 - Botão de reprodução rápida em cada item da biblioteca.
 - QR Code gerado localmente para outras pessoas baixarem o aplicativo.
 - Compartilhar ou copiar o link do app sem sair da interface.
@@ -80,9 +84,11 @@ O `netlify.toml` na raiz já contém a configuração necessária. Cada novo env
 
 1. Abra **Biblioteca** dentro do aplicativo.
 2. Toque no botão `▶` de um áudio ou vídeo.
-3. Use os controles de reprodução, avanço e velocidade.
-4. Ao fechar o player, a posição é salva automaticamente.
-5. Para usar outro reprodutor instalado, abra o menu `⋮` e escolha **Abrir em outro app**.
+3. Use a fila, o modo aleatório, a repetição, a velocidade ou o temporizador.
+4. Pode apagar a tela ou sair do app: a reprodução continua pela notificação do Android.
+5. Ao pausar ou fechar o player, a posição é salva automaticamente em **Continuar ouvindo**.
+6. Use **Minha Mix** para embaralhar a biblioteca e **Redescobrir** para ouvir faixas menos tocadas.
+7. Para usar outro reprodutor instalado, abra o menu `⋮` e escolha **Abrir em outro app**.
 
 ## Compartilhar por QR Code
 
@@ -97,7 +103,8 @@ O QR é criado no aparelho com ZXing. Nenhuma imagem, contato ou dado pessoal é
 
 - `app/`: site/PWA publicado pelo Netlify.
 - `native-android/`: aplicativo Android.
-- `PlayerActivity.java`: player interno baseado em AndroidX Media3.
+- `PlayerActivity.java`: interface do player baseada em AndroidX Media3.
+- `PlaybackService.java`: reprodução em segundo plano, fila, notificação e temporizador.
 - `DownloadService.java`: downloads e perfis de qualidade.
 - `UpdateService.java`: download, verificação e instalação de novas versões.
 - `scripts/generate-update-manifest.py`: gera `update.json` com versão, arquitetura e SHA-256.
