@@ -322,6 +322,11 @@ def validate_required_features() -> None:
         "Estúdio de vídeo local": 'id="view-editor"' in index
         and "startVideoEditor" in main_activity
         and "ProcessBuilder" in video_editor
+        and "YoutubeDL.getInstance().init(this)" in video_editor
+        and '"python/usr/lib"' in video_editor
+        and '"LD_LIBRARY_PATH"' in video_editor
+        and "editorPreviewData" in main_activity
+        and "first.preview" in app_js
         and "MediaStore.Video.Media.RELATIVE_PATH" in video_editor
         and 'android:name=".VideoEditorService"' in manifest,
         "bloqueio progressivo liberável pelo administrador":

@@ -88,9 +88,9 @@ def main() -> None:
         "publishedAt": datetime.now(timezone.utc).isoformat(),
         "commit": os.environ.get("GITHUB_SHA", ""),
         "notes": (
-            "Estúdio Moura para criar vídeos, tema completo no app e no player, "
-            "pesquisa e ações administrativas por usuário e bloqueio progressivo "
-            "de login com liberação pelo administrador."
+            "Correção completa do Estúdio Moura: geração de vídeos restaurada, "
+            "prévia das mídias, efeitos, velocidade, trilha sonora, salvamento "
+            "na galeria e compartilhamento."
         ),
         "interfaceBundle": {
             "contentVersion": version_code,

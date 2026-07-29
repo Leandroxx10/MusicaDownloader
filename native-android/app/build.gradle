@@ -9,7 +9,9 @@ def releaseKeyPassword = System.getenv('ANDROID_KEY_PASSWORD')
 def releaseSigningReady = releaseStorePath && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
 def ciVersionCode = System.getenv('MOURA_VERSION_CODE')
 def ciVersionName = System.getenv('MOURA_VERSION_NAME')
-def nativeRevision = System.getenv('MOURA_NATIVE_REVISION') ?: '6'
+def nativeRevision = System.getenv('MOURA_NATIVE_REVISION') ?: '7'
+def packagedAbis = project.hasProperty('mouraX86Test')
+        ? ['x86_64'] : ['arm64-v8a', 'armeabi-v7a']
 
 android {
     namespace 'com.moura.downloads'
@@ -26,7 +28,7 @@ android {
         buildConfigField 'int', 'PACKAGED_CONTENT_VERSION',
                 ciVersionCode ? ciVersionCode : '4'
         ndk {
-            abiFilters 'arm64-v8a', 'armeabi-v7a'
+            abiFilters(*packagedAbis)
         }
     }
 
@@ -46,7 +48,7 @@ android {
         abi {
             enable true
             reset()
-            include 'arm64-v8a', 'armeabi-v7a'
+            include(*packagedAbis)
             universalApk true
         }
     }

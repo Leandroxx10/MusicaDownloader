@@ -13,8 +13,10 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.database.Cursor;
+import android.media.MediaMetadataRetriever;
 import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.os.Build;
@@ -185,7 +187,8 @@ public class MainActivity extends Activity {
         requestRuntimePermissions();
         readSharedText(getIntent());
         readOpenView(getIntent());
-        webView.loadUrl(APP_ORIGIN + "index.html?app=android");
+        webView.loadUrl(APP_ORIGIN + "index.html?app=android"
+                + (BuildConfig.DEBUG ? "&preview=editor" : ""));
     }
 
     private void configureWebView() {
@@ -307,11 +310,69 @@ public class MainActivity extends Activity {
         JSONObject item = new JSONObject();
         try {
             String mime = getContentResolver().getType(uri);
+            if (mime == null) mime = "application/octet-stream";
             item.put("uri", uri.toString());
             item.put("name", displayNameForUri(uri));
-            item.put("mime", mime == null ? "application/octet-stream" : mime);
+            item.put("mime", mime);
+            String preview = editorPreviewData(uri, mime);
+            if (!preview.isEmpty()) item.put("preview", preview);
         } catch (Exception ignored) { }
         return item;
+    }
+
+    private String editorPreviewData(Uri uri, String mime) {
+        if (mime == null || (!mime.startsWith("image/") && !mime.startsWith("video/"))) {
+            return "";
+        }
+        Bitmap source = null;
+        try {
+            if (mime.startsWith("video/")) {
+                MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+                try {
+                    retriever.setDataSource(this, uri);
+                    source = retriever.getFrameAtTime(
+                            0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+                } finally {
+                    try { retriever.release(); } catch (Exception ignored) { }
+                }
+            } else {
+                BitmapFactory.Options bounds = new BitmapFactory.Options();
+                bounds.inJustDecodeBounds = true;
+                try (InputStream input = getContentResolver().openInputStream(uri)) {
+                    if (input != null) BitmapFactory.decodeStream(input, null, bounds);
+                }
+                int sample = 1;
+                while (Math.max(bounds.outWidth, bounds.outHeight) / sample > 720) {
+                    sample *= 2;
+                }
+                BitmapFactory.Options options = new BitmapFactory.Options();
+                options.inSampleSize = Math.max(1, sample);
+                options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+                try (InputStream input = getContentResolver().openInputStream(uri)) {
+                    if (input != null) source = BitmapFactory.decodeStream(input, null, options);
+                }
+            }
+            if (source == null) return "";
+            int width = source.getWidth();
+            int height = source.getHeight();
+            float factor = Math.min(1f, 360f / Math.max(width, height));
+            Bitmap preview = factor < 1f
+                    ? Bitmap.createScaledBitmap(
+                            source,
+                            Math.max(1, Math.round(width * factor)),
+                            Math.max(1, Math.round(height * factor)),
+                            true)
+                    : source;
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            preview.compress(Bitmap.CompressFormat.JPEG, 68, output);
+            if (preview != source) preview.recycle();
+            source.recycle();
+            return "data:image/jpeg;base64,"
+                    + Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP);
+        } catch (Exception ignored) {
+            if (source != null && !source.isRecycled()) source.recycle();
+            return "";
+        }
     }
 
     private void persistEditorPermission(Intent data, Uri uri) {
@@ -329,28 +390,33 @@ public class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode != RESULT_OK || data == null) return;
         if (requestCode == EDITOR_MEDIA_REQUEST) {
-            JSONArray items = new JSONArray();
+            List<Uri> selected = new ArrayList<>();
             ClipData clip = data.getClipData();
             if (clip != null) {
                 int count = Math.min(12, clip.getItemCount());
                 for (int index = 0; index < count; index++) {
                     Uri uri = clip.getItemAt(index).getUri();
                     persistEditorPermission(data, uri);
-                    items.put(editorItem(uri));
+                    selected.add(uri);
                 }
             } else if (data.getData() != null) {
                 Uri uri = data.getData();
                 persistEditorPermission(data, uri);
-                items.put(editorItem(uri));
+                selected.add(uri);
             }
-            JSONObject payload = new JSONObject();
-            try { payload.put("items", items); } catch (Exception ignored) { }
-            callJavascript("window.MouraEditor.onMediaSelected", payload.toString());
+            executor.execute(() -> {
+                JSONArray items = new JSONArray();
+                for (Uri uri : selected) items.put(editorItem(uri));
+                JSONObject payload = new JSONObject();
+                try { payload.put("items", items); } catch (Exception ignored) { }
+                callJavascript("window.MouraEditor.onMediaSelected", payload.toString());
+            });
         } else if (requestCode == EDITOR_AUDIO_REQUEST && data.getData() != null) {
             Uri uri = data.getData();
             persistEditorPermission(data, uri);
-            callJavascript("window.MouraEditor.onAudioSelected",
-                    editorItem(uri).toString());
+            executor.execute(() -> callJavascript(
+                    "window.MouraEditor.onAudioSelected",
+                    editorItem(uri).toString()));
         }
     }
 
@@ -978,6 +1044,11 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public String appMode() {
             return "android-local";
+        }
+
+        @JavascriptInterface
+        public boolean debugMode() {
+            return BuildConfig.DEBUG;
         }
 
         @JavascriptInterface

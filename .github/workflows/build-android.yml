@@ -18,7 +18,7 @@ jobs:
     env:
       MOURA_VERSION_CODE: ${{ github.run_number }}
       MOURA_VERSION_NAME: 4.0.${{ github.run_number }}
-      MOURA_NATIVE_REVISION: 6
+      MOURA_NATIVE_REVISION: 7
     steps:
       - name: Baixar projeto
         uses: actions/checkout@v6
@@ -118,10 +118,10 @@ jobs:
             gh release upload latest release/* --clobber
             gh release edit latest \
               --title "Moura Downloads 4.0 — Super App" \
-              --notes "App completo desenvolvido por Leandro Moura. Esta versão adiciona o Estúdio Moura para criar vídeos, tema completo no app e no player, pesquisa e ações administrativas por usuário e bloqueio progressivo de login com liberação pelo administrador. No site, use moura-downloads.apk. Commit: $GITHUB_SHA"
+              --notes "App completo desenvolvido por Leandro Moura. Esta versão corrige o motor do Estúdio Moura e restaura a criação de vídeos com fotos, efeitos, velocidade, trilha sonora, galeria e compartilhamento. No site, use moura-downloads.apk. Commit: $GITHUB_SHA"
           else
             gh release create latest release/* \
               --target "$GITHUB_SHA" \
               --title "Moura Downloads 4.0 — Super App" \
-              --notes "App completo desenvolvido por Leandro Moura. Esta versão adiciona o Estúdio Moura para criar vídeos, tema completo no app e no player, pesquisa e ações administrativas por usuário e bloqueio progressivo de login com liberação pelo administrador. No site, use moura-downloads.apk. Commit: $GITHUB_SHA"
+              --notes "App completo desenvolvido por Leandro Moura. Esta versão corrige o motor do Estúdio Moura e restaura a criação de vídeos com fotos, efeitos, velocidade, trilha sonora, galeria e compartilhamento. No site, use moura-downloads.apk. Commit: $GITHUB_SHA"
           fi

@@ -14,7 +14,11 @@
   const DEFAULT_CATEGORIES = ['Músicas', 'Vídeos', 'Podcasts', 'Clipes', 'Outros'];
   const pageParameters = new URLSearchParams(location.search);
   const appModeRequested = pageParameters.get('app') === 'android';
-  const localPreviewView = ['127.0.0.1', 'localhost'].includes(location.hostname)
+  const bridgeDebugPreview = appModeRequested &&
+    Boolean(window.AndroidBridge?.debugMode && window.AndroidBridge.debugMode());
+  const localPreviewView = (
+    ['127.0.0.1', 'localhost'].includes(location.hostname) || bridgeDebugPreview
+  )
     ? pageParameters.get('preview') || '' : '';
   const isTrustedAppPage = appModeRequested && (
     ['127.0.0.1', 'localhost'].includes(location.hostname) ||
@@ -827,7 +831,8 @@
 
   function studioSafeUri(value) {
     const uri = String(value || '');
-    return /^(content|file|blob):/i.test(uri) ? uri : '';
+    if (/^(content|file|blob):/i.test(uri)) return uri;
+    return /^data:image\/(?:jpeg|png|webp);base64,/i.test(uri) ? uri : '';
   }
 
   function renderStudio() {
@@ -840,7 +845,11 @@
     els.studioPreviewImage?.classList.add('hidden');
     if (first) {
       const source = studioSafeUri(first.uri);
-      if (String(first.mime || '').startsWith('video/')) {
+      const preview = studioSafeUri(first.preview);
+      if (preview) {
+        els.studioPreviewImage.src = preview;
+        els.studioPreviewImage.classList.remove('hidden');
+      } else if (String(first.mime || '').startsWith('video/')) {
         els.studioPreviewVideo.src = source;
         els.studioPreviewVideo.classList.remove('hidden');
       } else {

@@ -14,12 +14,15 @@ import android.os.Build;
 import android.os.Environment;
 import android.os.IBinder;
 import android.provider.MediaStore;
+import android.util.Base64;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.FileProvider;
 
 import com.yausername.ffmpeg.FFmpeg;
+import com.yausername.youtubedl_android.YoutubeDL;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -47,8 +50,10 @@ public final class VideoEditorService extends Service {
     public static final String ACTION_EDITOR_EVENT =
             "com.moura.downloads.action.EDITOR_EVENT";
     public static final String EXTRA_CONFIG = "editor_config";
+    public static final String EXTRA_CONFIG_BASE64 = "editor_config_base64";
     public static final String EXTRA_PAYLOAD = "editor_payload";
 
+    private static final String TAG = "MouraStudio";
     private static final String CHANNEL_ID = "moura_studio";
     private static final int NOTIFICATION_ID = 4401;
     private static final Pattern FFMPEG_TIME = Pattern.compile(
@@ -85,11 +90,23 @@ public final class VideoEditorService extends Service {
             return START_NOT_STICKY;
         }
         String config = intent.getStringExtra(EXTRA_CONFIG);
+        String encodedConfig = intent.getStringExtra(EXTRA_CONFIG_BASE64);
+        if ((config == null || config.isEmpty())
+                && encodedConfig != null && !encodedConfig.isEmpty()) {
+            try {
+                config = new String(Base64.decode(
+                        encodedConfig, Base64.NO_WRAP), java.nio.charset.StandardCharsets.UTF_8);
+            } catch (Exception error) {
+                sendEvent("error", 0, "Configuração do projeto inválida.", null);
+                return START_NOT_STICKY;
+            }
+        }
         running = true;
         cancelRequested = false;
         startForeground(NOTIFICATION_ID,
                 buildNotification("Preparando seu vídeo", 0, true));
-        executor.execute(() -> createVideo(config));
+        final String editorConfig = config;
+        executor.execute(() -> createVideo(editorConfig));
         return START_NOT_STICKY;
     }
 
@@ -143,9 +160,14 @@ public final class VideoEditorService extends Service {
             }
 
             ensureNotCancelled();
+            sendEvent("preparing", 15,
+                    "Preparando o motor de vídeo no celular.", null);
+            updateNotification("Preparando o motor de vídeo", 15, true);
+            YoutubeDL.getInstance().init(this);
             FFmpeg.getInstance().init(this);
-            File ffmpegPackage = new File(
-                    getNoBackupFilesDir(), "youtubedl-android/packages/ffmpeg");
+            File packagesRoot = new File(
+                    getNoBackupFilesDir(), "youtubedl-android/packages");
+            File ffmpegPackage = new File(packagesRoot, "ffmpeg");
             File ffmpeg = findFfmpegBinary(ffmpegPackage);
             if (ffmpeg == null) {
                 ffmpeg = new File(getApplicationInfo().nativeLibraryDir, "libffmpeg.so");
@@ -165,6 +187,8 @@ public final class VideoEditorService extends Service {
             List<String> command = buildCommand(
                     ffmpeg, inputs, sourceIsVideo, audio, output, config,
                     speed, imageDuration, outputDuration);
+            Log.i(TAG, "Iniciando exportação com " + inputs.size()
+                    + " mídia(s), vídeo=" + sourceIsVideo + ", áudio=" + (audio != null));
 
             sendEvent("running", 17,
                     "Aplicando cortes, cores, velocidade e trilha sonora.", null);
@@ -172,20 +196,34 @@ public final class VideoEditorService extends Service {
             builder.directory(workDirectory);
             builder.redirectErrorStream(true);
             File sharedLibraries = new File(ffmpegPackage, "usr/lib");
-            if (sharedLibraries.isDirectory()) {
-                String existing = builder.environment().get("LD_LIBRARY_PATH");
-                builder.environment().put("LD_LIBRARY_PATH",
-                        sharedLibraries.getAbsolutePath()
-                                + (existing == null || existing.isEmpty()
-                                ? "" : ":" + existing));
+            File pythonLibraries = new File(packagesRoot, "python/usr/lib");
+            String existingLibraryPath = builder.environment().get("LD_LIBRARY_PATH");
+            StringBuilder libraryPath = new StringBuilder();
+            if (pythonLibraries.isDirectory()) {
+                libraryPath.append(pythonLibraries.getAbsolutePath());
             }
+            if (sharedLibraries.isDirectory()) {
+                if (libraryPath.length() > 0) libraryPath.append(':');
+                libraryPath.append(sharedLibraries.getAbsolutePath());
+            }
+            if (libraryPath.length() > 0) libraryPath.append(':');
+            libraryPath.append(getApplicationInfo().nativeLibraryDir);
+            if (existingLibraryPath != null && !existingLibraryPath.isEmpty()) {
+                libraryPath.append(':').append(existingLibraryPath);
+            }
+            builder.environment().put("LD_LIBRARY_PATH", libraryPath.toString());
             activeProcess = builder.start();
+            StringBuilder ffmpegLog = new StringBuilder();
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(activeProcess.getInputStream()))) {
                 String line;
                 int lastProgress = 17;
                 while ((line = reader.readLine()) != null) {
                     ensureNotCancelled();
+                    ffmpegLog.append(line).append('\n');
+                    if (ffmpegLog.length() > 12_000) {
+                        ffmpegLog.delete(0, ffmpegLog.length() - 8_000);
+                    }
                     Matcher matcher = FFMPEG_TIME.matcher(line);
                     if (matcher.find()) {
                         double seconds = Integer.parseInt(matcher.group(1)) * 3600d
@@ -206,6 +244,9 @@ public final class VideoEditorService extends Service {
             activeProcess = null;
             ensureNotCancelled();
             if (exitCode != 0 || !output.exists() || output.length() < 1024L) {
+                Log.e(TAG, "FFmpeg encerrou com código " + exitCode
+                        + " e saída de " + (output.exists() ? output.length() : 0L)
+                        + " bytes.\n" + ffmpegLog);
                 throw new Exception("Não foi possível combinar estes arquivos. Tente outras mídias.");
             }
 
@@ -224,6 +265,7 @@ public final class VideoEditorService extends Service {
         } catch (CancelledException ignored) {
             sendEvent("cancelled", 0, "Criação cancelada.", null);
         } catch (Exception error) {
+            Log.e(TAG, "Falha ao criar vídeo", error);
             sendEvent("error", 0, friendlyError(error), null);
             updateNotification("Não foi possível criar o vídeo", 0, true);
         } finally {
@@ -493,6 +535,9 @@ public final class VideoEditorService extends Service {
         if (mime.startsWith("image/")) return "jpg";
         if (mime.startsWith("audio/mpeg")) return "mp3";
         if (mime.startsWith("audio/mp4")) return "m4a";
+        if (mime.startsWith("audio/ogg")) return "ogg";
+        if (mime.startsWith("audio/wav") || mime.startsWith("audio/x-wav")) return "wav";
+        if (mime.startsWith("audio/flac")) return "flac";
         if (mime.startsWith("audio/")) return "aac";
         return "mp4";
     }
