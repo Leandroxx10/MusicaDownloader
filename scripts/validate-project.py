@@ -204,9 +204,22 @@ def validate_required_features() -> None:
     update_generator = (
         ROOT / "scripts" / "generate-update-manifest.py"
     ).read_text(encoding="utf-8")
+    gradle_native_revision = re.search(
+        r"nativeRevision\s*=\s*System\.getenv\([^)]*\)\s*\?:\s*['\"](\d+)['\"]",
+        gradle,
+    )
+    workflow_native_revision = re.search(
+        r"MOURA_NATIVE_REVISION:\s*(\d+)",
+        workflow,
+    )
 
     checks = {
         "build Android release": "assembleSideloadRelease" in workflow,
+        "revisão nativa sincronizada no APK e na atualização": (
+            gradle_native_revision is not None
+            and workflow_native_revision is not None
+            and gradle_native_revision.group(1) == workflow_native_revision.group(1)
+        ),
         "assinatura por segredo": "ANDROID_KEYSTORE_BASE64" in workflow,
         "validação do release": "validate-release.py" in workflow,
         "pacote para Google Play": "bundlePlayRelease" in workflow,

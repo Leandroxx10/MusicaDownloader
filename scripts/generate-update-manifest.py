@@ -88,8 +88,9 @@ def main() -> None:
         "publishedAt": datetime.now(timezone.utc).isoformat(),
         "commit": os.environ.get("GITHUB_SHA", ""),
         "notes": (
-            "Idiomas corrigidos, caixa de entrada com filtros e exclusão, notificações, "
-            "compartilhamento próximo, exclusão de conta e controles administrativos por perfil."
+            "Estúdio Moura para criar vídeos, tema completo no app e no player, "
+            "pesquisa e ações administrativas por usuário e bloqueio progressivo "
+            "de login com liberação pelo administrador."
         ),
         "interfaceBundle": {
             "contentVersion": version_code,
