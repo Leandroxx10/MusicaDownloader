@@ -9,8 +9,8 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=14">
-  <link rel="stylesheet" href="./download.css?v=14">
+  <link rel="stylesheet" href="./styles.css?v=16">
+  <link rel="stylesheet" href="./download.css?v=16">
   <title>Moura Downloads</title>
 </head>
 <body class="auth-pending">
@@ -24,7 +24,7 @@
         <button class="nav-item active" data-view="inicio"><span>⌂</span><em data-i18n="navHome">Início</em></button>
         <button class="nav-item" data-view="youtube"><span>▶</span><em data-i18n="navYouTube">YouTube</em></button>
         <button class="nav-item" data-view="downloads"><span>⇩</span><em data-i18n="navLibrary">Biblioteca</em></button>
-        <button class="nav-item" data-view="historico"><span>◷</span><em data-i18n="navHistory">Histórico</em></button>
+        <button class="nav-item" data-view="editor"><span>✦</span><em data-i18n="navStudio">Estúdio</em></button>
         <button class="nav-item" data-view="conta"><span>●</span><em data-i18n="navAccount">Minha conta</em></button>
         <button class="nav-item" data-view="configuracoes"><span>⚙</span><em data-i18n="navSettings">Ajustes</em></button>
       </nav>
@@ -51,7 +51,6 @@
             <h1 id="heroTitle">Baixe o app no seu celular</h1>
             <p id="heroDescription">Instale o Moura Downloads completo no Android para baixar, reproduzir, organizar e compartilhar suas mídias no próprio aparelho.</p>
             <div class="hero-actions"><a id="downloadApkLink" class="primary-button apk-button" href="https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk" download="moura-downloads.apk">Baixar app completo <span aria-hidden="true">⇩</span></a><button id="heroLibraryBtn" class="secondary-button" type="button">Como instalar</button></div>
-            <p id="compatibilityDownload" class="developer-signature"><span>✓</span> Aplicativo oficial desenvolvido por <strong>Leandro Moura</strong>.</p>
           </div>
           <div class="hero-mark"><img src="./assets/logo.png" alt=""></div>
         </div>
@@ -118,11 +117,10 @@
               <option value="best" data-i18n="qualityBest">Melhor qualidade disponível</option>
               <option value="data" data-i18n="qualityData">Economia de dados (vídeo até 480p)</option>
             </select>
-            <small>O modo rápido reduz o tamanho e o tempo de processamento. Para MP3, usa qualidade equilibrada.</small>
+            <small>Escolha entre equilíbrio, qualidade máxima ou economia de dados.</small>
           </div>
 
           <div class="download-actions">
-            <button id="analyzeBtn" class="secondary-button" data-i18n="verifyLink">Verificar link</button>
             <button id="downloadBtn" class="primary-button"><span data-i18n="downloadPhone">Baixar no celular</span> <span>⇩</span></button>
           </div>
 
@@ -143,12 +141,6 @@
           </div>
         </section>
 
-        <section class="dashboard-grid">
-          <article class="info-card"><span class="info-icon">▶</span><div><strong>Player em segundo plano</strong><small>Ouça com a tela apagada e controle tudo pela notificação.</small></div></article>
-          <article class="info-card"><span class="info-icon">⚡</span><div><strong>Modo rápido</strong><small>Downloads paralelos e perfis para economizar tempo e dados.</small></div></article>
-          <article class="info-card"><span class="info-icon">✨</span><div><strong>Experiência inteligente</strong><small>Minha Mix, continuar ouvindo, redescoberta, fila e histórico privado.</small></div></article>
-          <button id="openQrBtn" class="info-card info-card-button" type="button"><span class="info-icon">▦</span><div><strong>Compartilhar o app</strong><small>Mostre o QR Code para outra pessoa instalar.</small></div></button>
-        </section>
       </section>
 
       <section id="view-youtube" class="view">
@@ -291,23 +283,103 @@
         <div id="downloadsLibrary" class="downloads-library"></div>
       </section>
 
-      <section id="view-historico" class="view">
-        <div class="page-title"><span class="eyebrow" data-i18n="historyEyebrow">HISTÓRICO LOCAL</span><h1 data-i18n="historyTitle">Atividade recente</h1><p data-i18n="historyDescription">O histórico completo fica somente neste aparelho.</p></div>
-        <div id="historyStats" class="history-stats" aria-live="polite"></div>
-        <div class="history-toolbar">
-          <select id="historyFilter" aria-label="Filtrar histórico">
-            <option value="all" data-i18n="historyAll">Tudo</option>
-            <option value="success" data-i18n="historySuccess">Concluídos</option>
-            <option value="failed" data-i18n="historyFailed">Com falha</option>
-          </select>
-          <button id="clearHistoryBtn" class="danger-button" data-i18n="clearHistory">Limpar histórico</button>
+      <section id="view-editor" class="view">
+        <div class="page-title studio-title">
+          <div><span class="eyebrow" data-i18n="studioEyebrow">ESTÚDIO MOURA</span><h1 data-i18n="studioTitle">Crie seu vídeo</h1><p data-i18n="studioDescription">Junte fotos ou um vídeo, aplique seu estilo, adicione música e exporte no celular.</p></div>
+          <span class="studio-private-badge" data-i18n="studioPrivate">100% no aparelho</span>
         </div>
-        <div id="historyList" class="history-list"></div>
+
+        <div class="studio-shell">
+          <section class="studio-preview-card">
+            <div id="studioPreview" class="studio-preview ratio-vertical">
+              <div id="studioPreviewEmpty" class="studio-preview-empty">
+                <span>✦</span><strong data-i18n="studioStart">Comece sua criação</strong><small data-i18n="studioStartText">Escolha um vídeo ou até 12 imagens.</small>
+              </div>
+              <video id="studioPreviewVideo" class="hidden" playsinline controls></video>
+              <img id="studioPreviewImage" class="hidden" alt="Prévia do projeto">
+              <div id="studioPreviewEffect" class="studio-preview-effect"></div>
+            </div>
+            <div class="studio-source-actions">
+              <button id="studioPickMediaBtn" class="primary-button" type="button"><span>＋</span> <span data-i18n="studioChooseMedia">Escolher vídeo ou fotos</span></button>
+              <button id="studioClearMediaBtn" class="secondary-button hidden" type="button" data-i18n="studioClearMedia">Trocar mídia</button>
+            </div>
+            <div id="studioTimeline" class="studio-timeline"><span data-i18n="studioTimelineEmpty">Sua sequência aparecerá aqui</span></div>
+          </section>
+
+          <section class="studio-tools-card">
+            <div class="studio-tool-heading"><span class="eyebrow" data-i18n="studioTools">FERRAMENTAS</span><h2 data-i18n="studioCustomize">Personalize sua criação</h2></div>
+            <div class="studio-field">
+              <label for="studioProjectName" data-i18n="studioProjectName">Nome do vídeo</label>
+              <input id="studioProjectName" maxlength="70" value="Meu vídeo Moura">
+            </div>
+            <div class="studio-segment">
+              <span data-i18n="studioFormat">Formato</span>
+              <div class="studio-segment-options" id="studioRatioOptions">
+                <button class="active" type="button" data-studio-ratio="9:16">9:16 <small>Stories</small></button>
+                <button type="button" data-studio-ratio="16:9">16:9 <small>YouTube</small></button>
+                <button type="button" data-studio-ratio="1:1">1:1 <small>Feed</small></button>
+              </div>
+            </div>
+            <div class="studio-field">
+              <div class="studio-label-value"><label for="studioSpeed" data-i18n="studioSpeed">Velocidade</label><output id="studioSpeedValue">1,0×</output></div>
+              <input id="studioSpeed" type="range" min="0.5" max="2" step="0.25" value="1">
+            </div>
+            <div class="studio-field">
+              <div class="studio-label-value"><label for="studioImageDuration" data-i18n="studioImageTime">Tempo de cada foto</label><output id="studioImageDurationValue">3s</output></div>
+              <input id="studioImageDuration" type="range" min="1" max="8" step="1" value="3">
+            </div>
+            <div class="studio-field">
+              <div class="studio-label-value"><label for="studioBrightness" data-i18n="studioBrightness">Brilho</label><output id="studioBrightnessValue">0</output></div>
+              <input id="studioBrightness" type="range" min="-100" max="100" value="0">
+            </div>
+            <div class="studio-field">
+              <div class="studio-label-value"><label for="studioContrast" data-i18n="studioContrast">Contraste</label><output id="studioContrastValue">0</output></div>
+              <input id="studioContrast" type="range" min="-100" max="100" value="0">
+            </div>
+            <div class="studio-field">
+              <div class="studio-label-value"><label for="studioSaturation" data-i18n="studioSaturation">Cores</label><output id="studioSaturationValue">0</output></div>
+              <input id="studioSaturation" type="range" min="-100" max="100" value="0">
+            </div>
+            <div class="studio-segment">
+              <span data-i18n="studioEffects">Efeitos</span>
+              <div id="studioEffectOptions" class="studio-effect-options">
+                <button class="active" type="button" data-studio-effect="normal" data-i18n="effectNormal">Original</button>
+                <button type="button" data-studio-effect="vivid" data-i18n="effectVivid">Vibrante</button>
+                <button type="button" data-studio-effect="warm" data-i18n="effectWarm">Quente</button>
+                <button type="button" data-studio-effect="cool" data-i18n="effectCool">Frio</button>
+                <button type="button" data-studio-effect="mono" data-i18n="effectMono">P&B</button>
+                <button type="button" data-studio-effect="vintage" data-i18n="effectVintage">Retrô</button>
+              </div>
+            </div>
+            <div class="studio-audio-row">
+              <div><strong data-i18n="studioMusic">Trilha sonora</strong><small id="studioAudioName" data-i18n="studioNoMusic">Sem música adicionada</small></div>
+              <button id="studioPickAudioBtn" class="secondary-button compact" type="button" data-i18n="studioChooseMusic">Escolher música</button>
+            </div>
+            <label class="studio-toggle"><input id="studioFadeToggle" type="checkbox" checked><span><strong data-i18n="studioFade">Entrada e saída suaves</strong><small data-i18n="studioFadeText">Evita cortes bruscos no áudio.</small></span></label>
+          </section>
+        </div>
+
+        <section class="studio-export-card">
+          <div><span class="eyebrow" data-i18n="studioExport">EXPORTAR</span><h2 data-i18n="studioExportTitle">Pronto para compartilhar</h2><p data-i18n="studioExportText">O vídeo será salvo em Filmes/Moura Studio e ficará visível na galeria.</p></div>
+          <button id="studioExportBtn" class="primary-button" type="button"><span data-i18n="studioCreateVideo">Criar vídeo</span> <span>⇩</span></button>
+          <div id="studioProgress" class="studio-progress hidden" aria-live="polite">
+            <div><strong id="studioProgressTitle">Preparando seu projeto</strong><span id="studioProgressPercent">0%</span></div>
+            <div class="progress-track"><i id="studioProgressBar"></i></div>
+            <p id="studioProgressText">Organizando os arquivos no celular.</p>
+            <button id="studioCancelBtn" class="danger-button compact" type="button" data-i18n="cancel">Cancelar</button>
+          </div>
+          <div id="studioResult" class="studio-result hidden">
+            <span class="studio-result-icon">✓</span>
+            <div><strong data-i18n="studioReady">Seu vídeo está pronto</strong><small id="studioResultName">Vídeo salvo na galeria</small></div>
+            <button id="studioOpenResultBtn" class="secondary-button compact" type="button" data-i18n="play">Reproduzir</button>
+            <button id="studioShareResultBtn" class="primary-button compact" type="button" data-i18n="share">Compartilhar</button>
+          </div>
+        </section>
       </section>
 
       <section id="view-conta" class="view">
         <div class="page-title account-title">
-          <div><span class="eyebrow" data-i18n="accountEyebrow">CONTA E SUPORTE</span><h1 data-i18n="accountTitle">Minha conta</h1><p data-i18n="accountDescription">Entre para usar o app, receber avisos e falar com o desenvolvedor.</p></div>
+          <div><span class="eyebrow" data-i18n="accountEyebrow">CONTA E SUPORTE</span><h1 data-i18n="accountTitle">Minha conta</h1><p data-i18n="accountDescription">Entre na tendência com seus amigos.</p></div>
           <span id="cloudStatusBadge" class="status-value">Conectando</span>
         </div>
 
@@ -432,7 +504,7 @@
             </div>
             <div class="admin-grid">
               <section class="admin-card">
-                <div class="card-heading"><div><span class="eyebrow">USUÁRIOS</span><h3>Perfis da plataforma</h3></div><input id="adminUserSearch" type="search" placeholder="Buscar nome ou e-mail"></div>
+                <div class="card-heading"><div><span class="eyebrow">USUÁRIOS</span><h3>Perfis da plataforma</h3><p>A busca filtra perfis, atividades e feedbacks.</p></div><input id="adminUserSearch" type="search" placeholder="Buscar nome ou e-mail"></div>
                 <div id="adminUsersList" class="admin-list"></div>
               </section>
               <section class="admin-card">
@@ -463,6 +535,8 @@
               </div>
               <div class="admin-control-actions">
                 <button id="saveUserControlsBtn" class="primary-button" type="button">Salvar controles</button>
+                <button id="resetUserLockBtn" class="secondary-button" type="button">Liberar tentativas de login</button>
+                <button id="messageSelectedUserBtn" class="secondary-button" type="button">Enviar mensagem</button>
                 <button id="forceUserSignOutBtn" class="danger-button" type="button">Deslogar em todos os aparelhos</button>
               </div>
               <p class="helper">O bloqueio é vinculado à conta. IP não é usado porque redes móveis e residenciais compartilham e trocam endereços, causando bloqueios indevidos.</p>
@@ -551,7 +625,7 @@
       <button class="nav-item active" data-view="inicio"><span>⌂</span><small data-i18n="navHome">Início</small></button>
       <button class="nav-item" data-view="youtube"><span>▶</span><small data-i18n="navYouTube">YouTube</small></button>
       <button class="nav-item" data-view="downloads"><span>⇩</span><small data-i18n="navLibrary">Biblioteca</small></button>
-      <button class="nav-item" data-view="historico"><span>◷</span><small data-i18n="navHistory">Histórico</small></button>
+      <button class="nav-item" data-view="editor"><span>✦</span><small data-i18n="navStudio">Estúdio</small></button>
       <button class="nav-item" data-view="conta"><span>●</span><small data-i18n="navAccount">Conta</small></button>
       <button class="nav-item" data-view="configuracoes"><span>⚙</span><small data-i18n="navSettings">Ajustes</small></button>
     </nav>
@@ -633,8 +707,8 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="./i18n.js?v=14" defer></script>
-  <script src="./app.js?v=14" defer></script>
-  <script src="./cloud.js?v=14" type="module"></script>
+  <script src="./i18n.js?v=16" defer></script>
+  <script src="./app.js?v=16" defer></script>
+  <script src="./cloud.js?v=16" type="module"></script>
 </body>
 </html>

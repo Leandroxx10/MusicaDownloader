@@ -14,11 +14,13 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.provider.OpenableColumns;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
 import android.webkit.MimeTypeMap;
@@ -72,10 +74,14 @@ public class MainActivity extends Activity {
     private static final String APP_ORIGIN = "https://" + APP_HOST + "/";
     private static final int STORAGE_PERMISSION_REQUEST = 40;
     private static final int NOTIFICATION_PERMISSION_REQUEST = 41;
+    private static final int EDITOR_MEDIA_REQUEST = 42;
+    private static final int EDITOR_AUDIO_REQUEST = 43;
     private static final String MESSAGE_CHANNEL_ID = "moura_messages";
     private static final String PREFS = "moura_library";
     private static final String PLAYER_PREFS = "moura_player";
     private static final String UPDATE_PREFS = "moura_updates";
+    static final String THEME_PREFS = "moura_theme";
+    static final String THEME_COLOR_KEY = "accent_color";
     private static final String UPDATE_MANIFEST_URL =
             "https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/update.json";
     private static final String APP_DOWNLOAD_URL =
@@ -96,6 +102,25 @@ public class MainActivity extends Activity {
     private boolean refreshUpdatesOnResume;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private UiUpdateManager uiUpdateManager;
+
+    private int validatedThemeColor(String color) {
+        try {
+            if (color != null && color.matches("^#[0-9a-fA-F]{6}$")) {
+                return Color.parseColor(color);
+            }
+        } catch (Exception ignored) { }
+        return Color.rgb(66, 245, 123);
+    }
+
+    private void applyWindowTheme(String color) {
+        int accent = validatedThemeColor(color);
+        int dark = Color.rgb(
+                Math.max(3, (int) (Color.red(accent) * 0.07f)),
+                Math.max(7, (int) (Color.green(accent) * 0.07f)),
+                Math.max(5, (int) (Color.blue(accent) * 0.07f)));
+        getWindow().setStatusBarColor(dark);
+        getWindow().setNavigationBarColor(dark);
+    }
 
     private final BroadcastReceiver downloadReceiver = new BroadcastReceiver() {
         @Override
@@ -118,12 +143,22 @@ public class MainActivity extends Activity {
         }
     };
 
+    private final BroadcastReceiver editorReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String payload = intent.getStringExtra(VideoEditorService.EXTRA_PAYLOAD);
+            if (payload != null) {
+                callJavascript("window.MouraEditor.onEvent", payload);
+            }
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         createMessageNotificationChannel();
-        getWindow().setStatusBarColor(Color.rgb(5, 11, 8));
-        getWindow().setNavigationBarColor(Color.rgb(5, 11, 8));
+        applyWindowTheme(getSharedPreferences(THEME_PREFS, MODE_PRIVATE)
+                .getString(THEME_COLOR_KEY, "#42f57b"));
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
         webView = new WebView(this);
@@ -176,12 +211,15 @@ public class MainActivity extends Activity {
     private void registerAppReceivers() {
         IntentFilter downloadFilter = new IntentFilter(DownloadService.ACTION_DOWNLOAD_EVENT);
         IntentFilter updateFilter = new IntentFilter(UpdateService.ACTION_UPDATE_EVENT);
+        IntentFilter editorFilter = new IntentFilter(VideoEditorService.ACTION_EDITOR_EVENT);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(downloadReceiver, downloadFilter, Context.RECEIVER_NOT_EXPORTED);
             registerReceiver(updateReceiver, updateFilter, Context.RECEIVER_NOT_EXPORTED);
+            registerReceiver(editorReceiver, editorFilter, Context.RECEIVER_NOT_EXPORTED);
         } else {
             registerReceiver(downloadReceiver, downloadFilter);
             registerReceiver(updateReceiver, updateFilter);
+            registerReceiver(editorReceiver, editorFilter);
         }
     }
 
@@ -251,6 +289,69 @@ public class MainActivity extends Activity {
                 "if(typeof target==='function'){target(JSON.parse(decodeURIComponent(escape(atob('" +
                 encoded + "')))));}})();";
         runOnUiThread(() -> webView.evaluateJavascript(js, null));
+    }
+
+    private String displayNameForUri(Uri uri) {
+        try (Cursor cursor = getContentResolver().query(
+                uri, new String[]{OpenableColumns.DISPLAY_NAME},
+                null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                if (index >= 0) return cursor.getString(index);
+            }
+        } catch (Exception ignored) { }
+        return uri.getLastPathSegment() == null ? "Mídia" : uri.getLastPathSegment();
+    }
+
+    private JSONObject editorItem(Uri uri) {
+        JSONObject item = new JSONObject();
+        try {
+            String mime = getContentResolver().getType(uri);
+            item.put("uri", uri.toString());
+            item.put("name", displayNameForUri(uri));
+            item.put("mime", mime == null ? "application/octet-stream" : mime);
+        } catch (Exception ignored) { }
+        return item;
+    }
+
+    private void persistEditorPermission(Intent data, Uri uri) {
+        try {
+            int flags = data.getFlags() & (
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION |
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            getContentResolver().takePersistableUriPermission(
+                    uri, flags & Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } catch (Exception ignored) { }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode != RESULT_OK || data == null) return;
+        if (requestCode == EDITOR_MEDIA_REQUEST) {
+            JSONArray items = new JSONArray();
+            ClipData clip = data.getClipData();
+            if (clip != null) {
+                int count = Math.min(12, clip.getItemCount());
+                for (int index = 0; index < count; index++) {
+                    Uri uri = clip.getItemAt(index).getUri();
+                    persistEditorPermission(data, uri);
+                    items.put(editorItem(uri));
+                }
+            } else if (data.getData() != null) {
+                Uri uri = data.getData();
+                persistEditorPermission(data, uri);
+                items.put(editorItem(uri));
+            }
+            JSONObject payload = new JSONObject();
+            try { payload.put("items", items); } catch (Exception ignored) { }
+            callJavascript("window.MouraEditor.onMediaSelected", payload.toString());
+        } else if (requestCode == EDITOR_AUDIO_REQUEST && data.getData() != null) {
+            Uri uri = data.getData();
+            persistEditorPermission(data, uri);
+            callJavascript("window.MouraEditor.onAudioSelected",
+                    editorItem(uri).toString());
+        }
     }
 
     private void createMessageNotificationChannel() {
@@ -846,6 +947,7 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         try { unregisterReceiver(downloadReceiver); } catch (Exception ignored) { }
         try { unregisterReceiver(updateReceiver); } catch (Exception ignored) { }
+        try { unregisterReceiver(editorReceiver); } catch (Exception ignored) { }
         executor.shutdownNow();
         if (uiUpdateManager != null) uiUpdateManager.shutdown();
         if (webView != null) webView.destroy();
@@ -886,6 +988,132 @@ public class MainActivity extends Activity {
             if (clip == null || clip.getItemCount() == 0) return "";
             CharSequence text = clip.getItemAt(0).coerceToText(MainActivity.this);
             return text == null ? "" : text.toString();
+        }
+
+        @JavascriptInterface
+        public String selectEditorMedia() {
+            runOnUiThread(() -> {
+                Intent picker = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                picker.addCategory(Intent.CATEGORY_OPENABLE);
+                picker.setType("*/*");
+                picker.putExtra(Intent.EXTRA_MIME_TYPES,
+                        new String[]{"video/*", "image/*"});
+                picker.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION |
+                        Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+                startActivityForResult(
+                        Intent.createChooser(picker, "Escolher vídeo ou fotos"),
+                        EDITOR_MEDIA_REQUEST);
+            });
+            return actionResult(true, "Escolha um vídeo ou até 12 fotos.").toString();
+        }
+
+        @JavascriptInterface
+        public String selectEditorAudio() {
+            runOnUiThread(() -> {
+                Intent picker = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                picker.addCategory(Intent.CATEGORY_OPENABLE);
+                picker.setType("audio/*");
+                picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION |
+                        Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+                startActivityForResult(
+                        Intent.createChooser(picker, "Escolher música"),
+                        EDITOR_AUDIO_REQUEST);
+            });
+            return actionResult(true, "Escolha uma música do celular.").toString();
+        }
+
+        @JavascriptInterface
+        public String startVideoEditor(String configJson) {
+            try {
+                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P &&
+                        checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                                != PackageManager.PERMISSION_GRANTED) {
+                    runOnUiThread(() -> requestPermissions(
+                            new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                            STORAGE_PERMISSION_REQUEST));
+                    return actionResult(false,
+                            "Autorize o armazenamento e toque em Criar vídeo novamente.").toString();
+                }
+                JSONObject config = new JSONObject(configJson == null ? "{}" : configJson);
+                JSONArray media = config.optJSONArray("media");
+                if (media == null || media.length() == 0 || media.length() > 12) {
+                    return actionResult(false,
+                            "Escolha um vídeo ou de 1 a 12 imagens.").toString();
+                }
+                Intent editor = new Intent(MainActivity.this, VideoEditorService.class);
+                editor.setAction(VideoEditorService.ACTION_START);
+                editor.putExtra(VideoEditorService.EXTRA_CONFIG, config.toString());
+                runOnUiThread(() -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        startForegroundService(editor);
+                    } else {
+                        startService(editor);
+                    }
+                });
+                return actionResult(true,
+                        "Criação iniciada. Você pode continuar usando o app.").toString();
+            } catch (Exception error) {
+                return actionResult(false, "Configuração do projeto inválida.").toString();
+            }
+        }
+
+        @JavascriptInterface
+        public String cancelVideoEditor() {
+            Intent cancel = new Intent(MainActivity.this, VideoEditorService.class);
+            cancel.setAction(VideoEditorService.ACTION_CANCEL);
+            runOnUiThread(() -> startService(cancel));
+            return actionResult(true, "Cancelando a criação do vídeo.").toString();
+        }
+
+        private Uri validEditorOutput(String rawUri) {
+            if (rawUri == null || rawUri.length() > 2048) return null;
+            Uri uri = Uri.parse(rawUri);
+            return "content".equalsIgnoreCase(uri.getScheme()) ? uri : null;
+        }
+
+        @JavascriptInterface
+        public String openEditorOutput(String rawUri) {
+            try {
+                Uri uri = validEditorOutput(rawUri);
+                if (uri == null) return actionResult(false, "Vídeo não encontrado.").toString();
+                Intent open = new Intent(Intent.ACTION_VIEW)
+                        .setDataAndType(uri, "video/mp4")
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                runOnUiThread(() -> startActivity(
+                        Intent.createChooser(open, "Reproduzir vídeo")));
+                return actionResult(true, "Abrindo seu vídeo.").toString();
+            } catch (Exception error) {
+                return actionResult(false, safeMessage(error)).toString();
+            }
+        }
+
+        @JavascriptInterface
+        public String shareEditorOutput(String rawUri) {
+            try {
+                Uri uri = validEditorOutput(rawUri);
+                if (uri == null) return actionResult(false, "Vídeo não encontrado.").toString();
+                Intent share = new Intent(Intent.ACTION_SEND)
+                        .setType("video/mp4")
+                        .putExtra(Intent.EXTRA_STREAM, uri)
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                runOnUiThread(() -> startActivity(
+                        Intent.createChooser(share, "Compartilhar seu vídeo")));
+                return actionResult(true, "Escolha onde compartilhar.").toString();
+            } catch (Exception error) {
+                return actionResult(false, safeMessage(error)).toString();
+            }
+        }
+
+        @JavascriptInterface
+        public String setThemeColor(String color) {
+            if (color == null || !color.matches("^#[0-9a-fA-F]{6}$")) {
+                return actionResult(false, "Cor inválida.").toString();
+            }
+            getSharedPreferences(THEME_PREFS, MODE_PRIVATE).edit()
+                    .putString(THEME_COLOR_KEY, color.toLowerCase(Locale.ROOT)).apply();
+            runOnUiThread(() -> applyWindowTheme(color));
+            return actionResult(true, "Tema completo atualizado.").toString();
         }
 
         @JavascriptInterface

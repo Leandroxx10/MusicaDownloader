@@ -180,6 +180,21 @@ def validate_required_features() -> None:
         / "downloads"
         / "PlayerActivity.java"
     ).read_text(encoding="utf-8")
+    video_editor_path = (
+        ROOT
+        / "native-android"
+        / "app"
+        / "src"
+        / "main"
+        / "java"
+        / "com"
+        / "moura"
+        / "downloads"
+        / "VideoEditorService.java"
+    )
+    if not video_editor_path.is_file():
+        fail("O motor nativo do Estúdio Moura está ausente.")
+    video_editor = video_editor_path.read_text(encoding="utf-8")
     manifest = (
         ROOT / "native-android" / "app" / "src" / "main" / "AndroidManifest.xml"
     ).read_text(encoding="utf-8")
@@ -288,6 +303,19 @@ def validate_required_features() -> None:
         and 'id="languageSelect"' in index
         and 'id="authLanguageSelect"' in index
         and 'id="accentColor"' in index,
+        "tema integral inclusive no player": "setThemeColor" in main_activity
+        and "setAccentColor" in player_activity
+        and "--theme-rgb" in (WEB_DIR / "download.css").read_text(encoding="utf-8"),
+        "Estúdio de vídeo local": 'id="view-editor"' in index
+        and "startVideoEditor" in main_activity
+        and "ProcessBuilder" in video_editor
+        and "MediaStore.Video.Media.RELATIVE_PATH" in video_editor
+        and 'android:name=".VideoEditorService"' in manifest,
+        "bloqueio progressivo liberável pelo administrador":
+        "AUTH_LOCK_BASE_MS * (2 **" in required[12].read_text(encoding="utf-8")
+        and "resetAdminAuthLock" in required[12].read_text(encoding="utf-8")
+        and '"authUnlocks"' in required[14].read_text(encoding="utf-8")
+        and 'id="resetUserLockBtn"' in index,
         "download completo no site": "moura-downloads.apk" in index
         and "moura-downloads-arm64.apk" not in index,
         "somente QR Code no app": 'id="appQrCode"' in index

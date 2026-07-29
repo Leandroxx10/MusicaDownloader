@@ -36,6 +36,7 @@ public final class EnergyVisualizerView extends View {
     private float phase;
     private boolean playing;
     private int theme;
+    private int selectedAccent = Color.rgb(66, 245, 123);
     private Shader backgroundShader;
     private Shader ambientShader;
     private Shader coreShader;
@@ -58,6 +59,25 @@ public final class EnergyVisualizerView extends View {
         this.theme = Math.max(0, Math.min(ACCENTS.length - 1, theme));
         rebuildShaders(getWidth(), getHeight());
         invalidate();
+    }
+
+    public void setAccentColor(int accent) {
+        selectedAccent = Color.rgb(
+                Color.red(accent), Color.green(accent), Color.blue(accent));
+        rebuildShaders(getWidth(), getHeight());
+        invalidate();
+    }
+
+    private int accentForTheme() {
+        if (theme == 1) return mix(selectedAccent, Color.WHITE, .18f);
+        if (theme == 2) return mix(selectedAccent, Color.WHITE, .34f);
+        return selectedAccent;
+    }
+
+    private int secondaryForTheme() {
+        if (theme == 1) return mix(selectedAccent, Color.WHITE, .42f);
+        if (theme == 2) return mix(selectedAccent, Color.rgb(190, 205, 255), .52f);
+        return mix(selectedAccent, Color.WHITE, .25f);
     }
 
     @Override
@@ -92,8 +112,8 @@ public final class EnergyVisualizerView extends View {
         float width = getWidth();
         float height = getHeight();
         float minimum = Math.min(width, height);
-        int accent = ACCENTS[theme];
-        int secondary = SECONDARY[theme];
+        int accent = accentForTheme();
+        int secondary = secondaryForTheme();
         drawBackground(canvas, width, height, accent, secondary);
 
         float centerX = width * 0.5f;
@@ -155,16 +175,16 @@ public final class EnergyVisualizerView extends View {
 
     private void rebuildShaders(int width, int height) {
         if (width <= 0 || height <= 0) return;
-        int accent = ACCENTS[theme];
-        int secondary = SECONDARY[theme];
+        int accent = accentForTheme();
+        int secondary = secondaryForTheme();
         float minimum = Math.min(width, height);
         float baseRadius = minimum * 0.105f;
         backgroundShader = new LinearGradient(
                 0f, 0f, width, height,
                 new int[]{
-                        Color.rgb(3, 9, 8),
-                        mix(Color.rgb(5, 14, 11), secondary, 0.12f),
-                        Color.rgb(2, 6, 8)
+                        mix(Color.rgb(3, 7, 5), accent, .045f),
+                        mix(Color.rgb(5, 11, 8), secondary, 0.12f),
+                        mix(Color.rgb(2, 5, 7), accent, .025f)
                 },
                 new float[]{0f, 0.52f, 1f},
                 Shader.TileMode.CLAMP);

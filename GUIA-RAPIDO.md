@@ -45,7 +45,9 @@ Também existem os botões **Compartilhar link** e **Copiar link**.
 - **Melhor qualidade:** arquivos maiores e processamento mais demorado.
 - **Economia de dados:** vídeo até 480p e MP3 menor.
 
-O app agora lembra sua última escolha de formato, qualidade e categoria. No **Histórico**, use `↻` para preparar novamente um link anterior.
+O app lembra sua última escolha de formato, qualidade e categoria. Na aba **Estúdio**,
+escolha um vídeo ou até 12 fotos, ajuste o visual, adicione uma música e toque em
+**Criar vídeo**. O resultado aparece na galeria, em `Filmes/Moura Studio`.
 
 ## Publicar no Netlify
 

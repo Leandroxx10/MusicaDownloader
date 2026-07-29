@@ -93,6 +93,9 @@ public class PlayerActivity extends Activity {
     private long playbackPosition;
     private int speedIndex;
     private int visualThemeIndex;
+    private int accentColor = Color.rgb(66, 245, 123);
+    private int accentDark = Color.rgb(8, 24, 14);
+    private int accentPanel = Color.rgb(10, 30, 18);
 
     private final float[] speeds = {1f, 1.25f, 1.5f, 2f};
     private final int[] sleepOptions = {0, 15, 30, 45, 60};
@@ -138,8 +141,17 @@ public class PlayerActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().setStatusBarColor(Color.rgb(5, 11, 8));
-        getWindow().setNavigationBarColor(Color.rgb(5, 11, 8));
+        try {
+            accentColor = Color.parseColor(getSharedPreferences(
+                    MainActivity.THEME_PREFS, MODE_PRIVATE).getString(
+                    MainActivity.THEME_COLOR_KEY, "#42f57b"));
+        } catch (Exception ignored) {
+            accentColor = Color.rgb(66, 245, 123);
+        }
+        accentDark = mix(Color.rgb(3, 8, 6), accentColor, .09f);
+        accentPanel = mix(Color.rgb(7, 17, 11), accentColor, .14f);
+        getWindow().setStatusBarColor(accentDark);
+        getWindow().setNavigationBarColor(accentDark);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
@@ -184,7 +196,7 @@ public class PlayerActivity extends Activity {
     private LinearLayout buildLayout() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.rgb(5, 11, 8));
+        root.setBackgroundColor(accentDark);
         root.setLayoutParams(new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
@@ -192,7 +204,7 @@ public class PlayerActivity extends Activity {
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
         header.setPadding(dp(10), dp(8), dp(10), dp(8));
-        header.setBackgroundColor(Color.rgb(8, 20, 13));
+        header.setBackgroundColor(accentPanel);
 
         Button backButton = headerButton("‹ Voltar");
         backButton.setOnClickListener(view -> finish());
@@ -218,9 +230,10 @@ public class PlayerActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
         FrameLayout mediaStage = new FrameLayout(this);
-        mediaStage.setBackgroundColor(Color.rgb(3, 9, 8));
+        mediaStage.setBackgroundColor(mix(Color.BLACK, accentColor, .045f));
 
         energyVisualizer = new EnergyVisualizerView(this);
+        energyVisualizer.setAccentColor(accentColor);
         mediaStage.addView(energyVisualizer, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
@@ -257,16 +270,16 @@ public class PlayerActivity extends Activity {
         controls.setOrientation(LinearLayout.VERTICAL);
         controls.setPadding(dp(10), dp(6), dp(10), dp(8));
         GradientDrawable background = new GradientDrawable();
-        background.setColor(Color.argb(218, 5, 17, 11));
+        background.setColor(withAlpha(accentDark, 226));
         background.setCornerRadius(dp(18));
-        background.setStroke(dp(1), Color.argb(110, 88, 255, 150));
+        background.setStroke(dp(1), withAlpha(accentColor, 125));
         controls.setBackground(background);
 
         positionSeekBar = new SeekBar(this);
         positionSeekBar.setMax(1000);
         positionSeekBar.setProgressTintList(
                 android.content.res.ColorStateList.valueOf(
-                        Color.rgb(70, 255, 145)));
+                        accentColor));
         positionSeekBar.setThumbTintList(
                 android.content.res.ColorStateList.valueOf(Color.WHITE));
         positionSeekBar.setOnSeekBarChangeListener(
@@ -326,9 +339,10 @@ public class PlayerActivity extends Activity {
         rewindButton.setOnClickListener(view -> seekRelative(-10_000L));
         playPauseButton = audioControlButton("Pausar");
         playPauseButton.setContentDescription("Pausar música");
-        playPauseButton.setTextColor(Color.rgb(4, 18, 10));
+        playPauseButton.setTextColor(
+                luminance(accentColor) > .55f ? Color.rgb(4, 18, 10) : Color.WHITE);
         GradientDrawable playBackground = new GradientDrawable();
-        playBackground.setColor(Color.rgb(85, 255, 145));
+        playBackground.setColor(accentColor);
         playBackground.setCornerRadius(dp(15));
         playPauseButton.setBackground(playBackground);
         playPauseButton.setOnClickListener(view -> togglePlayback());
@@ -382,7 +396,7 @@ public class PlayerActivity extends Activity {
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(14), dp(12), dp(14), dp(14));
-        panel.setBackgroundColor(Color.rgb(8, 20, 13));
+        panel.setBackgroundColor(accentPanel);
 
         nowPlayingView = new TextView(this);
         nowPlayingView.setText(mediaName);
@@ -540,15 +554,15 @@ public class PlayerActivity extends Activity {
         Button button = new Button(this);
         button.setText(text);
         button.setAllCaps(false);
-        button.setTextColor(Color.rgb(202, 255, 216));
+        button.setTextColor(mix(Color.WHITE, accentColor, .38f));
         button.setTextSize(12);
         button.setMinHeight(0);
         button.setMinWidth(0);
         button.setPadding(dp(12), 0, dp(12), 0);
         GradientDrawable background = new GradientDrawable();
-        background.setColor(Color.rgb(15, 42, 25));
+        background.setColor(mix(Color.rgb(9, 20, 13), accentColor, .16f));
         background.setCornerRadius(dp(12));
-        background.setStroke(dp(1), Color.rgb(45, 89, 59));
+        background.setStroke(dp(1), mix(Color.rgb(31, 51, 38), accentColor, .34f));
         button.setBackground(background);
         return button;
     }
@@ -998,6 +1012,25 @@ public class PlayerActivity extends Activity {
 
     private String positionKey(String id) {
         return "position_" + id;
+    }
+
+    private int mix(int base, int accent, float amount) {
+        float value = Math.max(0f, Math.min(1f, amount));
+        return Color.rgb(
+                Math.round(Color.red(base) * (1f - value) + Color.red(accent) * value),
+                Math.round(Color.green(base) * (1f - value) + Color.green(accent) * value),
+                Math.round(Color.blue(base) * (1f - value) + Color.blue(accent) * value));
+    }
+
+    private int withAlpha(int color, int alpha) {
+        return Color.argb(
+                Math.max(0, Math.min(255, alpha)),
+                Color.red(color), Color.green(color), Color.blue(color));
+    }
+
+    private float luminance(int color) {
+        return (Color.red(color) * .2126f + Color.green(color) * .7152f
+                + Color.blue(color) * .0722f) / 255f;
     }
 
     private int dp(int value) {

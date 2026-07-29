@@ -54,7 +54,11 @@ Em **Authentication → Settings**, aplique também:
 - proteção contra enumeração de e-mails;
 - limite/monitoramento de tentativas suspeitas oferecido pelo Authentication.
 
-O aplicativo mostra as cinco tentativas locais restantes e bloqueia novas tentativas naquele aparelho por 15 minutos. Essa camada complementa, mas não substitui, os limites do Authentication.
+O aplicativo mostra as cinco tentativas locais restantes. A cada grupo de cinco falhas,
+o bloqueio cresce progressivamente: 15 minutos, 30 minutos, 1 hora e assim por diante,
+com limite de 24 horas. No painel, **Liberar tentativas de login** grava somente um
+identificador SHA-256 do e-mail em `authUnlocks`; o e-mail e a senha não são expostos
+nesse nó. Essa camada complementa, mas não substitui, os limites do Authentication.
 
 Se usar a área de conta em um domínio web no futuro, adicione o domínio do Netlify em **Authentication → Settings → Authorized domains**.
 

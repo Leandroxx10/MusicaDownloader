@@ -12,7 +12,10 @@
   };
 
   const DEFAULT_CATEGORIES = ['Músicas', 'Vídeos', 'Podcasts', 'Clipes', 'Outros'];
-  const appModeRequested = new URLSearchParams(location.search).get('app') === 'android';
+  const pageParameters = new URLSearchParams(location.search);
+  const appModeRequested = pageParameters.get('app') === 'android';
+  const localPreviewView = ['127.0.0.1', 'localhost'].includes(location.hostname)
+    ? pageParameters.get('preview') || '' : '';
   const isTrustedAppPage = appModeRequested && (
     ['127.0.0.1', 'localhost'].includes(location.hostname) ||
     location.hostname === 'music-bd7a7.web.app'
@@ -38,10 +41,18 @@
     youtubePlayerApi: null,
     youtubeApiPromise: null,
     spotifyCurrent: null,
+    studio: {
+      media: [],
+      audio: null,
+      ratio: '9:16',
+      effect: 'normal',
+      output: null,
+      exporting: false
+    },
     modalMode: null,
     modalPayload: null,
     pendingDownload: null,
-    authenticated: !isAndroid,
+    authenticated: !isAndroid || Boolean(localPreviewView),
     historyFilter: 'all',
     featureControls: {
       downloads: true,
@@ -58,7 +69,6 @@
     modeBadge: $('#modeBadge'),
     mediaUrl: $('#mediaUrl'),
     platformPill: $('#platformPill'),
-    analyzeBtn: $('#analyzeBtn'),
     downloadBtn: $('#downloadBtn'),
     analysisPanel: $('#analysisPanel'),
     mediaTitle: $('#mediaTitle'),
@@ -132,6 +142,31 @@
     spotifyPlayer: $('#spotifyPlayer'),
     spotifyPlayerShell: $('#spotifyPlayerShell'),
     spotifyActions: $('#spotifyActions'),
+    studioPreview: $('#studioPreview'),
+    studioPreviewEmpty: $('#studioPreviewEmpty'),
+    studioPreviewVideo: $('#studioPreviewVideo'),
+    studioPreviewImage: $('#studioPreviewImage'),
+    studioPreviewEffect: $('#studioPreviewEffect'),
+    studioTimeline: $('#studioTimeline'),
+    studioProjectName: $('#studioProjectName'),
+    studioSpeed: $('#studioSpeed'),
+    studioSpeedValue: $('#studioSpeedValue'),
+    studioImageDuration: $('#studioImageDuration'),
+    studioImageDurationValue: $('#studioImageDurationValue'),
+    studioBrightness: $('#studioBrightness'),
+    studioBrightnessValue: $('#studioBrightnessValue'),
+    studioContrast: $('#studioContrast'),
+    studioContrastValue: $('#studioContrastValue'),
+    studioSaturation: $('#studioSaturation'),
+    studioSaturationValue: $('#studioSaturationValue'),
+    studioAudioName: $('#studioAudioName'),
+    studioProgress: $('#studioProgress'),
+    studioProgressTitle: $('#studioProgressTitle'),
+    studioProgressText: $('#studioProgressText'),
+    studioProgressPercent: $('#studioProgressPercent'),
+    studioProgressBar: $('#studioProgressBar'),
+    studioResult: $('#studioResult'),
+    studioResultName: $('#studioResultName'),
     accentColor: $('#accentColor'),
     languageSelect: $('#languageSelect'),
     authLanguageSelect: $('#authLanguageSelect'),
@@ -169,6 +204,7 @@
     if (name === 'downloads') refreshLibrary();
     if (name === 'configuracoes') renderCategoryManager();
     if (name === 'youtube') renderYouTubeLists();
+    if (name === 'editor') renderStudio();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -774,6 +810,171 @@
     catch (error) { return { success: false, message: error?.message || 'Não foi possível concluir a ação.' }; }
   }
 
+  function studioFilter() {
+    const brightness = (Number(els.studioBrightness?.value || 0) + 100) / 100;
+    const contrast = (Number(els.studioContrast?.value || 0) + 100) / 100;
+    const saturation = (Number(els.studioSaturation?.value || 0) + 100) / 100;
+    const preset = {
+      normal: '',
+      vivid: 'saturate(1.28) contrast(1.08)',
+      warm: 'sepia(.18) saturate(1.16) hue-rotate(-8deg)',
+      cool: 'saturate(1.04) hue-rotate(12deg)',
+      mono: 'grayscale(1)',
+      vintage: 'sepia(.34) contrast(.92) saturate(.82)'
+    }[state.studio.effect] || '';
+    return `brightness(${brightness}) contrast(${contrast}) saturate(${saturation}) ${preset}`.trim();
+  }
+
+  function studioSafeUri(value) {
+    const uri = String(value || '');
+    return /^(content|file|blob):/i.test(uri) ? uri : '';
+  }
+
+  function renderStudio() {
+    if (!els.studioPreview) return;
+    const media = state.studio.media || [];
+    const first = media[0];
+    const hasMedia = Boolean(first);
+    els.studioPreviewEmpty?.classList.toggle('hidden', hasMedia);
+    els.studioPreviewVideo?.classList.add('hidden');
+    els.studioPreviewImage?.classList.add('hidden');
+    if (first) {
+      const source = studioSafeUri(first.uri);
+      if (String(first.mime || '').startsWith('video/')) {
+        els.studioPreviewVideo.src = source;
+        els.studioPreviewVideo.classList.remove('hidden');
+      } else {
+        els.studioPreviewImage.src = source;
+        els.studioPreviewImage.classList.remove('hidden');
+      }
+    }
+    const ratioClass = state.studio.ratio === '16:9'
+      ? 'ratio-wide' : state.studio.ratio === '1:1' ? 'ratio-square' : 'ratio-vertical';
+    els.studioPreview.classList.remove('ratio-vertical', 'ratio-wide', 'ratio-square');
+    els.studioPreview.classList.add(ratioClass);
+    if (els.studioPreviewEffect) els.studioPreviewEffect.style.backdropFilter = studioFilter();
+    $('#studioClearMediaBtn')?.classList.toggle('hidden', !hasMedia);
+    if (els.studioTimeline) {
+      els.studioTimeline.innerHTML = media.length
+        ? media.map((item, index) => `
+          <article class="studio-clip" title="${escapeHtml(item.name || `Cena ${index + 1}`)}">
+            <span>${String(item.mime || '').startsWith('video/') ? '▶' : '▧'}</span>
+            <strong>${index + 1}</strong><small>${escapeHtml(item.name || `Cena ${index + 1}`)}</small>
+          </article>`).join('')
+        : `<span>${escapeHtml(t('studioTimelineEmpty'))}</span>`;
+    }
+    if (els.studioAudioName) {
+      els.studioAudioName.textContent = state.studio.audio?.name || t('studioNoMusic');
+    }
+    $$('#studioRatioOptions [data-studio-ratio]').forEach(button =>
+      button.classList.toggle('active', button.dataset.studioRatio === state.studio.ratio));
+    $$('#studioEffectOptions [data-studio-effect]').forEach(button =>
+      button.classList.toggle('active', button.dataset.studioEffect === state.studio.effect));
+  }
+
+  function updateStudioControl(input, output, formatter = value => value) {
+    if (!input || !output) return;
+    output.textContent = formatter(input.value);
+    renderStudio();
+  }
+
+  function pickStudioMedia() {
+    if (!isAndroid) return toast('O Estúdio funciona no aplicativo Android instalado.', true);
+    const result = nativeAction('selectEditorMedia');
+    toast(result.message, !result.success);
+  }
+
+  function pickStudioAudio() {
+    if (!isAndroid) return toast('O Estúdio funciona no aplicativo Android instalado.', true);
+    const result = nativeAction('selectEditorAudio');
+    toast(result.message, !result.success);
+  }
+
+  function setStudioProgress(visible, progress = 0, title = '', message = '') {
+    els.studioProgress?.classList.toggle('hidden', !visible);
+    const value = Math.max(0, Math.min(100, Number(progress) || 0));
+    if (els.studioProgressPercent) els.studioProgressPercent.textContent = `${Math.round(value)}%`;
+    if (els.studioProgressBar) els.studioProgressBar.style.width = `${value}%`;
+    if (title && els.studioProgressTitle) els.studioProgressTitle.textContent = title;
+    if (message && els.studioProgressText) els.studioProgressText.textContent = message;
+  }
+
+  function exportStudioVideo() {
+    if (!state.studio.media.length) {
+      return toast('Escolha um vídeo ou algumas fotos para começar.', true);
+    }
+    if (!isAndroid) return toast('Instale o app Android para criar o vídeo no celular.', true);
+    const config = {
+      media: state.studio.media.map(item => ({
+        uri: item.uri, name: item.name, mime: item.mime
+      })),
+      audio: state.studio.audio,
+      name: String(els.studioProjectName?.value || 'Meu vídeo Moura').trim(),
+      ratio: state.studio.ratio,
+      effect: state.studio.effect,
+      speed: Number(els.studioSpeed?.value || 1),
+      imageDuration: Number(els.studioImageDuration?.value || 3),
+      brightness: Number(els.studioBrightness?.value || 0),
+      contrast: Number(els.studioContrast?.value || 0),
+      saturation: Number(els.studioSaturation?.value || 0),
+      fade: Boolean($('#studioFadeToggle')?.checked)
+    };
+    const result = nativeAction('startVideoEditor', JSON.stringify(config));
+    if (!result.success) return toast(result.message, true);
+    state.studio.exporting = true;
+    state.studio.output = null;
+    els.studioResult?.classList.add('hidden');
+    $('#studioExportBtn').disabled = true;
+    setStudioProgress(true, 1, 'Preparando seu projeto',
+      'Organizando os arquivos no celular.');
+    toast(result.message);
+  }
+
+  window.MouraEditor = {
+    onMediaSelected(data) {
+      const items = Array.isArray(data?.items) ? data.items : [];
+      if (!items.length) return toast(data?.message || 'Nenhuma mídia foi selecionada.', true);
+      state.studio.media = items.slice(0, 12);
+      state.studio.output = null;
+      renderStudio();
+      toast(items.length === 1 ? 'Mídia adicionada ao projeto.' : `${items.length} imagens adicionadas.`);
+    },
+    onAudioSelected(data) {
+      if (!data?.uri) return toast(data?.message || 'Nenhuma música foi selecionada.', true);
+      state.studio.audio = data;
+      renderStudio();
+      toast('Trilha sonora adicionada.');
+    },
+    onEvent(event) {
+      if (!event) return;
+      if (['preparing', 'running', 'saving'].includes(event.status)) {
+        state.studio.exporting = true;
+        setStudioProgress(true, event.progress || 1,
+          event.status === 'preparing' ? 'Preparando seu projeto'
+            : event.status === 'saving' ? 'Salvando na galeria' : 'Criando seu vídeo',
+          event.message || 'Processando no próprio celular.');
+        return;
+      }
+      state.studio.exporting = false;
+      $('#studioExportBtn').disabled = false;
+      if (event.status === 'success') {
+        state.studio.output = event;
+        setStudioProgress(false);
+        els.studioResult?.classList.remove('hidden');
+        if (els.studioResultName) els.studioResultName.textContent =
+          event.name || 'Vídeo salvo na galeria';
+        toast('Vídeo criado e salvo na galeria.');
+      } else if (event.status === 'cancelled') {
+        setStudioProgress(false);
+        toast('Criação cancelada.');
+      } else if (event.status === 'error') {
+        setStudioProgress(true, 0, 'Não foi possível criar o vídeo',
+          event.message || 'Revise os arquivos e tente novamente.');
+        toast(event.message || 'Falha ao criar o vídeo.', true);
+      }
+    }
+  };
+
   function setUpdateProgress(visible, progress = 0, message = 'Preparando atualização') {
     els.updateProgress.classList.toggle('hidden', !visible);
     const value = Math.max(0, Math.min(100, Number(progress) || 0));
@@ -1146,6 +1347,7 @@
   }
 
   function renderHistory() {
+    if (!els.historyStats || !els.historyList) return;
     const completed = state.history.filter(item => item.status === 'concluído').length;
     const failed = state.history.filter(item => item.status === 'falhou').length;
     els.historyStats.innerHTML = `
@@ -1192,11 +1394,17 @@
     document.documentElement.style.setProperty('--green-2', shiftColor(normalized, -42));
     document.documentElement.style.setProperty('--green-dark',
       `color-mix(in srgb, ${normalized} 24%, #031008)`);
+    const rgb = hexToRgb(normalized);
+    document.documentElement.style.setProperty('--theme-rgb',
+      rgb ? `${rgb.r}, ${rgb.g}, ${rgb.b}` : '66, 245, 123');
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', normalized);
     storage.set('moura_theme_v1', normalized);
     if (els.accentColor) els.accentColor.value = normalized;
     $$('.theme-swatch').forEach(button =>
       button.classList.toggle('active', button.dataset.themeColor.toLowerCase() === normalized));
+    if (isAndroid && typeof window.AndroidBridge?.setThemeColor === 'function') {
+      try { window.AndroidBridge.setThemeColor(normalized); } catch { /* mantém o tema web */ }
+    }
     if (announce) toast(t('themeChanged'));
   }
 
@@ -1395,14 +1603,57 @@
       loadSpotifyFromInput();
     }
   });
-  els.analyzeBtn.addEventListener('click', verifyLink);
   els.downloadBtn.addEventListener('click', startDownload);
   els.cancelDownloadBtn.addEventListener('click', cancelDownload);
   $('#newCategoryBtn').addEventListener('click', () => openFormModal('new-category'));
   $('#addCategorySettingsBtn').addEventListener('click', () => openFormModal('new-category'));
-  $('#openQrBtn').addEventListener('click', () => {
-    showView('configuracoes');
-    setTimeout(() => $('#shareAppCard')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120);
+  $('#studioPickMediaBtn')?.addEventListener('click', pickStudioMedia);
+  $('#studioPickAudioBtn')?.addEventListener('click', pickStudioAudio);
+  $('#studioClearMediaBtn')?.addEventListener('click', () => {
+    state.studio.media = [];
+    state.studio.output = null;
+    if (els.studioPreviewVideo) {
+      els.studioPreviewVideo.pause();
+      els.studioPreviewVideo.removeAttribute('src');
+    }
+    renderStudio();
+  });
+  $('#studioRatioOptions')?.addEventListener('click', event => {
+    const button = event.target.closest('[data-studio-ratio]');
+    if (!button) return;
+    state.studio.ratio = button.dataset.studioRatio;
+    renderStudio();
+  });
+  $('#studioEffectOptions')?.addEventListener('click', event => {
+    const button = event.target.closest('[data-studio-effect]');
+    if (!button) return;
+    state.studio.effect = button.dataset.studioEffect;
+    renderStudio();
+  });
+  els.studioSpeed?.addEventListener('input', () =>
+    updateStudioControl(els.studioSpeed, els.studioSpeedValue,
+      value => `${Number(value).toLocaleString('pt-BR')}×`));
+  els.studioImageDuration?.addEventListener('input', () =>
+    updateStudioControl(els.studioImageDuration, els.studioImageDurationValue,
+      value => `${value}s`));
+  els.studioBrightness?.addEventListener('input', () =>
+    updateStudioControl(els.studioBrightness, els.studioBrightnessValue));
+  els.studioContrast?.addEventListener('input', () =>
+    updateStudioControl(els.studioContrast, els.studioContrastValue));
+  els.studioSaturation?.addEventListener('input', () =>
+    updateStudioControl(els.studioSaturation, els.studioSaturationValue));
+  $('#studioExportBtn')?.addEventListener('click', exportStudioVideo);
+  $('#studioCancelBtn')?.addEventListener('click', () => {
+    const result = nativeAction('cancelVideoEditor');
+    toast(result.message, !result.success);
+  });
+  $('#studioOpenResultBtn')?.addEventListener('click', () => {
+    const result = nativeAction('openEditorOutput', state.studio.output?.uri || '');
+    toast(result.message, !result.success);
+  });
+  $('#studioShareResultBtn')?.addEventListener('click', () => {
+    const result = nativeAction('shareEditorOutput', state.studio.output?.uri || '');
+    toast(result.message, !result.success);
   });
   $('#updateBannerBtn').addEventListener('click', () => {
     showView('configuracoes');
@@ -1433,7 +1684,7 @@
   });
   els.librarySearch.addEventListener('input', renderLibrary);
   els.librarySort.addEventListener('change', renderLibrary);
-  els.historyList.addEventListener('click', event => {
+  els.historyList?.addEventListener('click', event => {
     const button = event.target.closest('[data-repeat-history]');
     if (button) repeatHistoryDownload(button.dataset.repeatHistory);
   });
@@ -1525,7 +1776,7 @@
     if (event.target.classList.contains('modal-backdrop')) closeModals();
   });
 
-  $('#clearHistoryBtn').addEventListener('click', () => {
+  $('#clearHistoryBtn')?.addEventListener('click', () => {
     state.history = [];
     storage.set('moura_history_v2', []);
     renderHistory();
@@ -1545,7 +1796,13 @@
     }
     document.body.classList.add('auth-app', 'auth-required');
     document.body.classList.remove('auth-pending');
-    showView('conta');
+    if (localPreviewView) {
+      document.body.classList.remove('auth-required');
+      document.body.classList.add('auth-ready');
+      showView(localPreviewView);
+    } else {
+      showView('conta');
+    }
     link?.classList.add('hidden');
     $('#como-instalar')?.classList.add('hidden');
     $('#webOnlyNotice')?.classList.add('hidden');
@@ -1565,6 +1822,7 @@
   });
 
   window.addEventListener('moura:auth', event => {
+    if (localPreviewView) return;
     const status = event.detail?.status || 'signed-out';
     state.authenticated = status === 'verified';
     document.body.classList.toggle('auth-required', status === 'signed-out');
@@ -1590,6 +1848,7 @@
   restoreDownloadPreferences();
   renderCategoryManager();
   renderHistory();
+  renderStudio();
   renderYouTubeLists();
   refreshLibrary();
   consumeSharedUrl();

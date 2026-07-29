@@ -2,4 +2,5 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <external-path name="moura_downloads" path="Download/Moura Downloads/" />
     <external-files-path name="moura_updates" path="Download/updates/" />
+    <external-path name="moura_studio" path="Movies/Moura Studio/" />
 </paths>

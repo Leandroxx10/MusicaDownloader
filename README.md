@@ -12,7 +12,9 @@ Aplicativo Android desenvolvido por **Leandro Moura**, com processamento local, 
 - Central YouTube com player oficial incorporado, suporte a vídeos, links curtos e Shorts.
 - Códigos de erro do YouTube explicados e botão seguro para abrir vídeos que bloqueiam incorporação.
 - Player oficial do Spotify para faixas, álbuns, playlists, artistas e podcasts.
-- Login e criação de conta na mesma tela, senha mínima de 6 caracteres, e-mail verificado e limite visível de tentativas.
+- Login e criação de conta na mesma tela, senha mínima de 6 caracteres, e-mail verificado e limite progressivo de tentativas.
+- **Estúdio Moura** para transformar um vídeo ou até 12 fotos em MP4, com música, velocidade, brilho, contraste, saturação, seis efeitos e formatos 9:16, 16:9 e 1:1.
+- Exportação local para `Filmes/Moura Studio`, reprodução e compartilhamento direto pelo menu do Android.
 - Feedback privado, caixa de entrada com filtros, ordem, exclusão e comunicados coletivos.
 - Modal animado e notificação Android para novas mensagens recebidas com o app ativo.
 - Painel administrativo protegido por UID com perfis, atividade mínima e controles de recursos por conta.
@@ -49,6 +51,7 @@ Aplicativo Android desenvolvido por **Leandro Moura**, com processamento local, 
 - QR Code gerado localmente para outras pessoas baixarem o aplicativo.
 - QR Code isolado na interface, sem exibir ou copiar o endereço do GitHub.
 - Conteúdo reposicionado dentro das áreas seguras do Android, sem sobrepor os botões do sistema.
+- Tema integral: a cor escolhida altera a interface, os cartões, a navegação, o player e o visualizador de energia.
 - Perfil **Rápido** como padrão, com vídeo de até 720p.
 - Perfil de **Melhor qualidade** e perfil de **Economia de dados**.
 - Download simultâneo de fragmentos quando a plataforma permitir.
@@ -169,7 +172,8 @@ Para ativar o painel de Leandro Moura e publicar as regras seguras, siga
 pessoas que já entraram pelo aplicativo, permite mensagens individuais ou coletivas
 e exibe metadados mínimos dos downloads concluídos, sem armazenar o link completo
 nem o caminho local. Também permite controlar recursos por perfil, suspender ou banir
-contas e solicitar o encerramento de sessões. Listar diretamente todos os usuários do Firebase Authentication
+contas, liberar o temporizador de login e solicitar o encerramento de sessões. A busca por
+nome ou e-mail também filtra usuários, destinatários e feedbacks. Listar diretamente todos os usuários do Firebase Authentication
 exigiria Admin SDK em um servidor confiável.
 
 O contato público de suporte e privacidade é `leandro12done@gmail.com`.
@@ -196,6 +200,7 @@ o código.
 - `PlaybackService.java`: reprodução em segundo plano, fila, notificação e temporizador.
 - `EnergyAudioProcessor.java`: análise PCM e espectro FFT da música em reprodução.
 - `EnergyVisualizerView.java`: animação nativa de energia, onda, partículas e temas.
+- `VideoEditorService.java`: edição e exportação local de vídeos do Estúdio Moura.
 - `DownloadService.java`: downloads e perfis de qualidade.
 - `UpdateService.java`: download, verificação e instalação de novas versões.
 - `UiUpdateManager.java`: pacote rápido de interface, SHA-256, extração segura, ativação e reversão.

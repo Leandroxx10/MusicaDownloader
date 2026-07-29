@@ -2,7 +2,8 @@ const FIREBASE_VERSION = '12.16.0';
 const PRIVACY_VERSION = '2026-07-28';
 const AUTH_ATTEMPT_KEY = 'moura_auth_attempts_v1';
 const AUTH_MAX_ATTEMPTS = 5;
-const AUTH_LOCK_MS = 15 * 60 * 1000;
+const AUTH_LOCK_BASE_MS = 15 * 60 * 1000;
+const AUTH_LOCK_MAX_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_FEATURES = Object.freeze({
   downloads: true,
   youtube: true,
@@ -105,7 +106,9 @@ const ui = {
   controlFeedback: $('#controlFeedback'),
   controlNearbyShare: $('#controlNearbyShare'),
   saveUserControls: $('#saveUserControlsBtn'),
-  forceUserSignOut: $('#forceUserSignOutBtn')
+  forceUserSignOut: $('#forceUserSignOutBtn'),
+  resetUserLock: $('#resetUserLockBtn'),
+  messageSelectedUser: $('#messageSelectedUserBtn')
 };
 
 const cloudState = {
@@ -135,6 +138,7 @@ let auth;
 let database;
 let authSdk;
 let databaseSdk;
+let authResetTimer;
 
 function toast(message, error = false) {
   if (window.MouraUI?.toast) {
@@ -217,24 +221,37 @@ async function rejectRestrictedAccount(controls) {
   return true;
 }
 
-function readAttemptState() {
+function attemptEmail() {
+  return String(ui.email?.value || '').trim().toLocaleLowerCase('en-US');
+}
+
+function readAttemptStore() {
   try {
     const value = JSON.parse(localStorage.getItem(AUTH_ATTEMPT_KEY) || '{}');
-    if (Number(value.lockedUntil || 0) <= Date.now() && Number(value.lockedUntil || 0) > 0) {
-      localStorage.removeItem(AUTH_ATTEMPT_KEY);
-      return { failures: 0, lockedUntil: 0 };
-    }
-    return {
-      failures: Math.max(0, Number(value.failures || 0)),
-      lockedUntil: Math.max(0, Number(value.lockedUntil || 0))
-    };
+    return value?.accounts && typeof value.accounts === 'object'
+      ? value : { accounts: {} };
   } catch {
-    return { failures: 0, lockedUntil: 0 };
+    return { accounts: {} };
   }
 }
 
-function saveAttemptState(value) {
-  localStorage.setItem(AUTH_ATTEMPT_KEY, JSON.stringify(value));
+function readAttemptState(email = attemptEmail()) {
+  const stored = readAttemptStore().accounts[email] || {};
+  const expired = Number(stored.lockedUntil || 0) > 0 &&
+    Number(stored.lockedUntil || 0) <= Date.now();
+  return {
+    failures: expired ? 0 : Math.max(0, Number(stored.failures || 0)),
+    lockedUntil: expired ? 0 : Math.max(0, Number(stored.lockedUntil || 0)),
+    lockLevel: Math.max(0, Number(stored.lockLevel || 0)),
+    resetVersion: Math.max(0, Number(stored.resetVersion || 0))
+  };
+}
+
+function saveAttemptState(email, value) {
+  if (!email) return;
+  const store = readAttemptStore();
+  store.accounts[email] = value;
+  localStorage.setItem(AUTH_ATTEMPT_KEY, JSON.stringify(store));
 }
 
 function renderAttempts() {
@@ -251,19 +268,61 @@ function renderAttempts() {
   return locked;
 }
 
-function registerFailedAttempt() {
-  const attempt = readAttemptState();
+function registerFailedAttempt(email = attemptEmail()) {
+  const attempt = readAttemptState(email);
   const failures = attempt.failures + 1;
-  saveAttemptState({
-    failures,
-    lockedUntil: failures >= AUTH_MAX_ATTEMPTS ? Date.now() + AUTH_LOCK_MS : 0
+  const lockLevel = failures >= AUTH_MAX_ATTEMPTS
+    ? attempt.lockLevel + 1 : attempt.lockLevel;
+  const duration = Math.min(
+    AUTH_LOCK_MAX_MS,
+    AUTH_LOCK_BASE_MS * (2 ** Math.max(0, lockLevel - 1))
+  );
+  saveAttemptState(email, {
+    failures: failures >= AUTH_MAX_ATTEMPTS ? 0 : failures,
+    lockedUntil: failures >= AUTH_MAX_ATTEMPTS ? Date.now() + duration : 0,
+    lockLevel,
+    resetVersion: attempt.resetVersion
   });
   renderAttempts();
 }
 
-function clearAttempts() {
-  localStorage.removeItem(AUTH_ATTEMPT_KEY);
+function clearAttempts(email = attemptEmail()) {
+  const store = readAttemptStore();
+  if (email) delete store.accounts[email];
+  localStorage.setItem(AUTH_ATTEMPT_KEY, JSON.stringify(store));
   renderAttempts();
+}
+
+async function emailSecurityHash(email) {
+  const bytes = new TextEncoder().encode(String(email || '').trim().toLocaleLowerCase('en-US'));
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(digest)]
+    .map(value => value.toString(16).padStart(2, '0')).join('');
+}
+
+async function syncRemoteAuthReset(email = attemptEmail()) {
+  if (!database || !databaseSdk || !email) return false;
+  try {
+    const hash = await emailSecurityHash(email);
+    const snapshot = await databaseSdk.get(
+      databaseSdk.ref(database, `authUnlocks/${hash}`)
+    );
+    const remoteVersion = Math.max(0, Number(snapshot.val() || 0));
+    const attempt = readAttemptState(email);
+    if (remoteVersion > attempt.resetVersion) {
+      saveAttemptState(email, {
+        failures: 0,
+        lockedUntil: 0,
+        lockLevel: 0,
+        resetVersion: remoteVersion
+      });
+      renderAttempts();
+      return true;
+    }
+  } catch {
+    // A proteção local continua funcionando mesmo sem conexão.
+  }
+  return false;
 }
 
 function clearListeners() {
@@ -509,18 +568,19 @@ function renderAdminUsers() {
       .toLocaleLowerCase('pt-BR').includes(search));
   ui.adminUsersCount.textContent = String(users.length);
   ui.adminUsersList.innerHTML = visible.length ? visible.map(user => `
-    <button class="admin-user" type="button" data-admin-user="${escapeHtml(user.uid)}">
-      <span><strong>${escapeHtml(user.displayName || 'Usuário')}</strong><small>${escapeHtml(user.email || 'Sem e-mail')} · último acesso ${escapeHtml(formatDate(user.lastSeenAt))}</small></span>
+    <article class="admin-user ${user.uid === cloudState.selectedUserUid ? 'selected' : ''}">
+      <span class="admin-user-copy"><strong>${escapeHtml(user.displayName || 'Usuário')}</strong><small>${escapeHtml(user.email || 'Sem e-mail')} · último acesso ${escapeHtml(formatDate(user.lastSeenAt))}</small></span>
       <span class="status-chip ${escapeHtml(normalizeControls(cloudState.userControls[user.uid]).status)}">${escapeHtml(
         normalizeControls(cloudState.userControls[user.uid]).status === 'banned' ? 'Banida'
           : normalizeControls(cloudState.userControls[user.uid]).status === 'suspended' ? 'Suspensa'
             : user.emailVerified === false ? 'Pendente' : 'Ativa'
       )}</span>
-    </button>`).join('')
+      <button class="secondary-button compact admin-manage-button" type="button" data-admin-user="${escapeHtml(user.uid)}">Gerenciar</button>
+    </article>`).join('')
     : '<div class="empty-cloud">Nenhum perfil encontrado.</div>';
   const selected = ui.adminMessageUser.value;
   ui.adminMessageUser.innerHTML = '<option value="">Selecione um usuário</option><option value="__all__">Todos os usuários</option>' +
-    users.map(user => `<option value="${escapeHtml(user.uid)}">${escapeHtml(user.displayName || 'Usuário')} · ${escapeHtml(user.email || 'sem e-mail')}</option>`).join('');
+    visible.map(user => `<option value="${escapeHtml(user.uid)}">${escapeHtml(user.displayName || 'Usuário')} · ${escapeHtml(user.email || 'sem e-mail')}</option>`).join('');
   if (selected === '__all__' || users.some(user => user.uid === selected)) {
     ui.adminMessageUser.value = selected;
   }
@@ -600,6 +660,31 @@ async function forceAdminSignOut() {
   }
 }
 
+async function resetAdminAuthLock() {
+  const uid = cloudState.selectedUserUid;
+  const user = cloudState.users[uid];
+  if (!cloudState.isAdmin || !uid || !user?.email) return;
+  try {
+    const hash = await emailSecurityHash(user.email);
+    await databaseSdk.set(
+      databaseSdk.ref(database, `authUnlocks/${hash}`),
+      Date.now()
+    );
+    toast(`Tentativas de login liberadas para ${user.displayName || user.email}.`);
+  } catch (error) {
+    toast(authErrorMessage(error), true);
+  }
+}
+
+function focusSelectedUserMessage() {
+  const uid = cloudState.selectedUserUid;
+  if (!uid) return toast('Selecione um perfil primeiro.', true);
+  ui.adminMessageUser.value = uid;
+  ui.adminMessageSubmit.textContent = 'Enviar mensagem privada';
+  ui.adminMessageTitle.focus();
+  ui.adminMessageForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 function flattenDownloads(value) {
   const result = [];
   Object.entries(value || {}).forEach(([uid, items]) => {
@@ -637,8 +722,10 @@ function feedbackLabel(item) {
 
 function renderAdminFeedback() {
   const filter = ui.adminFeedbackFilter.value || 'todos';
+  const search = String(ui.adminUserSearch?.value || '').trim().toLocaleLowerCase('pt-BR');
   const visible = cloudState.feedback.filter(item =>
-    filter === 'todos' || (item.status || 'novo') === filter);
+    (filter === 'todos' || (item.status || 'novo') === filter) &&
+    (!search || feedbackLabel(item).toLocaleLowerCase('pt-BR').includes(search)));
   const open = cloudState.feedback.filter(item => (item.status || 'novo') === 'novo').length;
   ui.adminFeedbackCount.textContent = String(cloudState.feedback.length);
   ui.adminOpenCount.textContent = String(open);
@@ -779,21 +866,22 @@ function strongPassword(value) {
 
 async function submitEmailAuth(event) {
   event.preventDefault();
-  if (renderAttempts()) return;
   const email = ui.email.value.trim();
   const password = ui.password.value;
   if (!email || !password) return toast('Informe o e-mail e a senha.', true);
+  await syncRemoteAuthReset(email);
+  if (renderAttempts()) return;
   if (cloudState.authMode === 'signup') {
     return createEmailAccount();
   }
   try {
     setCloudStatus('Entrando…');
     await authSdk.signInWithEmailAndPassword(auth, email, password);
-    clearAttempts();
+    clearAttempts(email.toLocaleLowerCase('en-US'));
     ui.password.value = '';
     toast('Conta conectada.');
   } catch (error) {
-    registerFailedAttempt();
+    registerFailedAttempt(email.toLocaleLowerCase('en-US'));
     setCloudStatus('Falha no acesso');
     toast(authErrorMessage(error), true);
   }
@@ -815,12 +903,12 @@ async function createEmailAccount() {
     const credential = await authSdk.createUserWithEmailAndPassword(auth, email, password);
     await authSdk.updateProfile(credential.user, { displayName: name });
     await authSdk.sendEmailVerification(credential.user);
-    clearAttempts();
+    clearAttempts(email.toLocaleLowerCase('en-US'));
     ui.password.value = '';
     showUnverified(credential.user);
     toast('Conta criada. Enviamos um link para confirmar seu e-mail.');
   } catch (error) {
-    registerFailedAttempt();
+    registerFailedAttempt(email.toLocaleLowerCase('en-US'));
     setCloudStatus('Falha no cadastro');
     toast(authErrorMessage(error), true);
   }
@@ -1098,16 +1186,28 @@ function attachEvents() {
     renderOwnMessages();
   });
   ui.clearMessages?.addEventListener('click', clearOwnMessages);
-  ui.adminUserSearch?.addEventListener('input', renderAdminUsers);
+  ui.email?.addEventListener('input', () => {
+    renderAttempts();
+    window.clearTimeout(authResetTimer);
+    authResetTimer = window.setTimeout(async () => {
+      if (await syncRemoteAuthReset()) {
+        toast('Suas tentativas de login foram liberadas pelo administrador.');
+      }
+    }, 450);
+  });
+  ui.adminUserSearch?.addEventListener('input', () => {
+    renderAdminUsers();
+    renderAdminFeedback();
+  });
   ui.adminUsersList?.addEventListener('click', event => {
     const button = event.target.closest('[data-admin-user]');
     if (!button) return;
     ui.adminMessageUser.value = button.dataset.adminUser;
     renderAdminActivity(button.dataset.adminUser);
     renderAdminControls(button.dataset.adminUser);
-    ui.adminMessageTitle.focus();
     document.querySelectorAll('.admin-user').forEach(item =>
-      item.classList.toggle('selected', item === button));
+      item.classList.toggle('selected', item === button.closest('.admin-user')));
+    ui.adminUserControls?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
   ui.adminMessageUser?.addEventListener('change', () => {
     const collective = ui.adminMessageUser.value === '__all__';
@@ -1124,6 +1224,8 @@ function attachEvents() {
   ui.adminMessageForm?.addEventListener('submit', sendAdminMessage);
   ui.saveUserControls?.addEventListener('click', saveAdminControls);
   ui.forceUserSignOut?.addEventListener('click', forceAdminSignOut);
+  ui.resetUserLock?.addEventListener('click', resetAdminAuthLock);
+  ui.messageSelectedUser?.addEventListener('click', focusSelectedUserMessage);
   ui.adminFeedbackFilter?.addEventListener('change', renderAdminFeedback);
   ui.adminFeedbackList?.addEventListener('click', event => {
     const button = event.target.closest('[data-save-feedback]');

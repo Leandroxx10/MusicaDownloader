@@ -3,10 +3,10 @@
 ## Arquitetura
 
 - O processamento ocorre localmente no Android.
-- A conta é opcional e usa Firebase Authentication com Realtime Database.
+- A conta é obrigatória no aplicativo Android e usa Authentication com Realtime Database.
 - A configuração web pública do Firebase não concede acesso por si só; as regras do banco fazem a autorização.
 - Firestore e Firebase Storage não são usados.
-- Histórico, categorias e favoritos permanecem no aparelho.
+- Projetos do Estúdio, histórico interno, categorias e favoritos permanecem no aparelho.
 - Os arquivos finais ficam em `Downloads/Moura Downloads`.
 
 ## Controles implementados
