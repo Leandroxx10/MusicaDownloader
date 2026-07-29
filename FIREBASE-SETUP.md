@@ -50,7 +50,7 @@ O Moura não oferece login Google. Entrar e criar conta usam a mesma tela, alter
 
 Em **Authentication → Settings**, aplique também:
 
-- política de senha forte, com no mínimo 10 caracteres, maiúscula, minúscula, número e símbolo;
+- senha mínima de 6 caracteres; letras, números e símbolos continuam recomendados;
 - proteção contra enumeração de e-mails;
 - limite/monitoramento de tentativas suspeitas oferecido pelo Authentication.
 
@@ -78,6 +78,8 @@ messages/{uid}/{messageId}
 messageReads/{uid}/{messageId}
 broadcasts/{messageId}
 broadcastReads/{uid}/{messageId}
+messageHides/{uid}/{messageId}
+userControls/{uid}
 downloadActivity/{uid}/{downloadId}
 ```
 
@@ -85,7 +87,25 @@ Cada usuário verificado lê apenas o próprio perfil, feedback, mensagens e ati
 
 O registro de atividade guarda apenas título apresentado, plataforma/domínio, formato, categoria, status concluído e data. O link completo e o caminho do arquivo no celular não são enviados.
 
-## 6. Antes da publicação pública
+`userControls/{uid}` guarda o status da conta, os recursos liberados e o instante do
+último encerramento remoto. O painel pode ativar ou desativar download, YouTube,
+mensagens, feedback e compartilhamento próximo, além de suspender, banir ou encerrar
+a sessão. O bloqueio é por conta; IP não é usado porque muda com frequência e pode
+ser compartilhado por pessoas diferentes.
+
+O usuário pode apagar mensagens, ocultar comunicados, limpar a caixa e excluir a
+própria conta. A exclusão remove os dados associados e depois remove a identidade do
+Authentication. A conta administradora precisa perder o papel de administrador antes
+de poder ser excluída.
+
+## 6. Notificações
+
+Enquanto o aplicativo está aberto ou ativo em segundo plano com a sessão carregada,
+novas mensagens geram modal e notificação do Android. Entrega garantida com o
+processo totalmente fechado exigiria FCM e um backend confiável com Admin SDK; o
+aplicativo não simula essa garantia sem essa infraestrutura.
+
+## 7. Antes da publicação pública
 
 - Restrinja a chave web do Firebase às APIs necessárias no Google Cloud Console.
 - Ative o App Check quando houver um provedor compatível com a distribuição escolhida e teste antes de exigir tokens.

@@ -2,6 +2,9 @@ package com.moura.downloads;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -31,6 +34,7 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import androidx.core.content.FileProvider;
+import androidx.core.app.NotificationCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -68,6 +72,7 @@ public class MainActivity extends Activity {
     private static final String APP_ORIGIN = "https://" + APP_HOST + "/";
     private static final int STORAGE_PERMISSION_REQUEST = 40;
     private static final int NOTIFICATION_PERMISSION_REQUEST = 41;
+    private static final String MESSAGE_CHANNEL_ID = "moura_messages";
     private static final String PREFS = "moura_library";
     private static final String PLAYER_PREFS = "moura_player";
     private static final String UPDATE_PREFS = "moura_updates";
@@ -83,6 +88,7 @@ public class MainActivity extends Activity {
     private View fullscreenView;
     private WebChromeClient.CustomViewCallback fullscreenCallback;
     private String pendingSharedText;
+    private String pendingOpenView;
     private String pendingUpdateUrl;
     private String pendingUpdateSha256;
     private String pendingUpdateVersion;
@@ -115,6 +121,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        createMessageNotificationChannel();
         getWindow().setStatusBarColor(Color.rgb(5, 11, 8));
         getWindow().setNavigationBarColor(Color.rgb(5, 11, 8));
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
@@ -142,6 +149,7 @@ public class MainActivity extends Activity {
         registerAppReceivers();
         requestRuntimePermissions();
         readSharedText(getIntent());
+        readOpenView(getIntent());
         webView.loadUrl(APP_ORIGIN + "index.html?app=android");
     }
 
@@ -201,12 +209,20 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void readOpenView(Intent intent) {
+        if (intent == null) return;
+        String requested = intent.getStringExtra("open_view");
+        if ("conta".equals(requested)) pendingOpenView = requested;
+    }
+
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
         readSharedText(intent);
+        readOpenView(intent);
         injectSharedText();
+        injectOpenView();
     }
 
     private void injectSharedText() {
@@ -220,6 +236,12 @@ public class MainActivity extends Activity {
         pendingSharedText = null;
     }
 
+    private void injectOpenView() {
+        if (!"conta".equals(pendingOpenView)) return;
+        callJavascript("window.MouraUI.showView", "\"conta\"");
+        pendingOpenView = null;
+    }
+
     private void callJavascript(String functionName, String jsonPayload) {
         if (webView == null) return;
         String encoded = Base64.encodeToString(
@@ -229,6 +251,52 @@ public class MainActivity extends Activity {
                 "if(typeof target==='function'){target(JSON.parse(decodeURIComponent(escape(atob('" +
                 encoded + "')))));}})();";
         runOnUiThread(() -> webView.evaluateJavascript(js, null));
+    }
+
+    private void createMessageNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+        NotificationChannel channel = new NotificationChannel(
+                MESSAGE_CHANNEL_ID,
+                "Mensagens do Moura",
+                NotificationManager.IMPORTANCE_HIGH);
+        channel.setDescription("Avisos e mensagens enviados pelo administrador do aplicativo.");
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        if (manager != null) manager.createNotificationChannel(channel);
+    }
+
+    private void postMessageNotification(String rawTitle, String rawBody) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        String title = rawTitle == null || rawTitle.trim().isEmpty()
+                ? "Nova mensagem no Moura" : rawTitle.trim();
+        String body = rawBody == null ? "" : rawBody.trim();
+        Intent openApp = new Intent(this, MainActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra("open_view", "conta");
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+                this,
+                74,
+                openApp,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        NotificationCompat.Builder notification = new NotificationCompat.Builder(
+                this, MESSAGE_CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_dialog_email)
+                .setContentTitle(title.substring(0, Math.min(title.length(), 90)))
+                .setContentText(body.substring(0, Math.min(body.length(), 180)))
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(
+                        body.substring(0, Math.min(body.length(), 1200))))
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent);
+        NotificationManager manager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager != null) {
+            manager.notify((int) (System.currentTimeMillis() & 0x7fffffff),
+                    notification.build());
+        }
     }
 
     private File outputDirectory() {
@@ -1126,6 +1194,32 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String shareNearby(String id) {
+            try {
+                File file = fileFromId(id);
+                if (!file.exists()) return actionResult(false, "Arquivo não encontrado.").toString();
+                Intent share = shareIntentFor(file);
+                share.putExtra(Intent.EXTRA_TITLE, "Enviar para aparelho próximo");
+                runOnUiThread(() -> startActivity(Intent.createChooser(
+                        share, "Enviar para aparelho próximo")));
+                return actionResult(true,
+                        "Escolha Quick Share, Bluetooth ou outro aparelho próximo.").toString();
+            } catch (Exception error) {
+                return actionResult(false, safeMessage(error)).toString();
+            }
+        }
+
+        @JavascriptInterface
+        public String showMessageNotification(String title, String body) {
+            try {
+                runOnUiThread(() -> postMessageNotification(title, body));
+                return actionResult(true, "Notificação exibida.").toString();
+            } catch (Exception error) {
+                return actionResult(false, safeMessage(error)).toString();
+            }
+        }
+
+        @JavascriptInterface
         public String shareWhatsApp(String id) {
             try {
                 File file = fileFromId(id);
@@ -1214,6 +1308,7 @@ public class MainActivity extends Activity {
         public void onPageFinished(WebView view, String url) {
             super.onPageFinished(view, url);
             injectSharedText();
+            injectOpenView();
             callJavascript("window.onNativeDownloadEvent", "{\"status\":\"library-ready\"}");
         }
 

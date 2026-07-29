@@ -1628,7 +1628,19 @@ body.netlify-mode .main-content {
 
 @media (max-width: 900px) {
   .bottom-nav {
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    overflow: hidden;
+  }
+
+  .bottom-nav .nav-item {
+    min-width: 0;
+  }
+
+  .bottom-nav .nav-item small {
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
   .account-grid,
@@ -1642,6 +1654,11 @@ body.netlify-mode .main-content {
 }
 
 @media (max-width: 680px) {
+  .auth-mode-switch button {
+    padding: 7px 5px;
+    font-size: 12px;
+  }
+
   .spotify-heading,
   .spotify-actions,
   .account-title,
@@ -1731,7 +1748,7 @@ body.auth-unverified #openLibraryBtn {
 
 .auth-mode-switch {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 5px;
   margin-top: 20px;
   padding: 5px;
@@ -1741,6 +1758,7 @@ body.auth-unverified #openLibraryBtn {
 }
 
 .auth-mode-switch button {
+  min-width: 0;
   min-height: 42px;
   border: 0;
   border-radius: 11px;
@@ -1762,9 +1780,12 @@ body.auth-unverified #openLibraryBtn {
 
 .password-field {
   position: relative;
+  width: 100%;
+  min-width: 0;
 }
 
 .password-field input {
+  max-width: 100%;
   padding-right: 84px !important;
 }
 
@@ -2116,5 +2137,305 @@ body.auth-unverified #openLibraryBtn {
   .history-format {
     grid-column: 2;
     justify-self: start;
+  }
+}
+
+/* Mensagens, controles de perfil e modais — v14 */
+.message-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.message-toolbar select {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #061009;
+  color: var(--text);
+  padding: 10px;
+  font-size: 11px;
+}
+
+.cloud-item {
+  position: relative;
+  overflow: hidden;
+  animation: messageSlideIn .28s ease both;
+}
+
+.cloud-item-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.cloud-delete-button {
+  min-height: 34px;
+  border: 1px solid rgba(255, 92, 108, .28);
+  border-radius: 10px;
+  background: rgba(255, 92, 108, .08);
+  color: #ffc0c7;
+  padding: 0 11px;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.cloud-source {
+  display: inline-flex;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.action-grid button em {
+  font: inherit;
+  font-style: normal;
+}
+
+.auth-language-select {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.security-summary > label {
+  display: block;
+  margin-top: 13px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+}
+
+@keyframes messageSlideIn {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.admin-controls-card {
+  margin-top: 14px;
+}
+
+.admin-controls-card .card-heading p {
+  max-width: 560px;
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.admin-control-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 16px;
+}
+
+.admin-control-grid > label {
+  min-width: 0;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(5, 14, 8, .72);
+}
+
+.admin-control-grid strong,
+.admin-control-grid small {
+  display: block;
+}
+
+.admin-control-grid small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.admin-control-grid input[type="checkbox"] {
+  width: 21px;
+  height: 21px;
+  flex: none;
+  accent-color: var(--green);
+}
+
+.admin-control-grid select {
+  max-width: 125px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #061009;
+  color: var(--text);
+  padding: 9px;
+}
+
+.admin-control-actions {
+  display: flex;
+  gap: 9px;
+  margin-top: 13px;
+}
+
+.feature-disabled {
+  position: relative;
+  pointer-events: none;
+  opacity: .4;
+  filter: grayscale(.8);
+}
+
+.feature-disabled::after {
+  content: "Desativado para esta conta";
+  position: absolute;
+  inset: 8px 8px auto auto;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(255, 92, 108, .16);
+  color: #ffc5cc;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.simple-toggle {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  flex: none;
+}
+
+.simple-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.simple-toggle span {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #15221a;
+  transition: .2s;
+}
+
+.simple-toggle span::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--muted);
+  transition: .2s;
+}
+
+.simple-toggle input:checked + span {
+  background: color-mix(in srgb, var(--green) 24%, #07110b);
+  border-color: color-mix(in srgb, var(--green) 55%, var(--line));
+}
+
+.simple-toggle input:checked + span::after {
+  transform: translateX(20px);
+  background: var(--green);
+}
+
+.message-arrival-modal {
+  width: min(480px, 100%);
+  padding: 27px;
+  border: 1px solid color-mix(in srgb, var(--green) 42%, var(--line));
+  border-radius: 25px;
+  background:
+    radial-gradient(circle at 50% -10%, color-mix(in srgb, var(--green) 20%, transparent), transparent 48%),
+    linear-gradient(165deg, #102319, #07110b 72%);
+  box-shadow: 0 35px 110px rgba(0, 0, 0, .68);
+  text-align: center;
+  animation: messageModalIn .32s cubic-bezier(.2, .9, .25, 1.2);
+}
+
+.message-arrival-modal h2 {
+  margin: 8px 0 9px;
+  font-size: 25px;
+}
+
+.message-arrival-modal p {
+  margin: 0;
+  color: #c4d8ca;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.message-arrival-orbit {
+  width: 66px;
+  height: 66px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 15px;
+  border: 1px solid color-mix(in srgb, var(--green) 55%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--green) 12%, transparent);
+  box-shadow: 0 0 45px color-mix(in srgb, var(--green) 24%, transparent);
+  color: var(--green);
+  font-size: 28px;
+  animation: messageOrbit 1.7s ease-in-out infinite;
+}
+
+.message-arrival-orbit.danger {
+  border-color: rgba(255, 92, 108, .55);
+  background: rgba(255, 92, 108, .11);
+  box-shadow: 0 0 45px rgba(255, 92, 108, .18);
+  color: #ff929e;
+}
+
+.account-delete-modal label {
+  display: block;
+  margin: 13px 0 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+  text-align: left;
+}
+
+.delete-confirm-check {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 9px;
+  line-height: 1.45;
+}
+
+.delete-confirm-check input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--danger);
+}
+
+@keyframes messageModalIn {
+  from { opacity: 0; transform: translateY(18px) scale(.94); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes messageOrbit {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.07); }
+}
+
+@media (max-width: 680px) {
+  .message-toolbar,
+  .admin-control-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .message-toolbar .danger-button {
+    width: 100%;
+  }
+
+  .admin-control-actions {
+    display: grid;
+  }
+
+  .message-arrival-modal {
+    padding: 22px 17px;
   }
 }

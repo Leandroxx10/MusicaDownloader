@@ -1,6 +1,6 @@
-const CACHE = 'moura-downloads-v13';
+const CACHE = 'moura-downloads-v14';
 const ASSETS = [
-  './', './index.html', './styles.css?v=13', './download.css?v=13', './i18n.js?v=13', './app.js?v=13', './cloud.js?v=13', './offline.html',
+  './', './index.html', './styles.css?v=14', './download.css?v=14', './i18n.js?v=14', './app.js?v=14', './cloud.js?v=14', './offline.html',
   './privacy.html', './terms.html', './manifest.webmanifest',
   './assets/logo.png', './icons/icon-192.png', './icons/icon-512.png'
 ];

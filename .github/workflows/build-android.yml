@@ -18,7 +18,7 @@ jobs:
     env:
       MOURA_VERSION_CODE: ${{ github.run_number }}
       MOURA_VERSION_NAME: 4.0.${{ github.run_number }}
-      MOURA_NATIVE_REVISION: 4
+      MOURA_NATIVE_REVISION: 5
     steps:
       - name: Baixar projeto
         uses: actions/checkout@v6
@@ -118,10 +118,10 @@ jobs:
             gh release upload latest release/* --clobber
             gh release edit latest \
               --title "Moura Downloads 4.0 — Super App" \
-              --notes "App completo desenvolvido por Leandro Moura. No site, use moura-downloads.apk. A release inclui atualizações rápidas de interface, APKs assinados e o pacote AAB para publicação no Google Play. Commit: $GITHUB_SHA"
+              --notes "App completo desenvolvido por Leandro Moura. Esta versão corrige os idiomas e adiciona filtros e exclusão de mensagens, notificações, envio próximo, exclusão de conta e controles administrativos por perfil. No site, use moura-downloads.apk. Commit: $GITHUB_SHA"
           else
             gh release create latest release/* \
               --target "$GITHUB_SHA" \
               --title "Moura Downloads 4.0 — Super App" \
-              --notes "App completo desenvolvido por Leandro Moura. No site, use moura-downloads.apk. A release inclui atualizações rápidas de interface, APKs assinados e o pacote AAB para publicação no Google Play. Commit: $GITHUB_SHA"
+              --notes "App completo desenvolvido por Leandro Moura. Esta versão corrige os idiomas e adiciona filtros e exclusão de mensagens, notificações, envio próximo, exclusão de conta e controles administrativos por perfil. No site, use moura-downloads.apk. Commit: $GITHUB_SHA"
           fi

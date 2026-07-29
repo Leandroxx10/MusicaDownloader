@@ -3,6 +3,13 @@ const PRIVACY_VERSION = '2026-07-28';
 const AUTH_ATTEMPT_KEY = 'moura_auth_attempts_v1';
 const AUTH_MAX_ATTEMPTS = 5;
 const AUTH_LOCK_MS = 15 * 60 * 1000;
+const DEFAULT_FEATURES = Object.freeze({
+  downloads: true,
+  youtube: true,
+  messages: true,
+  feedback: true,
+  nearbyShare: true
+});
 const firebaseConfig = {
   apiKey: 'AIzaSyDY0J84Pyy__e20YhtUfP0WU5lHr8X7CBA',
   authDomain: 'music-bd7a7.firebaseapp.com',
@@ -61,7 +68,16 @@ const ui = {
   myFeedback: $('#myFeedbackList'),
   myMessages: $('#myMessagesList'),
   unreadBadge: $('#unreadBadge'),
+  messageFilter: $('#messageFilter'),
+  messageOrder: $('#messageOrder'),
+  clearMessages: $('#clearMessagesBtn'),
   privacyRequest: $('#privacyRequestBtn'),
+  openDeleteAccount: $('#openDeleteAccountBtn'),
+  deleteAccountModal: $('#deleteAccountModal'),
+  deleteAccountForm: $('#deleteAccountForm'),
+  deleteAccountPassword: $('#deleteAccountPassword'),
+  deleteAccountConfirm: $('#deleteAccountConfirm'),
+  cancelDeleteAccount: $('#cancelDeleteAccountBtn'),
   adminPanel: $('#adminPanel'),
   adminUsersCount: $('#adminUsersCount'),
   adminFeedbackCount: $('#adminFeedbackCount'),
@@ -78,7 +94,18 @@ const ui = {
   adminActivityCount: $('#adminActivityCount'),
   adminDownloadActivity: $('#adminDownloadActivity'),
   adminFeedbackFilter: $('#adminFeedbackFilter'),
-  adminFeedbackList: $('#adminFeedbackList')
+  adminFeedbackList: $('#adminFeedbackList'),
+  adminUserControls: $('#adminUserControls'),
+  adminControlsTitle: $('#adminControlsTitle'),
+  adminControlsStatusBadge: $('#adminControlsStatusBadge'),
+  adminAccountStatus: $('#adminAccountStatus'),
+  controlDownloads: $('#controlDownloads'),
+  controlYouTube: $('#controlYouTube'),
+  controlMessages: $('#controlMessages'),
+  controlFeedback: $('#controlFeedback'),
+  controlNearbyShare: $('#controlNearbyShare'),
+  saveUserControls: $('#saveUserControlsBtn'),
+  forceUserSignOut: $('#forceUserSignOutBtn')
 };
 
 const cloudState = {
@@ -90,7 +117,15 @@ const cloudState = {
   reads: {},
   broadcasts: {},
   broadcastReads: {},
+  messageHides: {},
+  messageFilter: 'all',
+  messageOrder: 'newest',
+  messageSourcesReady: { target: false, broadcast: false },
+  knownMessageKeys: { target: new Set(), broadcast: new Set() },
   downloadActivity: {},
+  userControls: {},
+  ownControls: { status: 'active', features: { ...DEFAULT_FEATURES }, forceSignOutAt: 0 },
+  forceSignOutBaseline: 0,
   selectedUserUid: '',
   authMode: 'login',
   unsubscribe: []
@@ -150,6 +185,36 @@ function dispatchAuth(status, user = null) {
   window.dispatchEvent(new CustomEvent('moura:auth', {
     detail: { status, uid: user?.uid || '', email: user?.email || '' }
   }));
+}
+
+function normalizeControls(value = {}) {
+  const features = value.features || {};
+  return {
+    status: ['active', 'suspended', 'banned'].includes(value.status)
+      ? value.status : 'active',
+    features: Object.fromEntries(
+      Object.entries(DEFAULT_FEATURES).map(([key, defaultValue]) => [
+        key,
+        typeof features[key] === 'boolean' ? features[key] : defaultValue
+      ])
+    ),
+    forceSignOutAt: Math.max(0, Number(value.forceSignOutAt || 0))
+  };
+}
+
+function dispatchControls(controls) {
+  window.dispatchEvent(new CustomEvent('moura:controls', {
+    detail: normalizeControls(controls)
+  }));
+}
+
+async function rejectRestrictedAccount(controls) {
+  if (!['suspended', 'banned'].includes(controls.status)) return false;
+  window.dispatchEvent(new CustomEvent('moura:account-state', {
+    detail: { status: controls.status }
+  }));
+  await authSdk.signOut(auth);
+  return true;
 }
 
 function readAttemptState() {
@@ -214,6 +279,15 @@ function showSignedOut() {
   cloudState.isAdmin = false;
   cloudState.users = {};
   cloudState.feedback = [];
+  cloudState.messages = {};
+  cloudState.broadcasts = {};
+  cloudState.messageHides = {};
+  cloudState.userControls = {};
+  cloudState.ownControls = normalizeControls();
+  cloudState.forceSignOutBaseline = 0;
+  cloudState.messageSourcesReady = { target: false, broadcast: false };
+  cloudState.knownMessageKeys = { target: new Set(), broadcast: new Set() };
+  dispatchControls(cloudState.ownControls);
   ui.signedOut?.classList.remove('hidden');
   ui.signedIn?.classList.add('hidden');
   ui.adminPanel?.classList.add('hidden');
@@ -291,23 +365,56 @@ function renderOwnMessages() {
     .map(([id, item]) => ({ id: `target-${id}`, sourceId: id, source: 'target', ...item }));
   const broadcasts = Object.entries(cloudState.broadcasts || {})
     .map(([id, item]) => ({ id: `broadcast-${id}`, sourceId: id, source: 'broadcast', ...item }));
-  const sorted = [...targeted, ...broadcasts]
-    .sort((left, right) => Number(right.createdAt || 0) - Number(left.createdAt || 0));
   const isRead = item => item.source === 'broadcast'
     ? Boolean(cloudState.broadcastReads?.[item.sourceId])
     : Boolean(cloudState.reads?.[item.sourceId]);
-  const unread = sorted.filter(item => !isRead(item)).length;
+  const available = [...targeted, ...broadcasts]
+    .filter(item => !cloudState.messageHides?.[item.id]);
+  const unread = available.filter(item => !isRead(item)).length;
   ui.unreadBadge.textContent = String(unread);
   ui.unreadBadge.classList.toggle('hidden', unread === 0);
-  ui.myMessages.innerHTML = sorted.length ? sorted.map(item => `
+  const visible = available.filter(item => {
+    if (cloudState.messageFilter === 'unread') return !isRead(item);
+    if (cloudState.messageFilter === 'read') return isRead(item);
+    if (cloudState.messageFilter === 'direct') return item.source === 'target';
+    if (cloudState.messageFilter === 'broadcast') return item.source === 'broadcast';
+    return true;
+  }).sort((left, right) => {
+    const direction = cloudState.messageOrder === 'oldest' ? 1 : -1;
+    return direction * (Number(left.createdAt || 0) - Number(right.createdAt || 0));
+  });
+  ui.myMessages.innerHTML = visible.length ? visible.map(item => `
     <article class="cloud-item ${isRead(item) ? '' : 'unread'}" data-cloud-message="${escapeHtml(item.sourceId)}" data-message-source="${escapeHtml(item.source)}">
       <div class="cloud-item-head">
         <div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(formatDate(item.createdAt))} · Leandro Moura</small></div>
         ${isRead(item) ? '' : `<span class="status-chip">${item.source === 'broadcast' ? 'Comunicado' : 'Nova'}</span>`}
       </div>
       <p>${escapeHtml(item.body)}</p>
+      <span class="cloud-source">${item.source === 'broadcast' ? 'Mensagem para todos' : 'Mensagem individual'}</span>
+      <div class="cloud-item-actions">
+        <button class="cloud-delete-button" type="button" data-delete-message="${escapeHtml(item.sourceId)}" data-delete-source="${escapeHtml(item.source)}">Excluir</button>
+      </div>
     </article>`).join('')
-    : '<div class="empty-cloud">Nenhuma mensagem recebida ainda.</div>';
+    : `<div class="empty-cloud">${available.length ? 'Nenhuma mensagem corresponde a este filtro.' : 'Nenhuma mensagem recebida ainda.'}</div>`;
+}
+
+function detectNewMessages(source, value) {
+  const next = new Set(Object.keys(value || {}));
+  if (!cloudState.messageSourcesReady[source]) {
+    cloudState.messageSourcesReady[source] = true;
+    cloudState.knownMessageKeys[source] = next;
+    return;
+  }
+  const previous = cloudState.knownMessageKeys[source];
+  const fresh = [...next]
+    .filter(key => !previous.has(key))
+    .map(key => value[key])
+    .filter(Boolean)
+    .sort((left, right) => Number(right.createdAt || 0) - Number(left.createdAt || 0));
+  cloudState.knownMessageKeys[source] = next;
+  if (fresh[0] && cloudState.ownControls.features.messages !== false) {
+    window.MouraUI?.notifyMessage?.(fresh[0]);
+  }
 }
 
 function bindOwnData(user) {
@@ -319,7 +426,9 @@ function bindOwnData(user) {
   const messagesStop = databaseSdk.onValue(
     databaseSdk.ref(database, `messages/${user.uid}`),
     snapshot => {
-      cloudState.messages = snapshot.val() || {};
+      const value = snapshot.val() || {};
+      detectNewMessages('target', value);
+      cloudState.messages = value;
       renderOwnMessages();
     },
     error => toast(authErrorMessage(error), true)
@@ -335,7 +444,9 @@ function bindOwnData(user) {
   const broadcastsStop = databaseSdk.onValue(
     databaseSdk.ref(database, 'broadcasts'),
     snapshot => {
-      cloudState.broadcasts = snapshot.val() || {};
+      const value = snapshot.val() || {};
+      detectNewMessages('broadcast', value);
+      cloudState.broadcasts = value;
       renderOwnMessages();
     },
     error => toast(authErrorMessage(error), true)
@@ -348,8 +459,32 @@ function bindOwnData(user) {
     },
     error => toast(authErrorMessage(error), true)
   );
+  const messageHidesStop = databaseSdk.onValue(
+    databaseSdk.ref(database, `messageHides/${user.uid}`),
+    snapshot => {
+      cloudState.messageHides = snapshot.val() || {};
+      renderOwnMessages();
+    },
+    error => toast(authErrorMessage(error), true)
+  );
+  const controlsStop = databaseSdk.onValue(
+    databaseSdk.ref(database, `userControls/${user.uid}`),
+    async snapshot => {
+      const controls = normalizeControls(snapshot.val() || {});
+      cloudState.ownControls = controls;
+      dispatchControls(controls);
+      if (await rejectRestrictedAccount(controls)) return;
+      if (controls.forceSignOutAt > cloudState.forceSignOutBaseline) {
+        cloudState.forceSignOutBaseline = controls.forceSignOutAt;
+        toast('Sua sessão foi encerrada pelo administrador.', true);
+        await authSdk.signOut(auth);
+      }
+    },
+    error => toast(authErrorMessage(error), true)
+  );
   cloudState.unsubscribe.push(
-    feedbackStop, messagesStop, readsStop, broadcastsStop, broadcastReadsStop
+    feedbackStop, messagesStop, readsStop, broadcastsStop, broadcastReadsStop,
+    messageHidesStop, controlsStop
   );
 }
 
@@ -376,7 +511,11 @@ function renderAdminUsers() {
   ui.adminUsersList.innerHTML = visible.length ? visible.map(user => `
     <button class="admin-user" type="button" data-admin-user="${escapeHtml(user.uid)}">
       <span><strong>${escapeHtml(user.displayName || 'Usuário')}</strong><small>${escapeHtml(user.email || 'Sem e-mail')} · último acesso ${escapeHtml(formatDate(user.lastSeenAt))}</small></span>
-      <span class="status-chip">${user.emailVerified === false ? 'Pendente' : 'Verificado'}</span>
+      <span class="status-chip ${escapeHtml(normalizeControls(cloudState.userControls[user.uid]).status)}">${escapeHtml(
+        normalizeControls(cloudState.userControls[user.uid]).status === 'banned' ? 'Banida'
+          : normalizeControls(cloudState.userControls[user.uid]).status === 'suspended' ? 'Suspensa'
+            : user.emailVerified === false ? 'Pendente' : 'Ativa'
+      )}</span>
     </button>`).join('')
     : '<div class="empty-cloud">Nenhum perfil encontrado.</div>';
   const selected = ui.adminMessageUser.value;
@@ -384,6 +523,80 @@ function renderAdminUsers() {
     users.map(user => `<option value="${escapeHtml(user.uid)}">${escapeHtml(user.displayName || 'Usuário')} · ${escapeHtml(user.email || 'sem e-mail')}</option>`).join('');
   if (selected === '__all__' || users.some(user => user.uid === selected)) {
     ui.adminMessageUser.value = selected;
+  }
+}
+
+function renderAdminControls(uid = cloudState.selectedUserUid) {
+  if (!ui.adminUserControls) return;
+  if (!uid || !cloudState.users[uid]) {
+    ui.adminUserControls.classList.add('hidden');
+    return;
+  }
+  cloudState.selectedUserUid = uid;
+  const user = cloudState.users[uid];
+  const controls = normalizeControls(cloudState.userControls[uid] || {});
+  ui.adminUserControls.classList.remove('hidden');
+  ui.adminControlsTitle.textContent = user.displayName || user.email || 'Usuário';
+  ui.adminControlsStatusBadge.textContent = controls.status === 'banned'
+    ? 'Banida' : controls.status === 'suspended' ? 'Suspensa' : 'Ativa';
+  ui.adminControlsStatusBadge.className = `status-value ${controls.status}`;
+  ui.adminAccountStatus.value = controls.status;
+  ui.controlDownloads.checked = controls.features.downloads;
+  ui.controlYouTube.checked = controls.features.youtube;
+  ui.controlMessages.checked = controls.features.messages;
+  ui.controlFeedback.checked = controls.features.feedback;
+  ui.controlNearbyShare.checked = controls.features.nearbyShare;
+}
+
+async function saveAdminControls() {
+  const uid = cloudState.selectedUserUid;
+  if (!cloudState.isAdmin || !uid) return;
+  const status = ui.adminAccountStatus.value;
+  if (uid === cloudState.user.uid && status !== 'active') {
+    return toast('A conta administradora não pode suspender a si mesma.', true);
+  }
+  const controls = {
+    status,
+    features: {
+      downloads: ui.controlDownloads.checked,
+      youtube: ui.controlYouTube.checked,
+      messages: ui.controlMessages.checked,
+      feedback: ui.controlFeedback.checked,
+      nearbyShare: ui.controlNearbyShare.checked
+    },
+    updatedAt: databaseSdk.serverTimestamp(),
+    updatedBy: cloudState.user.uid
+  };
+  const previousForceSignOutAt = Number(
+    cloudState.userControls[uid]?.forceSignOutAt || 0
+  );
+  if (previousForceSignOutAt > 0) controls.forceSignOutAt = previousForceSignOutAt;
+  try {
+    await databaseSdk.set(databaseSdk.ref(database, `userControls/${uid}`), controls);
+    toast('Controles deste perfil atualizados.');
+  } catch (error) {
+    toast(authErrorMessage(error), true);
+  }
+}
+
+async function forceAdminSignOut() {
+  const uid = cloudState.selectedUserUid;
+  if (!cloudState.isAdmin || !uid) return;
+  if (uid === cloudState.user.uid) {
+    return toast('Use o botão Sair para encerrar sua própria sessão.', true);
+  }
+  try {
+    const current = normalizeControls(cloudState.userControls[uid] || {});
+    await databaseSdk.set(databaseSdk.ref(database, `userControls/${uid}`), {
+      status: current.status,
+      features: current.features,
+      forceSignOutAt: databaseSdk.serverTimestamp(),
+      updatedAt: databaseSdk.serverTimestamp(),
+      updatedBy: cloudState.user.uid
+    });
+    toast('A sessão será encerrada em todos os aparelhos conectados.');
+  } catch (error) {
+    toast(authErrorMessage(error), true);
   }
 }
 
@@ -476,7 +689,16 @@ function bindAdminData() {
     },
     error => toast(authErrorMessage(error), true)
   );
-  cloudState.unsubscribe.push(usersStop, feedbackStop, activityStop);
+  const controlsStop = databaseSdk.onValue(
+    databaseSdk.ref(database, 'userControls'),
+    snapshot => {
+      cloudState.userControls = snapshot.val() || {};
+      renderAdminUsers();
+      renderAdminControls();
+    },
+    error => toast(authErrorMessage(error), true)
+  );
+  cloudState.unsubscribe.push(usersStop, feedbackStop, activityStop, controlsStop);
 }
 
 async function showSignedIn(user) {
@@ -484,8 +706,27 @@ async function showSignedIn(user) {
     showUnverified(user);
     return;
   }
+  try {
+    await authSdk.getIdToken(user, true);
+  } catch (error) {
+    toast(authErrorMessage(error), true);
+    return;
+  }
   clearListeners();
   cloudState.user = user;
+  try {
+    const controlsSnapshot = await databaseSdk.get(
+      databaseSdk.ref(database, `userControls/${user.uid}`)
+    );
+    cloudState.ownControls = normalizeControls(controlsSnapshot.val() || {});
+    cloudState.forceSignOutBaseline = cloudState.ownControls.forceSignOutAt;
+    dispatchControls(cloudState.ownControls);
+    if (await rejectRestrictedAccount(cloudState.ownControls)) return;
+  } catch (error) {
+    toast(authErrorMessage(error), true);
+    await authSdk.signOut(auth);
+    return;
+  }
   ui.signedOut?.classList.add('hidden');
   ui.signedIn?.classList.remove('hidden');
   ui.verificationPanel?.classList.add('hidden');
@@ -529,15 +770,11 @@ function setAuthMode(mode) {
   ui.authDescription.textContent = t(signup ? 'signupDescription' : 'loginDescription');
   ui.authSubmit.textContent = t(signup ? 'signup' : 'login');
   ui.password.autocomplete = signup ? 'new-password' : 'current-password';
-  ui.password.placeholder = signup ? 'Crie uma senha forte' : 'Digite sua senha';
+  ui.password.placeholder = t(signup ? 'passwordSignupPlaceholder' : 'passwordPlaceholder');
 }
 
 function strongPassword(value) {
-  return value.length >= 10 &&
-    /[a-z]/.test(value) &&
-    /[A-Z]/.test(value) &&
-    /\d/.test(value) &&
-    /[^A-Za-z0-9]/.test(value);
+  return value.length >= 6;
 }
 
 async function submitEmailAuth(event) {
@@ -568,7 +805,7 @@ async function createEmailAccount() {
   const password = ui.password.value;
   if (!name) return toast('Informe seu nome para criar a conta.', true);
   if (!strongPassword(password)) {
-    return toast('Use 10 ou mais caracteres, com maiúscula, minúscula, número e símbolo.', true);
+    return toast('Use pelo menos 6 caracteres na senha.', true);
   }
   if (!ui.consent.checked) {
     return toast('Leia e marque a Política de Privacidade e os Termos.', true);
@@ -600,9 +837,85 @@ async function resetPassword() {
   }
 }
 
+async function deleteOwnMessage(source, messageId) {
+  if (!cloudState.user || !messageId) return;
+  const uid = cloudState.user.uid;
+  try {
+    if (source === 'broadcast') {
+      await databaseSdk.set(
+        databaseSdk.ref(database, `messageHides/${uid}/broadcast-${messageId}`),
+        databaseSdk.serverTimestamp()
+      );
+    } else {
+      const updates = {};
+      updates[`messages/${uid}/${messageId}`] = null;
+      updates[`messageReads/${uid}/${messageId}`] = null;
+      await databaseSdk.update(databaseSdk.ref(database), updates);
+    }
+    toast('Mensagem excluída.');
+  } catch (error) {
+    toast(authErrorMessage(error), true);
+  }
+}
+
+async function clearOwnMessages() {
+  if (!cloudState.user) return;
+  const uid = cloudState.user.uid;
+  const updates = {};
+  Object.keys(cloudState.messages || {}).forEach(messageId => {
+    updates[`messages/${uid}/${messageId}`] = null;
+    updates[`messageReads/${uid}/${messageId}`] = null;
+  });
+  Object.keys(cloudState.broadcasts || {}).forEach(messageId => {
+    updates[`messageHides/${uid}/broadcast-${messageId}`] = databaseSdk.serverTimestamp();
+    updates[`broadcastReads/${uid}/${messageId}`] = null;
+  });
+  if (!Object.keys(updates).length) return toast('Sua caixa de mensagens já está vazia.');
+  try {
+    await databaseSdk.update(databaseSdk.ref(database), updates);
+    toast('Caixa de mensagens limpa.');
+  } catch (error) {
+    toast(authErrorMessage(error), true);
+  }
+}
+
+async function deleteOwnAccount(event) {
+  event.preventDefault();
+  const user = auth.currentUser;
+  if (!user || !user.email) return;
+  if (cloudState.isAdmin) {
+    return toast('Por segurança, remova primeiro o acesso de administrador desta conta.', true);
+  }
+  if (!ui.deleteAccountConfirm.checked) {
+    return toast('Marque a confirmação para excluir a conta.', true);
+  }
+  const password = ui.deleteAccountPassword.value;
+  if (!password) return toast('Digite sua senha atual.', true);
+  try {
+    const credential = authSdk.EmailAuthProvider.credential(user.email, password);
+    await authSdk.reauthenticateWithCredential(user, credential);
+    const uid = user.uid;
+    const updates = {};
+    [
+      'users', 'feedback', 'messages', 'messageReads', 'broadcastReads',
+      'messageHides', 'downloadActivity'
+    ].forEach(node => { updates[`${node}/${uid}`] = null; });
+    await databaseSdk.update(databaseSdk.ref(database), updates);
+    await authSdk.deleteUser(user);
+    ui.deleteAccountModal.classList.add('hidden');
+    ui.deleteAccountForm.reset();
+    toast('Sua conta e seus dados foram excluídos.');
+  } catch (error) {
+    toast(authErrorMessage(error), true);
+  }
+}
+
 async function submitFeedback(event) {
   event.preventDefault();
   if (!cloudState.user) return;
+  if (cloudState.ownControls.features.feedback === false) {
+    return toast('O envio de feedback está desativado para esta conta.', true);
+  }
   const message = ui.feedbackMessage.value.trim();
   if (!message) return toast('Escreva uma mensagem.', true);
   const category = ui.feedbackCategory.value || 'outro';
@@ -698,6 +1011,15 @@ function attachEvents() {
     ui.togglePassword.textContent = t(visible ? 'show' : 'hide');
   });
   ui.reset?.addEventListener('click', resetPassword);
+  ui.openDeleteAccount?.addEventListener('click', () => {
+    ui.deleteAccountModal?.classList.remove('hidden');
+    ui.deleteAccountPassword?.focus();
+  });
+  ui.cancelDeleteAccount?.addEventListener('click', () => {
+    ui.deleteAccountModal?.classList.add('hidden');
+    ui.deleteAccountForm?.reset();
+  });
+  ui.deleteAccountForm?.addEventListener('submit', deleteOwnAccount);
   ui.signOut?.addEventListener('click', async () => {
     try {
       await authSdk.signOut(auth);
@@ -743,6 +1065,15 @@ function attachEvents() {
     ui.feedbackMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
   ui.myMessages?.addEventListener('click', async event => {
+    const deleteButton = event.target.closest('[data-delete-message]');
+    if (deleteButton) {
+      event.stopPropagation();
+      await deleteOwnMessage(
+        deleteButton.dataset.deleteSource,
+        deleteButton.dataset.deleteMessage
+      );
+      return;
+    }
     const article = event.target.closest('[data-cloud-message]');
     if (!article || !cloudState.user) return;
     try {
@@ -758,12 +1089,22 @@ function attachEvents() {
       toast(authErrorMessage(error), true);
     }
   });
+  ui.messageFilter?.addEventListener('change', () => {
+    cloudState.messageFilter = ui.messageFilter.value || 'all';
+    renderOwnMessages();
+  });
+  ui.messageOrder?.addEventListener('change', () => {
+    cloudState.messageOrder = ui.messageOrder.value || 'newest';
+    renderOwnMessages();
+  });
+  ui.clearMessages?.addEventListener('click', clearOwnMessages);
   ui.adminUserSearch?.addEventListener('input', renderAdminUsers);
   ui.adminUsersList?.addEventListener('click', event => {
     const button = event.target.closest('[data-admin-user]');
     if (!button) return;
     ui.adminMessageUser.value = button.dataset.adminUser;
     renderAdminActivity(button.dataset.adminUser);
+    renderAdminControls(button.dataset.adminUser);
     ui.adminMessageTitle.focus();
     document.querySelectorAll('.admin-user').forEach(item =>
       item.classList.toggle('selected', item === button));
@@ -773,9 +1114,16 @@ function attachEvents() {
     ui.adminMessageSubmit.textContent = collective
       ? 'Enviar comunicado para todos'
       : 'Enviar mensagem privada';
-    if (!collective && ui.adminMessageUser.value) renderAdminActivity(ui.adminMessageUser.value);
+    if (!collective && ui.adminMessageUser.value) {
+      renderAdminActivity(ui.adminMessageUser.value);
+      renderAdminControls(ui.adminMessageUser.value);
+    } else {
+      ui.adminUserControls?.classList.add('hidden');
+    }
   });
   ui.adminMessageForm?.addEventListener('submit', sendAdminMessage);
+  ui.saveUserControls?.addEventListener('click', saveAdminControls);
+  ui.forceUserSignOut?.addEventListener('click', forceAdminSignOut);
   ui.adminFeedbackFilter?.addEventListener('change', renderAdminFeedback);
   ui.adminFeedbackList?.addEventListener('click', event => {
     const button = event.target.closest('[data-save-feedback]');
@@ -825,6 +1173,8 @@ async function startCloud() {
 
 async function recordDownload(item) {
   if (!cloudState.user?.emailVerified || !database || !databaseSdk) return false;
+  if (cloudState.ownControls.status !== 'active' ||
+      cloudState.ownControls.features.downloads === false) return false;
   try {
     let sourceHost = '';
     try {

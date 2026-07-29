@@ -43,6 +43,14 @@
     pendingDownload: null,
     authenticated: !isAndroid,
     historyFilter: 'all',
+    featureControls: {
+      downloads: true,
+      youtube: true,
+      messages: true,
+      feedback: true,
+      nearbyShare: true
+    },
+    messageNotifications: storage.get('moura_message_notifications_v1', true),
     toastTimer: null
   };
 
@@ -126,6 +134,14 @@
     spotifyActions: $('#spotifyActions'),
     accentColor: $('#accentColor'),
     languageSelect: $('#languageSelect'),
+    authLanguageSelect: $('#authLanguageSelect'),
+    messageNotificationsToggle: $('#messageNotificationsToggle'),
+    messageArrivalModal: $('#messageArrivalModal'),
+    messageArrivalTitle: $('#messageArrivalTitle'),
+    messageArrivalBody: $('#messageArrivalBody'),
+    accountStateModal: $('#accountStateModal'),
+    accountStateTitle: $('#accountStateTitle'),
+    accountStateBody: $('#accountStateBody'),
     toast: $('#toast')
   };
 
@@ -141,6 +157,12 @@
     if (isAndroid && !state.authenticated && name !== 'conta') {
       name = 'conta';
       toast(t('connectionRequired'), true);
+    }
+    const controlledViews = { inicio: 'downloads', downloads: 'downloads', youtube: 'youtube' };
+    const requiredFeature = controlledViews[name];
+    if (requiredFeature && state.featureControls[requiredFeature] === false) {
+      name = 'conta';
+      toast(t('featureDisabled'), true);
     }
     $$('.view').forEach(view => view.classList.toggle('active', view.id === `view-${name}`));
     $$('.nav-item[data-view]').forEach(item => item.classList.toggle('active', item.dataset.view === name));
@@ -337,6 +359,10 @@
   }
 
   function loadYouTubeFromInput() {
+    if (state.featureControls.youtube === false) {
+      showView('conta');
+      return toast(t('featureDisabled'), true);
+    }
     const id = youtubeVideoId(els.youtubeUrl?.value);
     if (!id) return toast('Use um link válido de vídeo ou Short do YouTube.', true);
     playYouTubeVideo(id);
@@ -617,6 +643,10 @@
   }
 
   function startDownload() {
+    if (state.featureControls.downloads === false) {
+      showView('conta');
+      return toast(t('featureDisabled'), true);
+    }
     if (isAndroid && !state.authenticated) {
       showView('conta');
       return;
@@ -1096,9 +1126,13 @@
     const method = action === 'play' ? 'playDownload'
       : action === 'open' ? 'openDownload'
       : action === 'whatsapp' ? 'shareWhatsApp'
+        : action === 'nearby' ? 'shareNearby'
         : action === 'share' ? 'shareDownload'
           : action === 'favorite' ? 'toggleFavorite' : '';
     if (!method) return;
+    if (action === 'nearby' && state.featureControls.nearbyShare === false) {
+      return toast(t('featureDisabled'), true);
+    }
     const result = nativeAction(method, file.id);
     toast(result.message, !result.success);
     if (result.success && action === 'favorite') refreshLibrary();
@@ -1169,7 +1203,9 @@
   function setupPersonalization() {
     const savedTheme = storage.get('moura_theme_v1', '#42f57b');
     applyTheme(savedTheme);
-    if (els.languageSelect) els.languageSelect.value = window.MouraI18n?.locale || 'pt-BR';
+    const selectedLocale = window.MouraI18n?.locale || 'pt-BR';
+    if (els.languageSelect) els.languageSelect.value = selectedLocale;
+    if (els.authLanguageSelect) els.authLanguageSelect.value = selectedLocale;
     $$('.theme-swatch').forEach(button => button.addEventListener('click', () =>
       applyTheme(button.dataset.themeColor, true)));
     els.accentColor?.addEventListener('input', () => applyTheme(els.accentColor.value));
@@ -1179,10 +1215,78 @@
       renderHistory();
       toast(t('languageChanged'));
     });
-    window.addEventListener('moura:language', () => {
-      renderHistory();
-      configureInstallExperience();
+    els.authLanguageSelect?.addEventListener('change', () => {
+      window.MouraI18n?.setLocale(els.authLanguageSelect.value);
+      toast(t('languageChanged'));
     });
+    window.addEventListener('moura:language', () => {
+      const locale = window.MouraI18n?.locale || 'pt-BR';
+      if (els.languageSelect) els.languageSelect.value = locale;
+      if (els.authLanguageSelect) els.authLanguageSelect.value = locale;
+      renderHistory();
+      renderCategoryControls();
+      renderCategoryManager();
+      renderYouTubeLists();
+      renderLibrary();
+      if (isAndroid) {
+        $('#heroTitle').textContent = t('appHeroTitle');
+        $('#heroDescription').textContent = t('appHeroDescription');
+        $('#heroLibraryBtn').textContent = t('navLibrary');
+      }
+    });
+    if (els.messageNotificationsToggle) {
+      els.messageNotificationsToggle.checked = state.messageNotifications;
+      els.messageNotificationsToggle.addEventListener('change', () => {
+        state.messageNotifications = els.messageNotificationsToggle.checked;
+        storage.set('moura_message_notifications_v1', state.messageNotifications);
+        toast(t(state.messageNotifications ? 'notificationsEnabled' : 'notificationsDisabled'));
+      });
+    }
+  }
+
+  function applyFeatureControls(detail = {}) {
+    state.featureControls = {
+      ...state.featureControls,
+      ...(detail.features || detail)
+    };
+    const disabledViews = new Set();
+    if (state.featureControls.downloads === false) {
+      disabledViews.add('inicio');
+      disabledViews.add('downloads');
+    }
+    if (state.featureControls.youtube === false) disabledViews.add('youtube');
+    $$('.nav-item[data-view]').forEach(button => {
+      button.classList.toggle('feature-disabled', disabledViews.has(button.dataset.view));
+      button.setAttribute('aria-disabled', String(disabledViews.has(button.dataset.view)));
+    });
+    $$('[data-feature-panel]').forEach(panel => {
+      const disabled = state.featureControls[panel.dataset.featurePanel] === false;
+      panel.classList.toggle('feature-disabled', disabled);
+      panel.setAttribute('aria-disabled', String(disabled));
+    });
+    const current = $('.view.active')?.id.replace('view-', '') || '';
+    if (disabledViews.has(current)) showView('conta');
+  }
+
+  function notifyMessage(message = {}) {
+    if (!state.messageNotifications) return;
+    const title = String(message.title || t('newMessage')).slice(0, 90);
+    const body = String(message.body || '').slice(0, 1200);
+    els.messageArrivalTitle.textContent = title;
+    els.messageArrivalBody.textContent = body;
+    els.messageArrivalModal.classList.remove('hidden');
+    if (isAndroid && typeof window.AndroidBridge?.showMessageNotification === 'function') {
+      try { window.AndroidBridge.showMessageNotification(title, body); } catch { /* modal continua */ }
+    }
+  }
+
+  function showAccountState(detail = {}) {
+    const status = detail.status || 'suspended';
+    els.accountStateTitle.textContent = status === 'banned'
+      ? t('accountBannedTitle') : t('accountSuspendedTitle');
+    els.accountStateBody.textContent = detail.message || (status === 'banned'
+      ? t('accountBannedBody') : t('accountSuspendedBody'));
+    els.accountStateModal.classList.remove('hidden');
   }
 
   function repeatHistoryDownload(index) {
@@ -1404,6 +1508,16 @@
     if (result.success) { closeModals(); refreshLibrary(); }
   });
 
+  $('#dismissMessageModalBtn')?.addEventListener('click', closeModals);
+  $('#openMessageInboxBtn')?.addEventListener('click', () => {
+    closeModals();
+    showView('conta');
+    setTimeout(() => $('#messagesCard')?.scrollIntoView({
+      behavior: 'smooth', block: 'center'
+    }), 120);
+  });
+  $('#closeAccountStateBtn')?.addEventListener('click', closeModals);
+
   document.addEventListener('click', event => {
     if (event.target.closest('[data-close-modal]')) closeModals();
     const deleteCategoryButton = event.target.closest('[data-delete-category]');
@@ -1444,6 +1558,9 @@
     showView,
     toast,
     isAndroid,
+    notifyMessage,
+    showAccountState,
+    applyFeatureControls,
     get authenticated() { return state.authenticated; }
   });
 
@@ -1454,6 +1571,12 @@
     document.body.classList.toggle('auth-unverified', status === 'unverified');
     document.body.classList.toggle('auth-ready', status === 'verified' || !isAndroid);
     if (isAndroid && !state.authenticated) showView('conta');
+  });
+  window.addEventListener('moura:controls', event => {
+    applyFeatureControls(event.detail || {});
+  });
+  window.addEventListener('moura:account-state', event => {
+    showAccountState(event.detail || {});
   });
 
   if (!isAndroid && 'serviceWorker' in navigator) {

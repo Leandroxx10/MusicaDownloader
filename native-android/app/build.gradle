@@ -9,7 +9,7 @@ def releaseKeyPassword = System.getenv('ANDROID_KEY_PASSWORD')
 def releaseSigningReady = releaseStorePath && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
 def ciVersionCode = System.getenv('MOURA_VERSION_CODE')
 def ciVersionName = System.getenv('MOURA_VERSION_NAME')
-def nativeRevision = System.getenv('MOURA_NATIVE_REVISION') ?: '4'
+def nativeRevision = System.getenv('MOURA_NATIVE_REVISION') ?: '5'
 
 android {
     namespace 'com.moura.downloads'

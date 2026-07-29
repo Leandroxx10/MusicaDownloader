@@ -12,9 +12,13 @@ Aplicativo Android desenvolvido por **Leandro Moura**, com processamento local, 
 - Central YouTube com player oficial incorporado, suporte a vídeos, links curtos e Shorts.
 - Códigos de erro do YouTube explicados e botão seguro para abrir vídeos que bloqueiam incorporação.
 - Player oficial do Spotify para faixas, álbuns, playlists, artistas e podcasts.
-- Login e criação de conta na mesma tela, com e-mail verificado, senha forte e limite visível de tentativas.
-- Feedback privado, caixa de entrada, mensagens individuais e comunicados coletivos.
-- Painel administrativo protegido por UID com perfis e atividade mínima de downloads concluídos.
+- Login e criação de conta na mesma tela, senha mínima de 6 caracteres, e-mail verificado e limite visível de tentativas.
+- Feedback privado, caixa de entrada com filtros, ordem, exclusão e comunicados coletivos.
+- Modal animado e notificação Android para novas mensagens recebidas com o app ativo.
+- Painel administrativo protegido por UID com perfis, atividade mínima e controles de recursos por conta.
+- Suspensão, banimento e encerramento remoto de sessão vinculados à conta, sem bloqueio impreciso por IP.
+- Exclusão da própria conta e dos dados associados diretamente no aplicativo.
+- Envio de arquivos locais pelo seletor Android, incluindo Quick Share, Bluetooth e Wi‑Fi Direct disponíveis no aparelho.
 - Regras do Realtime Database com acesso negado por padrão, e-mail verificado e isolamento por usuário.
 - Interface em português, inglês, italiano, espanhol, chinês e japonês.
 - Cores personalizáveis e histórico responsivo com filtros, resumo e animações.
@@ -164,7 +168,8 @@ Para ativar o painel de Leandro Moura e publicar as regras seguras, siga
 [`FIREBASE-SETUP.md`](FIREBASE-SETUP.md). O painel lista os perfis mínimos das
 pessoas que já entraram pelo aplicativo, permite mensagens individuais ou coletivas
 e exibe metadados mínimos dos downloads concluídos, sem armazenar o link completo
-nem o caminho local. Listar diretamente todos os usuários do Firebase Authentication
+nem o caminho local. Também permite controlar recursos por perfil, suspender ou banir
+contas e solicitar o encerramento de sessões. Listar diretamente todos os usuários do Firebase Authentication
 exigiria Admin SDK em um servidor confiável.
 
 O contato público de suporte e privacidade é `leandro12done@gmail.com`.

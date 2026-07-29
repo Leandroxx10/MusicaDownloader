@@ -88,8 +88,8 @@ def main() -> None:
         "publishedAt": datetime.now(timezone.utc).isoformat(),
         "commit": os.environ.get("GITHUB_SHA", ""),
         "notes": (
-            "Conta obrigatória com e-mail verificado, segurança reforçada, seis idiomas, "
-            "temas, histórico responsivo, comunicados e atividade administrativa mínima."
+            "Idiomas corrigidos, caixa de entrada com filtros e exclusão, notificações, "
+            "compartilhamento próximo, exclusão de conta e controles administrativos por perfil."
         ),
         "interfaceBundle": {
             "contentVersion": version_code,

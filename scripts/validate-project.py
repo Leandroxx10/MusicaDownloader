@@ -48,7 +48,11 @@ def validate_web_mirror() -> None:
 
 
 def validate_structured_files() -> None:
-    for path in [ROOT / "package.json", WEB_DIR / "manifest.webmanifest"]:
+    for path in [
+        ROOT / "package.json",
+        WEB_DIR / "manifest.webmanifest",
+        ROOT / "firebase" / "database.rules.json",
+    ]:
         json.loads(path.read_text(encoding="utf-8"))
 
     xml_files = [
@@ -260,9 +264,29 @@ def validate_required_features() -> None:
         and '"downloadActivity"' in required[14].read_text(encoding="utf-8")
         and "recordDownload" in required[12].read_text(encoding="utf-8")
         and 'id="adminDownloadActivity"' in index,
+        "mensagens filtráveis e removíveis": '"messageHides"' in required[14].read_text(encoding="utf-8")
+        and 'id="messageFilter"' in index
+        and 'id="messageOrder"' in index
+        and 'id="clearMessagesBtn"' in index
+        and "deleteOwnMessage" in required[12].read_text(encoding="utf-8"),
+        "notificações de mensagens": "showMessageNotification" in main_activity
+        and 'id="messageArrivalModal"' in index
+        and 'id="messageNotificationsToggle"' in index,
+        "controles administrativos por conta": '"userControls"' in required[14].read_text(encoding="utf-8")
+        and 'id="adminUserControls"' in index
+        and "forceSignOutAt" in required[12].read_text(encoding="utf-8")
+        and "accountBannedTitle" in required[13].read_text(encoding="utf-8"),
+        "exclusão da própria conta": 'id="deleteAccountModal"' in index
+        and "reauthenticateWithCredential" in required[12].read_text(encoding="utf-8")
+        and "deleteUser" in required[12].read_text(encoding="utf-8"),
+        "senha mínima de seis caracteres": 'minlength="6"' in index
+        and "return value.length >= 6" in required[12].read_text(encoding="utf-8"),
+        "compartilhamento próximo pelo Android": "shareNearby" in main_activity
+        and 'data-file-action="nearby"' in index,
         "idiomas e tema personalizável": "zh-CN" in required[13].read_text(encoding="utf-8")
         and "ja:" in required[13].read_text(encoding="utf-8")
         and 'id="languageSelect"' in index
+        and 'id="authLanguageSelect"' in index
         and 'id="accentColor"' in index,
         "download completo no site": "moura-downloads.apk" in index
         and "moura-downloads-arm64.apk" not in index,

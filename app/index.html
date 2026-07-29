@@ -9,8 +9,8 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=13">
-  <link rel="stylesheet" href="./download.css?v=13">
+  <link rel="stylesheet" href="./styles.css?v=14">
+  <link rel="stylesheet" href="./download.css?v=14">
   <title>Moura Downloads</title>
 </head>
 <body class="auth-pending">
@@ -104,7 +104,7 @@
           </div>
 
           <div class="category-picker-row">
-            <label for="downloadCategory">Salvar na categoria</label>
+            <label for="downloadCategory" data-i18n="saveCategory">Salvar na categoria</label>
             <div class="select-with-action">
               <select id="downloadCategory" aria-label="Categoria do novo download"></select>
               <button id="newCategoryBtn" type="button" class="small-action">+ Nova</button>
@@ -112,11 +112,11 @@
           </div>
 
           <div class="quality-picker-row">
-            <label for="downloadQuality">Velocidade e qualidade</label>
+            <label for="downloadQuality" data-i18n="speedQuality">Velocidade e qualidade</label>
             <select id="downloadQuality">
-              <option value="fast" selected>Rápido — recomendado (vídeo até 720p)</option>
-              <option value="best">Melhor qualidade disponível</option>
-              <option value="data">Economia de dados (vídeo até 480p)</option>
+              <option value="fast" selected data-i18n="qualityFast">Rápido — recomendado (vídeo até 720p)</option>
+              <option value="best" data-i18n="qualityBest">Melhor qualidade disponível</option>
+              <option value="data" data-i18n="qualityData">Economia de dados (vídeo até 480p)</option>
             </select>
             <small>O modo rápido reduz o tamanho e o tempo de processamento. Para MP3, usa qualidade equilibrada.</small>
           </div>
@@ -163,7 +163,7 @@
 
         <section class="youtube-studio" aria-labelledby="youtubePlayerTitle">
           <div class="youtube-input-card">
-            <label for="youtubeUrl">Link do vídeo público</label>
+            <label for="youtubeUrl" data-i18n="publicVideoLink">Link do vídeo público</label>
             <div class="youtube-url-field">
               <span>▶</span>
               <input id="youtubeUrl" type="url" inputmode="url" autocomplete="url" placeholder="https://youtu.be/..." aria-describedby="youtubeHelp">
@@ -184,7 +184,7 @@
               <span>!</span>
               <strong id="youtubeErrorTitle">Este vídeo não abriu no player</strong>
               <small id="youtubeErrorText">Alguns vídeos bloqueiam a reprodução incorporada. Você ainda pode abri-los com segurança no YouTube.</small>
-              <button id="youtubeFallbackBtn" class="secondary-button compact" type="button">Abrir no YouTube</button>
+              <button id="youtubeFallbackBtn" class="secondary-button compact" type="button" data-i18n="openYouTube">Abrir no YouTube</button>
             </div>
           </div>
 
@@ -195,8 +195,8 @@
               <small>Use os controles oficiais no próprio player.</small>
             </div>
             <div class="youtube-player-actions">
-              <button id="youtubeSaveBtn" class="secondary-button compact" type="button">☆ Ver depois</button>
-              <button id="youtubeOpenBtn" class="secondary-button compact" type="button">Abrir no YouTube ↗</button>
+              <button id="youtubeSaveBtn" class="secondary-button compact" type="button"><span aria-hidden="true">☆</span> <span data-i18n="watchLater">Ver depois</span></button>
+              <button id="youtubeOpenBtn" class="secondary-button compact" type="button"><span data-i18n="openYouTube">Abrir no YouTube</span> ↗</button>
             </div>
           </div>
         </section>
@@ -248,7 +248,7 @@
       <section id="view-downloads" class="view">
         <div class="page-title library-title-row">
           <div><span class="eyebrow" data-i18n="libraryEyebrow">ARQUIVOS NO CELULAR</span><h1 data-i18n="libraryTitle">Minha biblioteca</h1><p data-i18n="libraryDescription">Seu player pessoal, inteligente e totalmente local.</p></div>
-          <button id="refreshLibraryBtn" class="secondary-button compact">Atualizar</button>
+          <button id="refreshLibraryBtn" class="secondary-button compact" data-i18n="refresh">Atualizar</button>
         </div>
 
         <section id="smartLibrary" class="smart-library hidden" aria-labelledby="smartLibraryTitle">
@@ -277,12 +277,12 @@
         </section>
 
         <div class="library-toolbar">
-          <label class="search-field"><span>⌕</span><input id="librarySearch" type="search" placeholder="Pesquisar downloads"></label>
+          <label class="search-field"><span>⌕</span><input id="librarySearch" type="search" placeholder="Pesquisar downloads" data-i18n-placeholder="searchDownloads"></label>
           <select id="librarySort" aria-label="Ordenar biblioteca">
-            <option value="recent">Mais recentes</option>
-            <option value="oldest">Mais antigos</option>
-            <option value="name">Nome A–Z</option>
-            <option value="size">Maior tamanho</option>
+            <option value="recent" data-i18n="newest">Mais recentes</option>
+            <option value="oldest" data-i18n="oldest">Mais antigos</option>
+            <option value="name" data-i18n="nameAZ">Nome A–Z</option>
+            <option value="size" data-i18n="largest">Maior tamanho</option>
           </select>
         </div>
 
@@ -313,7 +313,7 @@
 
         <div id="signedOutPanel" class="account-auth-shell">
           <section class="account-card auth-card">
-            <span class="eyebrow">ACESSO PROTEGIDO</span>
+            <span class="eyebrow" data-i18n="protectedAccess">ACESSO PROTEGIDO</span>
             <h2 id="authCardTitle">Entrar na sua conta</h2>
             <p id="authCardDescription">Para usar o aplicativo, entre com seu e-mail e senha.</p>
             <div class="auth-mode-switch" role="tablist" aria-label="Entrar ou criar conta">
@@ -322,25 +322,34 @@
             </div>
             <form id="emailAuthForm" class="account-form">
               <div id="authNameGroup" class="form-group signup-only hidden">
-                <label for="authName">Seu nome</label>
-                <input id="authName" type="text" maxlength="80" autocomplete="name" placeholder="Como quer ser chamado">
+                <label for="authName" data-i18n="yourName">Seu nome</label>
+                <input id="authName" type="text" maxlength="80" autocomplete="name" placeholder="Como quer ser chamado" data-i18n-placeholder="namePlaceholder">
               </div>
               <label for="authEmail" data-i18n="email">E-mail</label>
               <input id="authEmail" type="email" maxlength="254" autocomplete="email" required placeholder="voce@exemplo.com">
               <label for="authPassword" data-i18n="password">Senha</label>
               <div class="password-field">
-                <input id="authPassword" type="password" minlength="10" maxlength="128" autocomplete="current-password" required placeholder="Digite sua senha">
+                <input id="authPassword" type="password" minlength="6" maxlength="128" autocomplete="current-password" required placeholder="Digite sua senha" data-i18n-placeholder="passwordPlaceholder">
                 <button id="togglePasswordBtn" class="password-toggle" type="button" aria-label="Mostrar ou ocultar senha">Mostrar</button>
               </div>
-              <small id="passwordRequirements" class="password-requirements signup-only hidden">Use 10 ou mais caracteres, com maiúscula, minúscula, número e símbolo.</small>
+              <small id="passwordRequirements" class="password-requirements signup-only hidden" data-i18n="passwordRequirement">Use pelo menos 6 caracteres. Misturar letras, números e símbolos deixa a senha mais segura.</small>
               <label id="privacyConsentGroup" class="privacy-consent signup-only hidden"><input id="privacyConsent" type="checkbox"><span>Li a <a href="./privacy.html" target="_blank" rel="noopener">Política de Privacidade</a> e os <a href="./terms.html" target="_blank" rel="noopener">Termos de Uso</a>. Concordo com o registro mínimo das mídias concluídas para suporte e segurança.</span></label>
               <div id="authAttemptStatus" class="auth-attempt-status" aria-live="polite">5 tentativas disponíveis neste aparelho.</div>
               <button id="emailAuthSubmitBtn" class="primary-button" type="submit">Entrar</button>
               <button id="passwordResetBtn" class="text-button" type="button" data-i18n="forgotPassword">Esqueci minha senha</button>
             </form>
             <div class="security-summary">
-              <strong>Proteção da conta</strong>
-              <small>Sessão persistente, e-mail verificado, tentativas limitadas e dados privados por usuário. O desenvolvedor nunca vê sua senha.</small>
+              <strong data-i18n="accountProtection">Proteção da conta</strong>
+              <small data-i18n="accountProtectionText">Sessão persistente, e-mail verificado, tentativas limitadas e dados privados por usuário. O desenvolvedor nunca vê sua senha.</small>
+              <label for="authLanguageSelect" data-i18n="language">Idioma</label>
+              <select id="authLanguageSelect" class="settings-select auth-language-select" aria-label="Idioma do aplicativo">
+                <option value="pt-BR">Português (Brasil)</option>
+                <option value="en">English</option>
+                <option value="it">Italiano</option>
+                <option value="es">Español</option>
+                <option value="zh-CN">中文</option>
+                <option value="ja">日本語</option>
+              </select>
             </div>
           </section>
         </div>
@@ -349,48 +358,63 @@
           <section id="verificationPanel" class="account-card verification-card hidden">
             <span class="verification-icon">✉</span>
             <div>
-              <span class="eyebrow">CONFIRME SEU E-MAIL</span>
-              <h2>Falta só uma etapa</h2>
+              <span class="eyebrow" data-i18n="confirmEmail">CONFIRME SEU E-MAIL</span>
+              <h2 data-i18n="oneMoreStep">Falta só uma etapa</h2>
               <p>Abra a mensagem enviada para <strong id="verificationEmail">seu e-mail</strong>, confirme o endereço e volte ao aplicativo.</p>
               <div class="account-actions">
-                <button id="checkVerificationBtn" class="primary-button" type="button">Já confirmei</button>
-                <button id="resendVerificationBtn" class="secondary-button" type="button">Reenviar e-mail</button>
-                <button id="verificationSignOutBtn" class="secondary-button" type="button">Usar outra conta</button>
+                <button id="checkVerificationBtn" class="primary-button" type="button" data-i18n="alreadyConfirmed">Já confirmei</button>
+                <button id="resendVerificationBtn" class="secondary-button" type="button" data-i18n="resendEmail">Reenviar e-mail</button>
+                <button id="verificationSignOutBtn" class="secondary-button" type="button" data-i18n="useAnotherAccount">Usar outra conta</button>
               </div>
             </div>
           </section>
           <div id="verifiedAccountContent">
           <section class="account-profile account-card">
             <div class="profile-avatar" id="profileAvatar">M</div>
-            <div class="profile-copy"><span class="eyebrow">CONTA ATIVA</span><h2 id="profileName">Usuário</h2><p id="profileEmail">—</p></div>
+            <div class="profile-copy"><span class="eyebrow" data-i18n="activeAccount">CONTA ATIVA</span><h2 id="profileName">Usuário</h2><p id="profileEmail">—</p></div>
             <div class="account-actions profile-actions">
-              <button id="privacyRequestBtn" class="secondary-button" type="button">Meus dados e privacidade</button>
-              <button id="signOutBtn" class="secondary-button" type="button">Sair</button>
+              <button id="privacyRequestBtn" class="secondary-button" type="button" data-i18n="myDataPrivacy">Meus dados e privacidade</button>
+              <button id="signOutBtn" class="secondary-button" type="button" data-i18n="signOut">Sair</button>
+              <button id="openDeleteAccountBtn" class="danger-button" type="button" data-i18n="deleteMyAccount">Excluir minha conta</button>
             </div>
           </section>
 
           <div class="account-grid">
-            <section class="account-card">
-              <div class="card-heading"><div><span class="eyebrow">FALE COM LEANDRO</span><h2>Enviar sugestão</h2></div></div>
+            <section id="feedbackCard" class="account-card" data-feature-panel="feedback">
+              <div class="card-heading"><div><span class="eyebrow" data-i18n="talkToLeandro">FALE COM LEANDRO</span><h2 data-i18n="sendSuggestion">Enviar sugestão</h2></div></div>
               <form id="feedbackForm" class="account-form">
-                <label for="feedbackCategory">Assunto</label>
+                <label for="feedbackCategory" data-i18n="subject">Assunto</label>
                 <select id="feedbackCategory">
                   <option value="melhoria">Ideia de melhoria</option>
                   <option value="problema">Algo não funcionou</option>
                   <option value="privacidade">Meus dados e privacidade</option>
                   <option value="outro">Outro assunto</option>
                 </select>
-                <label for="feedbackMessage">Mensagem</label>
-                <textarea id="feedbackMessage" maxlength="1500" required placeholder="Conte de forma simples o que aconteceu ou o que gostaria de ver no app."></textarea>
+                <label for="feedbackMessage" data-i18n="message">Mensagem</label>
+                <textarea id="feedbackMessage" maxlength="1500" required placeholder="Conte de forma simples o que aconteceu ou o que gostaria de ver no app." data-i18n-placeholder="feedbackPlaceholder"></textarea>
                 <div class="form-counter"><span>Só você e o administrador podem ler.</span><span id="feedbackCounter">0/1500</span></div>
-                <button class="primary-button" type="submit">Enviar para Leandro</button>
+                <button class="primary-button" type="submit" data-i18n="sendToLeandro">Enviar para Leandro</button>
               </form>
               <div id="myFeedbackList" class="cloud-list"></div>
             </section>
 
-            <section class="account-card">
-              <div class="card-heading"><div><span class="eyebrow">CAIXA DE ENTRADA</span><h2>Mensagens do app</h2></div><span id="unreadBadge" class="message-count hidden">0</span></div>
-              <p>Novidades, respostas e avisos enviados diretamente por Leandro Moura.</p>
+            <section id="messagesCard" class="account-card" data-feature-panel="messages">
+              <div class="card-heading"><div><span class="eyebrow" data-i18n="inbox">CAIXA DE ENTRADA</span><h2 data-i18n="appMessages">Mensagens do app</h2></div><span id="unreadBadge" class="message-count hidden">0</span></div>
+              <p data-i18n="appMessagesDescription">Novidades, respostas e avisos enviados diretamente por Leandro Moura.</p>
+              <div class="message-toolbar">
+                <select id="messageFilter" aria-label="Filtrar mensagens">
+                  <option value="all" data-i18n="allMessages">Todas</option>
+                  <option value="unread" data-i18n="unreadMessages">Não lidas</option>
+                  <option value="read" data-i18n="readMessages">Lidas</option>
+                  <option value="direct" data-i18n="directMessages">Individuais</option>
+                  <option value="broadcast" data-i18n="broadcasts">Comunicados</option>
+                </select>
+                <select id="messageOrder" aria-label="Ordenar mensagens">
+                  <option value="newest" data-i18n="newestFirst">Mais recentes primeiro</option>
+                  <option value="oldest" data-i18n="oldestFirst">Mais antigas primeiro</option>
+                </select>
+                <button id="clearMessagesBtn" class="danger-button compact" type="button" data-i18n="clearInbox">Limpar caixa</button>
+              </div>
               <div id="myMessagesList" class="cloud-list"></div>
             </section>
           </div>
@@ -424,6 +448,25 @@
                 </form>
               </section>
             </div>
+            <section id="adminUserControls" class="admin-card admin-controls-card hidden">
+              <div class="card-heading">
+                <div><span class="eyebrow">CONTROLE DO PERFIL</span><h3 id="adminControlsTitle">Selecione um usuário</h3><p>Ative ou desative recursos, encerre a sessão ou suspenda o acesso.</p></div>
+                <span id="adminControlsStatusBadge" class="status-value">Sem seleção</span>
+              </div>
+              <div class="admin-control-grid">
+                <label><span><strong>Status da conta</strong><small>Suspenso ou banido não consegue usar o app.</small></span><select id="adminAccountStatus"><option value="active">Ativa</option><option value="suspended">Suspensa</option><option value="banned">Banida</option></select></label>
+                <label><span><strong>Downloads diretos</strong><small>Permite novos downloads autorizados.</small></span><input id="controlDownloads" type="checkbox" checked></label>
+                <label><span><strong>Central YouTube</strong><small>Permite usar o player oficial.</small></span><input id="controlYouTube" type="checkbox" checked></label>
+                <label><span><strong>Mensagens</strong><small>Permite abrir a caixa de entrada.</small></span><input id="controlMessages" type="checkbox" checked></label>
+                <label><span><strong>Feedback</strong><small>Permite enviar sugestões e suporte.</small></span><input id="controlFeedback" type="checkbox" checked></label>
+                <label><span><strong>Compartilhar por perto</strong><small>Permite enviar arquivos pelo menu do Android.</small></span><input id="controlNearbyShare" type="checkbox" checked></label>
+              </div>
+              <div class="admin-control-actions">
+                <button id="saveUserControlsBtn" class="primary-button" type="button">Salvar controles</button>
+                <button id="forceUserSignOutBtn" class="danger-button" type="button">Deslogar em todos os aparelhos</button>
+              </div>
+              <p class="helper">O bloqueio é vinculado à conta. IP não é usado porque redes móveis e residenciais compartilham e trocam endereços, causando bloqueios indevidos.</p>
+            </section>
             <section class="admin-card admin-activity-card">
               <div class="card-heading"><div><span class="eyebrow">ATIVIDADE DE DOWNLOAD</span><h3 id="adminActivityTitle">Selecione um usuário</h3><p>Somente metadados mínimos de downloads concluídos; links e caminhos locais não são armazenados.</p></div><span id="adminActivityCount" class="status-value">0 itens</span></div>
               <div id="adminDownloadActivity" class="admin-activity-list"><div class="empty-cloud">Toque em um perfil para ver a atividade.</div></div>
@@ -440,12 +483,12 @@
       <section id="view-configuracoes" class="view">
         <div class="page-title"><span class="eyebrow" data-i18n="settingsEyebrow">AJUSTES</span><h1 data-i18n="settingsTitle">Seu app, do seu jeito</h1><p>Os downloads são salvos em <strong>Downloads/Moura Downloads</strong>.</p></div>
         <div class="settings-card">
-          <div class="setting-row"><div><strong>Processamento no aparelho</strong><small>Não utiliza servidor de conversão.</small></div><span id="localEngineStatus" class="status-value">Somente APK</span></div>
-          <div class="setting-row"><div><strong>Versão instalada</strong><small>Player em segundo plano, Mixes, QR Code e atualizações inteligentes.</small></div><span id="installedVersion" class="status-value">4.0</span></div>
-          <div class="setting-row"><div><strong>Desenvolvedor</strong><small>Identificação oficial do aplicativo.</small></div><span class="status-value">Leandro Moura</span></div>
-          <div class="setting-row"><div><strong>Pasta de armazenamento</strong><small>Visível no gerenciador de arquivos e galeria.</small></div><span class="status-value">Moura Downloads</span></div>
+          <div class="setting-row"><div><strong data-i18n="deviceProcessing">Processamento no aparelho</strong><small data-i18n="noConversionServer">Não utiliza servidor de conversão.</small></div><span id="localEngineStatus" class="status-value">Somente APK</span></div>
+          <div class="setting-row"><div><strong data-i18n="installedVersion">Versão instalada</strong><small data-i18n="installedFeatures">Player em segundo plano, Mixes, QR Code e atualizações inteligentes.</small></div><span id="installedVersion" class="status-value">4.0</span></div>
+          <div class="setting-row"><div><strong data-i18n="developer">Desenvolvedor</strong><small data-i18n="officialIdentity">Identificação oficial do aplicativo.</small></div><span class="status-value">Leandro Moura</span></div>
+          <div class="setting-row"><div><strong data-i18n="storageFolder">Pasta de armazenamento</strong><small data-i18n="storageFolderText">Visível no gerenciador de arquivos e galeria.</small></div><span class="status-value">Moura Downloads</span></div>
           <div class="setting-row appearance-setting">
-            <div><strong>Cor do aplicativo</strong><small>Escolha a cor principal que combina com você.</small></div>
+            <div><strong data-i18n="appColor">Cor do aplicativo</strong><small data-i18n="appColorText">Escolha a cor principal que combina com você.</small></div>
             <div class="theme-controls">
               <button class="theme-swatch active" type="button" data-theme-color="#42f57b" aria-label="Verde"></button>
               <button class="theme-swatch" type="button" data-theme-color="#38bdf8" aria-label="Azul"></button>
@@ -456,7 +499,7 @@
             </div>
           </div>
           <div class="setting-row">
-            <div><strong>Idioma</strong><small>A interface muda imediatamente e a escolha fica salva.</small></div>
+            <div><strong data-i18n="language">Idioma</strong><small data-i18n="languageDescription">A interface muda imediatamente e a escolha fica salva.</small></div>
             <select id="languageSelect" class="settings-select" aria-label="Idioma do aplicativo">
               <option value="pt-BR">Português (Brasil)</option>
               <option value="en">English</option>
@@ -465,6 +508,10 @@
               <option value="zh-CN">中文</option>
               <option value="ja">日本語</option>
             </select>
+          </div>
+          <div class="setting-row">
+            <div><strong data-i18n="messageNotifications">Avisos de novas mensagens</strong><small data-i18n="messageNotificationsText">Mostra um modal no app e uma notificação do Android enquanto o Moura estiver ativo.</small></div>
+            <label class="simple-toggle"><input id="messageNotificationsToggle" type="checkbox" checked><span></span></label>
           </div>
           <div id="updateCard" class="update-card">
             <div class="update-card-head">
@@ -513,17 +560,18 @@
   <div id="actionSheet" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="actionSheetTitle">
     <div class="action-sheet">
       <div class="modal-handle"></div>
-      <div class="action-sheet-head"><div><span class="eyebrow">AÇÕES DO ARQUIVO</span><h2 id="actionSheetTitle">Download</h2></div><button class="modal-close" data-close-modal>×</button></div>
+      <div class="action-sheet-head"><div><span class="eyebrow" data-i18n="fileActions">AÇÕES DO ARQUIVO</span><h2 id="actionSheetTitle">Download</h2></div><button class="modal-close" data-close-modal>×</button></div>
       <div id="actionSheetMeta" class="action-sheet-meta"></div>
       <div class="action-grid">
-        <button id="playFileButton" data-file-action="play"><span>▶</span>Reproduzir</button>
-        <button data-file-action="open"><span>↗</span>Abrir em outro app</button>
+        <button id="playFileButton" data-file-action="play"><span>▶</span><em data-i18n="play">Reproduzir</em></button>
+        <button data-file-action="open"><span>↗</span><em data-i18n="openOtherApp">Abrir em outro app</em></button>
         <button data-file-action="whatsapp"><span>◉</span>WhatsApp</button>
-        <button data-file-action="share"><span>↗</span>Compartilhar</button>
-        <button data-file-action="favorite"><span>☆</span>Favoritar</button>
-        <button data-file-action="rename"><span>✎</span>Renomear</button>
-        <button data-file-action="category"><span>▦</span>Categoria</button>
-        <button class="danger-action" data-file-action="delete"><span>⌫</span>Excluir</button>
+        <button data-file-action="nearby"><span>⌁</span><em data-i18n="sendNearby">Enviar para perto</em></button>
+        <button data-file-action="share"><span>↗</span><em data-i18n="share">Compartilhar</em></button>
+        <button data-file-action="favorite"><span>☆</span><em data-i18n="favorite">Favoritar</em></button>
+        <button data-file-action="rename"><span>✎</span><em data-i18n="rename">Renomear</em></button>
+        <button data-file-action="category"><span>▦</span><em data-i18n="category">Categoria</em></button>
+        <button class="danger-action" data-file-action="delete"><span>⌫</span><em data-i18n="delete">Excluir</em></button>
       </div>
     </div>
   </div>
@@ -546,9 +594,47 @@
     </div>
   </div>
 
+  <div id="messageArrivalModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="messageArrivalTitle">
+    <div class="message-arrival-modal">
+      <div class="message-arrival-orbit"><span>✦</span></div>
+      <span class="eyebrow" data-i18n="newMessage">NOVA MENSAGEM</span>
+      <h2 id="messageArrivalTitle" data-i18n="messageFromLeandro">Mensagem de Leandro</h2>
+      <p id="messageArrivalBody"></p>
+      <div class="modal-actions">
+        <button id="dismissMessageModalBtn" class="secondary-button" type="button" data-i18n="notNow">Agora não</button>
+        <button id="openMessageInboxBtn" class="primary-button" type="button" data-i18n="openInbox">Abrir caixa de entrada</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="deleteAccountModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="deleteAccountTitle">
+    <form id="deleteAccountForm" class="confirm-modal account-delete-modal">
+      <span class="confirm-icon">!</span>
+      <h2 id="deleteAccountTitle" data-i18n="deleteAccountTitle">Excluir sua conta?</h2>
+      <p data-i18n="deleteAccountText">Seu perfil, mensagens privadas, feedbacks e atividade serão removidos. Os arquivos baixados continuam somente no celular.</p>
+      <label for="deleteAccountPassword" data-i18n="confirmCurrentPassword">Confirme sua senha atual</label>
+      <input id="deleteAccountPassword" class="modal-input" type="password" minlength="6" maxlength="128" autocomplete="current-password" required placeholder="Sua senha">
+      <label class="delete-confirm-check"><input id="deleteAccountConfirm" type="checkbox" required><span>Entendo que esta ação não pode ser desfeita.</span></label>
+      <div class="modal-actions">
+        <button id="cancelDeleteAccountBtn" class="secondary-button" type="button" data-i18n="cancel">Cancelar</button>
+        <button class="danger-button" type="submit" data-i18n="deleteForever">Excluir conta definitivamente</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="accountStateModal" class="modal-backdrop hidden" role="alertdialog" aria-modal="true" aria-labelledby="accountStateTitle">
+    <div class="message-arrival-modal account-state-modal">
+      <div class="message-arrival-orbit danger"><span>!</span></div>
+      <span class="eyebrow">ACESSO À CONTA</span>
+      <h2 id="accountStateTitle">Acesso temporariamente indisponível</h2>
+      <p id="accountStateBody">Entre em contato com o suporte para saber mais.</p>
+      <div class="modal-actions"><button id="closeAccountStateBtn" class="primary-button" type="button" data-i18n="understood">Entendi</button></div>
+    </div>
+  </div>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="./i18n.js?v=13" defer></script>
-  <script src="./app.js?v=13" defer></script>
-  <script src="./cloud.js?v=13" type="module"></script>
+  <script src="./i18n.js?v=14" defer></script>
+  <script src="./app.js?v=14" defer></script>
+  <script src="./cloud.js?v=14" type="module"></script>
 </body>
 </html>

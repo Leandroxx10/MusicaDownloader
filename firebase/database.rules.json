@@ -17,9 +17,9 @@
         "email"
       ],
       "$uid": {
-        ".read": "auth != null && auth.token.email_verified === true && auth.uid === $uid",
-        ".write": "auth != null && auth.token.email_verified === true && auth.uid === $uid",
-        ".validate": "newData.hasChildren(['uid', 'email', 'displayName', 'provider', 'createdAt', 'lastSeenAt', 'privacyVersion', 'emailVerified']) && newData.child('uid').val() === $uid && newData.child('email').isString() && newData.child('email').val() === auth.token.email && newData.child('email').val().length <= 254 && newData.child('displayName').isString() && newData.child('displayName').val().length > 0 && newData.child('displayName').val().length <= 80 && newData.child('provider').val() === 'password' && newData.child('createdAt').isNumber() && newData.child('lastSeenAt').isNumber() && newData.child('privacyVersion').isString() && newData.child('privacyVersion').val().length <= 20 && newData.child('emailVerified').val() === true && (!data.exists() || newData.child('createdAt').val() === data.child('createdAt').val())",
+        ".read": "auth != null && auth.token.email_verified === true && auth.uid === $uid && root.child('userControls').child($uid).child('status').val() !== 'suspended' && root.child('userControls').child($uid).child('status').val() !== 'banned'",
+        ".write": "auth != null && auth.token.email_verified === true && auth.uid === $uid && root.child('userControls').child($uid).child('status').val() !== 'suspended' && root.child('userControls').child($uid).child('status').val() !== 'banned'",
+        ".validate": "!newData.exists() || (newData.hasChildren(['uid', 'email', 'displayName', 'provider', 'createdAt', 'lastSeenAt', 'privacyVersion', 'emailVerified']) && newData.child('uid').val() === $uid && newData.child('email').isString() && newData.child('email').val() === auth.token.email && newData.child('email').val().length <= 254 && newData.child('displayName').isString() && newData.child('displayName').val().length > 0 && newData.child('displayName').val().length <= 80 && newData.child('provider').val() === 'password' && newData.child('createdAt').isNumber() && newData.child('lastSeenAt').isNumber() && newData.child('privacyVersion').isString() && newData.child('privacyVersion').val().length <= 20 && newData.child('emailVerified').val() === true && (!data.exists() || newData.child('createdAt').val() === data.child('createdAt').val()))",
         "uid": {
           ".validate": true
         },
@@ -57,9 +57,10 @@
         "uid"
       ],
       "$uid": {
-        ".read": "auth != null && auth.token.email_verified === true && auth.uid === $uid",
+        ".read": "auth != null && auth.token.email_verified === true && auth.uid === $uid && root.child('userControls').child($uid).child('status').val() !== 'suspended' && root.child('userControls').child($uid).child('status').val() !== 'banned'",
+        ".write": "auth != null && auth.token.email_verified === true && auth.uid === $uid && !newData.exists() && root.child('userControls').child($uid).child('status').val() !== 'suspended' && root.child('userControls').child($uid).child('status').val() !== 'banned'",
         "$feedbackId": {
-          ".write": "auth != null && auth.token.email_verified === true && (root.child('admins').child(auth.uid).val() === true || (auth.uid === $uid && !data.exists()))",
+          ".write": "auth != null && auth.token.email_verified === true && (root.child('admins').child(auth.uid).val() === true || (auth.uid === $uid && (!newData.exists() || (!data.exists() && root.child('userControls').child($uid).child('status').val() !== 'suspended' && root.child('userControls').child($uid).child('status').val() !== 'banned' && root.child('userControls').child($uid).child('features').child('feedback').val() !== false))))",
           ".validate": "newData.hasChildren(['uid', 'category', 'categoryLabel', 'message', 'status', 'createdAt']) && newData.child('uid').val() === $uid && newData.child('category').isString() && newData.child('category').val().length > 0 && newData.child('category').val().length <= 40 && newData.child('categoryLabel').isString() && newData.child('categoryLabel').val().length > 0 && newData.child('categoryLabel').val().length <= 80 && newData.child('message').isString() && newData.child('message').val().length > 0 && newData.child('message').val().length <= 1500 && newData.child('status').isString() && (newData.child('status').val() === 'novo' || newData.child('status').val() === 'respondido' || newData.child('status').val() === 'resolvido') && newData.child('createdAt').isNumber() && (root.child('admins').child(auth.uid).val() === true || (newData.child('status').val() === 'novo' && !newData.hasChild('adminReply') && !newData.hasChild('repliedBy') && !newData.hasChild('repliedAt') && !newData.hasChild('updatedAt')))",
           "adminReply": {
             ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 1500"
@@ -82,9 +83,10 @@
     "messages": {
       ".read": "auth != null && auth.token.email_verified === true && root.child('admins').child(auth.uid).val() === true",
       "$uid": {
-        ".read": "auth != null && auth.token.email_verified === true && auth.uid === $uid",
+        ".read": "auth != null && auth.token.email_verified === true && auth.uid === $uid && root.child('userControls').child($uid).child('status').val() !== 'suspended' && root.child('userControls').child($uid).child('status').val() !== 'banned'",
+        ".write": "auth != null && auth.token.email_verified === true && auth.uid === $uid && !newData.exists() && root.child('userControls').child($uid).child('status').val() !== 'suspended' && root.child('userControls').child($uid).child('status').val() !== 'banned'",
         "$messageId": {
-          ".write": "auth != null && auth.token.email_verified === true && root.child('admins').child(auth.uid).val() === true && root.child('users').child($uid).exists()",
+          ".write": "auth != null && auth.token.email_verified === true && ((root.child('admins').child(auth.uid).val() === true && root.child('users').child($uid).exists()) || (auth.uid === $uid && !newData.exists() && root.child('userControls').child($uid).child('status').val() !== 'suspended' && root.child('userControls').child($uid).child('status').val() !== 'banned'))",
           ".validate": "newData.hasChildren(['title', 'body', 'createdAt', 'sentBy', 'type']) && newData.child('title').isString() && newData.child('title').val().length > 0 && newData.child('title').val().length <= 90 && newData.child('body').isString() && newData.child('body').val().length > 0 && newData.child('body').val().length <= 1200 && newData.child('createdAt').isNumber() && newData.child('sentBy').val() === auth.uid && newData.child('type').val() === 'admin'",
           "$other": {
             ".validate": "$other === 'title' || $other === 'body' || $other === 'createdAt' || $other === 'sentBy' || $other === 'type'"
@@ -95,15 +97,16 @@
     "messageReads": {
       ".read": "auth != null && auth.token.email_verified === true && root.child('admins').child(auth.uid).val() === true",
       "$uid": {
-        ".read": "auth != null && auth.token.email_verified === true && auth.uid === $uid",
+        ".read": "auth != null && auth.token.email_verified === true && auth.uid === $uid && root.child('userControls').child($uid).child('status').val() !== 'suspended' && root.child('userControls').child($uid).child('status').val() !== 'banned'",
+        ".write": "auth != null && auth.token.email_verified === true && auth.uid === $uid && !newData.exists() && root.child('userControls').child($uid).child('status').val() !== 'suspended' && root.child('userControls').child($uid).child('status').val() !== 'banned'",
         "$messageId": {
-          ".write": "auth != null && auth.token.email_verified === true && auth.uid === $uid && root.child('messages').child($uid).child($messageId).exists()",
+          ".write": "auth != null && auth.token.email_verified === true && auth.uid === $uid && root.child('userControls').child($uid).child('status').val() !== 'suspended' && root.child('userControls').child($uid).child('status').val() !== 'banned' && (!newData.exists() || root.child('messages').child($uid).child($messageId).exists())",
           ".validate": "newData.isNumber()"
         }
       }
     },
     "broadcasts": {
-      ".read": "auth != null && auth.token.email_verified === true",
+      ".read": "auth != null && auth.token.email_verified === true && (root.child('admins').child(auth.uid).val() === true || (root.child('userControls').child(auth.uid).child('status').val() !== 'suspended' && root.child('userControls').child(auth.uid).child('status').val() !== 'banned'))",
       "$messageId": {
         ".write": "auth != null && auth.token.email_verified === true && root.child('admins').child(auth.uid).val() === true",
         ".validate": "newData.hasChildren(['title', 'body', 'createdAt', 'sentBy', 'type']) && newData.child('title').isString() && newData.child('title').val().length > 0 && newData.child('title').val().length <= 90 && newData.child('body').isString() && newData.child('body').val().length > 0 && newData.child('body').val().length <= 1200 && newData.child('createdAt').isNumber() && newData.child('sentBy').val() === auth.uid && newData.child('type').val() === 'broadcast'",
@@ -115,20 +118,49 @@
     "broadcastReads": {
       ".read": "auth != null && auth.token.email_verified === true && root.child('admins').child(auth.uid).val() === true",
       "$uid": {
-        ".read": "auth != null && auth.token.email_verified === true && auth.uid === $uid",
+        ".read": "auth != null && auth.token.email_verified === true && auth.uid === $uid && root.child('userControls').child($uid).child('status').val() !== 'suspended' && root.child('userControls').child($uid).child('status').val() !== 'banned'",
+        ".write": "auth != null && auth.token.email_verified === true && auth.uid === $uid && !newData.exists() && root.child('userControls').child($uid).child('status').val() !== 'suspended' && root.child('userControls').child($uid).child('status').val() !== 'banned'",
         "$messageId": {
-          ".write": "auth != null && auth.token.email_verified === true && auth.uid === $uid && root.child('broadcasts').child($messageId).exists()",
+          ".write": "auth != null && auth.token.email_verified === true && auth.uid === $uid && root.child('userControls').child($uid).child('status').val() !== 'suspended' && root.child('userControls').child($uid).child('status').val() !== 'banned' && (!newData.exists() || root.child('broadcasts').child($messageId).exists())",
           ".validate": "newData.isNumber()"
+        }
+      }
+    },
+    "messageHides": {
+      ".read": "auth != null && auth.token.email_verified === true && root.child('admins').child(auth.uid).val() === true",
+      "$uid": {
+        ".read": "auth != null && auth.token.email_verified === true && auth.uid === $uid && root.child('userControls').child($uid).child('status').val() !== 'suspended' && root.child('userControls').child($uid).child('status').val() !== 'banned'",
+        ".write": "auth != null && auth.token.email_verified === true && auth.uid === $uid && !newData.exists() && root.child('userControls').child($uid).child('status').val() !== 'suspended' && root.child('userControls').child($uid).child('status').val() !== 'banned'",
+        "$messageKey": {
+          ".write": "auth != null && auth.token.email_verified === true && auth.uid === $uid && root.child('userControls').child($uid).child('status').val() !== 'suspended' && root.child('userControls').child($uid).child('status').val() !== 'banned'",
+          ".validate": "!newData.exists() || newData.isNumber()"
+        }
+      }
+    },
+    "userControls": {
+      ".read": "auth != null && auth.token.email_verified === true && root.child('admins').child(auth.uid).val() === true",
+      "$uid": {
+        ".read": "auth != null && auth.token.email_verified === true && auth.uid === $uid",
+        ".write": "auth != null && auth.token.email_verified === true && root.child('admins').child(auth.uid).val() === true && root.child('users').child($uid).exists()",
+        ".validate": "newData.hasChildren(['status', 'features', 'updatedAt', 'updatedBy']) && (newData.child('status').val() === 'active' || newData.child('status').val() === 'suspended' || newData.child('status').val() === 'banned') && newData.child('features').hasChildren(['downloads', 'youtube', 'messages', 'feedback', 'nearbyShare']) && newData.child('features').child('downloads').isBoolean() && newData.child('features').child('youtube').isBoolean() && newData.child('features').child('messages').isBoolean() && newData.child('features').child('feedback').isBoolean() && newData.child('features').child('nearbyShare').isBoolean() && newData.child('updatedAt').isNumber() && newData.child('updatedBy').val() === auth.uid && (!newData.hasChild('forceSignOutAt') || newData.child('forceSignOutAt').isNumber())",
+        "features": {
+          "$other": {
+            ".validate": "$other === 'downloads' || $other === 'youtube' || $other === 'messages' || $other === 'feedback' || $other === 'nearbyShare'"
+          }
+        },
+        "$other": {
+          ".validate": "$other === 'status' || $other === 'features' || $other === 'updatedAt' || $other === 'updatedBy' || $other === 'forceSignOutAt'"
         }
       }
     },
     "downloadActivity": {
       ".read": "auth != null && auth.token.email_verified === true && root.child('admins').child(auth.uid).val() === true",
       "$uid": {
-        ".read": "auth != null && auth.token.email_verified === true && auth.uid === $uid",
+        ".read": "auth != null && auth.token.email_verified === true && auth.uid === $uid && root.child('userControls').child($uid).child('status').val() !== 'suspended' && root.child('userControls').child($uid).child('status').val() !== 'banned'",
+        ".write": "auth != null && auth.token.email_verified === true && auth.uid === $uid && !newData.exists() && root.child('userControls').child($uid).child('status').val() !== 'suspended' && root.child('userControls').child($uid).child('status').val() !== 'banned'",
         ".indexOn": ["completedAt"],
         "$downloadId": {
-          ".write": "auth != null && auth.token.email_verified === true && auth.uid === $uid && !data.exists()",
+          ".write": "auth != null && auth.token.email_verified === true && auth.uid === $uid && !data.exists() && root.child('userControls').child($uid).child('status').val() !== 'suspended' && root.child('userControls').child($uid).child('status').val() !== 'banned' && root.child('userControls').child($uid).child('features').child('downloads').val() !== false",
           ".validate": "newData.hasChildren(['uid', 'title', 'platform', 'sourceHost', 'format', 'category', 'completedAt', 'status']) && newData.child('uid').val() === $uid && newData.child('title').isString() && newData.child('title').val().length > 0 && newData.child('title').val().length <= 180 && newData.child('platform').isString() && newData.child('platform').val().length > 0 && newData.child('platform').val().length <= 60 && newData.child('sourceHost').isString() && newData.child('sourceHost').val().length <= 120 && (newData.child('format').val() === 'mp3' || newData.child('format').val() === 'mp4') && newData.child('category').isString() && newData.child('category').val().length > 0 && newData.child('category').val().length <= 80 && newData.child('completedAt').isNumber() && newData.child('status').val() === 'completed'",
           "$other": {
             ".validate": "$other === 'uid' || $other === 'title' || $other === 'platform' || $other === 'sourceHost' || $other === 'format' || $other === 'category' || $other === 'completedAt' || $other === 'status'"
