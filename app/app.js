@@ -3,6 +3,7 @@
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+  const t = (key, values) => window.MouraI18n?.t(key, values) || key;
   const storage = {
     get(key, fallback) {
       try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
@@ -40,6 +41,8 @@
     modalMode: null,
     modalPayload: null,
     pendingDownload: null,
+    authenticated: !isAndroid,
+    historyFilter: 'all',
     toastTimer: null
   };
 
@@ -74,6 +77,8 @@
     recentlyPlayedSection: $('#recentlyPlayedSection'),
     recentlyPlayedList: $('#recentlyPlayedList'),
     historyList: $('#historyList'),
+    historyStats: $('#historyStats'),
+    historyFilter: $('#historyFilter'),
     categoryManager: $('#categoryManager'),
     actionSheet: $('#actionSheet'),
     actionSheetTitle: $('#actionSheetTitle'),
@@ -119,6 +124,8 @@
     spotifyPlayer: $('#spotifyPlayer'),
     spotifyPlayerShell: $('#spotifyPlayerShell'),
     spotifyActions: $('#spotifyActions'),
+    accentColor: $('#accentColor'),
+    languageSelect: $('#languageSelect'),
     toast: $('#toast')
   };
 
@@ -131,6 +138,10 @@
   }
 
   function showView(name) {
+    if (isAndroid && !state.authenticated && name !== 'conta') {
+      name = 'conta';
+      toast(t('connectionRequired'), true);
+    }
     $$('.view').forEach(view => view.classList.toggle('active', view.id === `view-${name}`));
     $$('.nav-item[data-view]').forEach(item => item.classList.toggle('active', item.dataset.view === name));
     if (name === 'downloads') refreshLibrary();
@@ -583,6 +594,12 @@
   function verifyLink() {
     const url = normalizeUrl(els.mediaUrl.value);
     if (!url) return toast('Cole um link válido iniciado por http:// ou https://.', true);
+    if (youtubeVideoId(url)) {
+      els.youtubeUrl.value = url;
+      showView('youtube');
+      setTimeout(loadYouTubeFromInput, 120);
+      return toast('Abrimos o vídeo no player oficial. Use os recursos oficiais do YouTube para acesso offline.');
+    }
     const spotify = spotifyResource(url);
     if (spotify) {
       els.mediaTitle.textContent = 'Link oficial do Spotify';
@@ -600,8 +617,18 @@
   }
 
   function startDownload() {
+    if (isAndroid && !state.authenticated) {
+      showView('conta');
+      return;
+    }
     const url = normalizeUrl(els.mediaUrl.value);
     if (!url) return toast('Cole um link válido iniciado por http:// ou https://.', true);
+    if (youtubeVideoId(url)) {
+      els.youtubeUrl.value = url;
+      showView('youtube');
+      setTimeout(loadYouTubeFromInput, 120);
+      return toast('O catálogo do YouTube é reproduzido no player oficial e não é exportado pelo Moura.', true);
+    }
     const spotify = spotifyResource(url);
     if (spotify) {
       els.spotifyUrl.value = url;
@@ -678,10 +705,16 @@
     if (event.status === 'success') {
       setProgress(true, 100, 'Download concluído', event.message || 'Arquivo salvo na biblioteca.');
       if (state.pendingDownload) {
-        addHistory({ ...state.pendingDownload, title: event.message || state.pendingDownload.platform, status: 'concluído' });
+        const completed = {
+          ...state.pendingDownload,
+          title: event.message || state.pendingDownload.platform,
+          status: 'concluído'
+        };
+        addHistory(completed);
+        window.MouraCloud?.recordDownload?.(completed);
       }
       state.pendingDownload = null;
-      toast('Arquivo salvo em Downloads/Moura Downloads.');
+      toast(t('downloadSaved'));
       refreshLibrary();
       setTimeout(() => showView('downloads'), 650);
       return;
@@ -1079,13 +1112,77 @@
   }
 
   function renderHistory() {
-    els.historyList.innerHTML = state.history.length ? state.history.map((item, index) => `
-      <article class="history-row">
+    const completed = state.history.filter(item => item.status === 'concluído').length;
+    const failed = state.history.filter(item => item.status === 'falhou').length;
+    els.historyStats.innerHTML = `
+      <article class="history-stat"><strong>${state.history.length}</strong><small>${escapeHtml(t('total'))}</small></article>
+      <article class="history-stat"><strong>${completed}</strong><small>${escapeHtml(t('completed'))}</small></article>
+      <article class="history-stat"><strong>${failed}</strong><small>${escapeHtml(t('failed'))}</small></article>`;
+    const filter = state.historyFilter;
+    const visible = state.history
+      .map((item, originalIndex) => ({ item, originalIndex }))
+      .filter(({ item }) => filter === 'all' ||
+        (filter === 'success' && item.status === 'concluído') ||
+        (filter === 'failed' && item.status === 'falhou'));
+    const locale = window.MouraI18n?.locale || 'pt-BR';
+    els.historyList.innerHTML = visible.length ? visible.map(({ item, originalIndex }, index) => `
+      <article class="history-row" style="--history-delay:${Math.min(index * 36, 360)}ms">
         <span class="history-icon">${item.format === 'mp3' ? '♫' : '▶'}</span>
-        <div class="history-copy"><strong>${escapeHtml(item.title || item.platform || 'Download')}</strong><small>${escapeHtml(item.category || 'Outros')} • ${new Date(item.date).toLocaleString('pt-BR')} • ${escapeHtml(item.status || '')}</small></div>
+        <div class="history-copy"><strong>${escapeHtml(item.title || item.platform || 'Download')}</strong><small>${escapeHtml(item.category || 'Outros')} • ${new Date(item.date).toLocaleString(locale)}</small><span class="history-status ${item.status === 'falhou' ? 'failed' : ''}">${escapeHtml(item.status || '')}</span></div>
         <span class="history-format">${escapeHtml(String(item.format || '').toUpperCase())}</span>
-        ${item.url ? `<button class="round-action" data-repeat-history="${index}" aria-label="Usar este link novamente">↻</button>` : ''}
-      </article>`).join('') : '<div class="empty-state"><strong>Nenhuma atividade registrada</strong><span>Os downloads concluídos ou com falha aparecerão aqui.</span></div>';
+        ${item.url ? `<button class="round-action" data-repeat-history="${originalIndex}" aria-label="${escapeHtml(t('repeat'))}">↻</button>` : ''}
+      </article>`).join('') : `<div class="empty-state"><strong>${escapeHtml(t('noHistory'))}</strong><span>${escapeHtml(t('noHistoryText'))}</span></div>`;
+  }
+
+  function hexToRgb(hex) {
+    const clean = String(hex || '').replace('#', '');
+    if (!/^[0-9a-f]{6}$/i.test(clean)) return null;
+    return {
+      r: parseInt(clean.slice(0, 2), 16),
+      g: parseInt(clean.slice(2, 4), 16),
+      b: parseInt(clean.slice(4, 6), 16)
+    };
+  }
+
+  function shiftColor(hex, amount) {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return '#0ebd62';
+    const channel = value => Math.max(0, Math.min(255, Math.round(value + amount)));
+    return `#${[channel(rgb.r), channel(rgb.g), channel(rgb.b)]
+      .map(value => value.toString(16).padStart(2, '0')).join('')}`;
+  }
+
+  function applyTheme(color, announce = false) {
+    const normalized = /^#[0-9a-f]{6}$/i.test(String(color || '')) ? color.toLowerCase() : '#42f57b';
+    document.documentElement.style.setProperty('--green', normalized);
+    document.documentElement.style.setProperty('--green-2', shiftColor(normalized, -42));
+    document.documentElement.style.setProperty('--green-dark',
+      `color-mix(in srgb, ${normalized} 24%, #031008)`);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', normalized);
+    storage.set('moura_theme_v1', normalized);
+    if (els.accentColor) els.accentColor.value = normalized;
+    $$('.theme-swatch').forEach(button =>
+      button.classList.toggle('active', button.dataset.themeColor.toLowerCase() === normalized));
+    if (announce) toast(t('themeChanged'));
+  }
+
+  function setupPersonalization() {
+    const savedTheme = storage.get('moura_theme_v1', '#42f57b');
+    applyTheme(savedTheme);
+    if (els.languageSelect) els.languageSelect.value = window.MouraI18n?.locale || 'pt-BR';
+    $$('.theme-swatch').forEach(button => button.addEventListener('click', () =>
+      applyTheme(button.dataset.themeColor, true)));
+    els.accentColor?.addEventListener('input', () => applyTheme(els.accentColor.value));
+    els.accentColor?.addEventListener('change', () => toast(t('themeChanged')));
+    els.languageSelect?.addEventListener('change', () => {
+      window.MouraI18n?.setLocale(els.languageSelect.value);
+      renderHistory();
+      toast(t('languageChanged'));
+    });
+    window.addEventListener('moura:language', () => {
+      renderHistory();
+      configureInstallExperience();
+    });
   }
 
   function repeatHistoryDownload(index) {
@@ -1236,6 +1333,10 @@
     const button = event.target.closest('[data-repeat-history]');
     if (button) repeatHistoryDownload(button.dataset.repeatHistory);
   });
+  els.historyFilter?.addEventListener('change', () => {
+    state.historyFilter = els.historyFilter.value;
+    renderHistory();
+  });
 
   els.mediaUrl.addEventListener('input', () => {
     const url = normalizeUrl(els.mediaUrl.value);
@@ -1325,20 +1426,34 @@
     const link = $('#downloadApkLink');
     if (!isAndroid) {
       document.body.classList.add('netlify-mode');
+      document.body.classList.remove('auth-pending', 'auth-required', 'auth-unverified');
       return;
     }
+    document.body.classList.add('auth-app', 'auth-required');
+    document.body.classList.remove('auth-pending');
+    showView('conta');
     link?.classList.add('hidden');
     $('#como-instalar')?.classList.add('hidden');
     $('#webOnlyNotice')?.classList.add('hidden');
-    $('#heroTitle').textContent = 'Baixe, reproduza e organize';
-    $('#heroDescription').textContent = 'Cole um link autorizado, escolha áudio ou vídeo e use o player interno sem sair do aplicativo.';
-    $('#heroLibraryBtn').textContent = 'Ver biblioteca';
+    $('#heroTitle').textContent = t('appHeroTitle');
+    $('#heroDescription').textContent = t('appHeroDescription');
+    $('#heroLibraryBtn').textContent = t('navLibrary');
   }
 
   window.MouraUI = Object.freeze({
     showView,
     toast,
-    isAndroid
+    isAndroid,
+    get authenticated() { return state.authenticated; }
+  });
+
+  window.addEventListener('moura:auth', event => {
+    const status = event.detail?.status || 'signed-out';
+    state.authenticated = status === 'verified';
+    document.body.classList.toggle('auth-required', status === 'signed-out');
+    document.body.classList.toggle('auth-unverified', status === 'unverified');
+    document.body.classList.toggle('auth-ready', status === 'verified' || !isAndroid);
+    if (isAndroid && !state.authenticated) showView('conta');
   });
 
   if (!isAndroid && 'serviceWorker' in navigator) {
@@ -1357,5 +1472,6 @@
   consumeSharedUrl();
   setupAppSharing();
   setupUpdates();
+  setupPersonalization();
   configureInstallExperience();
 })();

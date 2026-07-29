@@ -1,5 +1,8 @@
 const FIREBASE_VERSION = '12.16.0';
 const PRIVACY_VERSION = '2026-07-28';
+const AUTH_ATTEMPT_KEY = 'moura_auth_attempts_v1';
+const AUTH_MAX_ATTEMPTS = 5;
+const AUTH_LOCK_MS = 15 * 60 * 1000;
 const firebaseConfig = {
   apiKey: 'AIzaSyDY0J84Pyy__e20YhtUfP0WU5lHr8X7CBA',
   authDomain: 'music-bd7a7.firebaseapp.com',
@@ -11,6 +14,7 @@ const firebaseConfig = {
 };
 
 const $ = selector => document.querySelector(selector);
+const t = (key, values) => window.MouraI18n?.t(key, values) || key;
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({
   '&': '&amp;',
   '<': '&lt;',
@@ -29,11 +33,24 @@ const ui = {
   email: $('#authEmail'),
   password: $('#authPassword'),
   consent: $('#privacyConsent'),
-  signUp: $('#emailSignUpBtn'),
+  authModeLogin: $('#authModeLogin'),
+  authModeSignup: $('#authModeSignup'),
+  authTitle: $('#authCardTitle'),
+  authDescription: $('#authCardDescription'),
+  authNameGroup: $('#authNameGroup'),
+  consentGroup: $('#privacyConsentGroup'),
+  passwordRequirements: $('#passwordRequirements'),
+  authSubmit: $('#emailAuthSubmitBtn'),
+  authAttempts: $('#authAttemptStatus'),
+  togglePassword: $('#togglePasswordBtn'),
   reset: $('#passwordResetBtn'),
-  google: $('#googleSignInBtn'),
-  googleHelp: $('#googleLoginHelp'),
   signOut: $('#signOutBtn'),
+  verificationPanel: $('#verificationPanel'),
+  verifiedContent: $('#verifiedAccountContent'),
+  verificationEmail: $('#verificationEmail'),
+  checkVerification: $('#checkVerificationBtn'),
+  resendVerification: $('#resendVerificationBtn'),
+  verificationSignOut: $('#verificationSignOutBtn'),
   profileName: $('#profileName'),
   profileEmail: $('#profileEmail'),
   profileAvatar: $('#profileAvatar'),
@@ -49,12 +66,17 @@ const ui = {
   adminUsersCount: $('#adminUsersCount'),
   adminFeedbackCount: $('#adminFeedbackCount'),
   adminOpenCount: $('#adminOpenCount'),
+  adminDownloadsCount: $('#adminDownloadsCount'),
   adminUserSearch: $('#adminUserSearch'),
   adminUsersList: $('#adminUsersList'),
   adminMessageForm: $('#adminMessageForm'),
   adminMessageUser: $('#adminMessageUser'),
   adminMessageTitle: $('#adminMessageTitle'),
   adminMessageBody: $('#adminMessageBody'),
+  adminMessageSubmit: $('#adminMessageSubmit'),
+  adminActivityTitle: $('#adminActivityTitle'),
+  adminActivityCount: $('#adminActivityCount'),
+  adminDownloadActivity: $('#adminDownloadActivity'),
   adminFeedbackFilter: $('#adminFeedbackFilter'),
   adminFeedbackList: $('#adminFeedbackList')
 };
@@ -66,6 +88,11 @@ const cloudState = {
   feedback: [],
   messages: {},
   reads: {},
+  broadcasts: {},
+  broadcastReads: {},
+  downloadActivity: {},
+  selectedUserUid: '',
+  authMode: 'login',
   unsubscribe: []
 };
 
@@ -91,7 +118,7 @@ function setCloudStatus(text, ready = false) {
 function formatDate(value) {
   const timestamp = Number(value);
   if (!Number.isFinite(timestamp) || timestamp <= 0) return 'agora';
-  return new Intl.DateTimeFormat('pt-BR', {
+  return new Intl.DateTimeFormat(window.MouraI18n?.locale || 'pt-BR', {
     dateStyle: 'short',
     timeStyle: 'short'
   }).format(new Date(timestamp));
@@ -103,23 +130,75 @@ function authErrorMessage(error) {
       code.includes('user-not-found')) {
     return 'E-mail ou senha incorretos.';
   }
-  if (code.includes('email-already-in-use')) return 'Este e-mail já possui uma conta.';
-  if (code.includes('weak-password')) return 'Use uma senha com pelo menos 6 caracteres.';
+  if (code.includes('email-already-in-use')) return 'Não foi possível criar a conta com estes dados.';
+  if (code.includes('weak-password')) return 'A senha não atende aos requisitos de segurança.';
   if (code.includes('invalid-email')) return 'Confira o endereço de e-mail.';
   if (code.includes('too-many-requests')) {
     return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
   }
   if (code.includes('unauthorized-domain')) {
-    return 'Este endereço ainda precisa ser autorizado no Firebase Authentication.';
+    return 'Este endereço ainda não está autorizado para o acesso.';
   }
-  if (code.includes('popup-blocked') || code.includes('operation-not-supported-in-this-environment')) {
-    return 'O login Google não funciona dentro deste Android. Entre com e-mail e senha.';
-  }
-  if (code.includes('network-request-failed')) return 'Sem conexão com o Firebase.';
+  if (code.includes('network-request-failed')) return 'Sem conexão com o serviço de conta.';
   if (code.includes('permission-denied')) {
-    return 'Acesso negado pelas regras do banco. Confira as regras e o UID do administrador.';
+    return 'Acesso negado. Entre novamente ou confirme seu e-mail.';
   }
-  return error?.message || 'Não foi possível concluir esta ação.';
+  return 'Não foi possível concluir esta ação. Confira os dados e tente novamente.';
+}
+
+function dispatchAuth(status, user = null) {
+  window.dispatchEvent(new CustomEvent('moura:auth', {
+    detail: { status, uid: user?.uid || '', email: user?.email || '' }
+  }));
+}
+
+function readAttemptState() {
+  try {
+    const value = JSON.parse(localStorage.getItem(AUTH_ATTEMPT_KEY) || '{}');
+    if (Number(value.lockedUntil || 0) <= Date.now() && Number(value.lockedUntil || 0) > 0) {
+      localStorage.removeItem(AUTH_ATTEMPT_KEY);
+      return { failures: 0, lockedUntil: 0 };
+    }
+    return {
+      failures: Math.max(0, Number(value.failures || 0)),
+      lockedUntil: Math.max(0, Number(value.lockedUntil || 0))
+    };
+  } catch {
+    return { failures: 0, lockedUntil: 0 };
+  }
+}
+
+function saveAttemptState(value) {
+  localStorage.setItem(AUTH_ATTEMPT_KEY, JSON.stringify(value));
+}
+
+function renderAttempts() {
+  if (!ui.authAttempts) return false;
+  const attempt = readAttemptState();
+  const locked = attempt.lockedUntil > Date.now();
+  const remaining = Math.max(0, AUTH_MAX_ATTEMPTS - attempt.failures);
+  ui.authAttempts.textContent = locked
+    ? t('locked', { minutes: Math.max(1, Math.ceil((attempt.lockedUntil - Date.now()) / 60000)) })
+    : t('attempts', { count: remaining });
+  ui.authAttempts.classList.toggle('warning', !locked && remaining <= 2);
+  ui.authAttempts.classList.toggle('locked', locked);
+  ui.authSubmit.disabled = locked;
+  return locked;
+}
+
+function registerFailedAttempt() {
+  const attempt = readAttemptState();
+  const failures = attempt.failures + 1;
+  saveAttemptState({
+    failures,
+    lockedUntil: failures >= AUTH_MAX_ATTEMPTS ? Date.now() + AUTH_LOCK_MS : 0
+  });
+  renderAttempts();
+}
+
+function clearAttempts() {
+  localStorage.removeItem(AUTH_ATTEMPT_KEY);
+  renderAttempts();
 }
 
 function clearListeners() {
@@ -140,6 +219,22 @@ function showSignedOut() {
   ui.adminPanel?.classList.add('hidden');
   if (ui.openAccount) ui.openAccount.textContent = 'Entrar';
   setCloudStatus('Conta desconectada');
+  dispatchAuth('signed-out');
+  renderAttempts();
+}
+
+function showUnverified(user) {
+  clearListeners();
+  cloudState.user = user;
+  cloudState.isAdmin = false;
+  ui.signedOut?.classList.add('hidden');
+  ui.signedIn?.classList.remove('hidden');
+  ui.verificationPanel?.classList.remove('hidden');
+  ui.verifiedContent?.classList.add('hidden');
+  ui.verificationEmail.textContent = user.email || 'seu e-mail';
+  if (ui.openAccount) ui.openAccount.textContent = 'Confirmar e-mail';
+  setCloudStatus('Confirme seu e-mail');
+  dispatchAuth('unverified', user);
 }
 
 async function syncUserProfile(user) {
@@ -157,7 +252,8 @@ async function syncUserProfile(user) {
       provider,
       createdAt: databaseSdk.serverTimestamp(),
       lastSeenAt: databaseSdk.serverTimestamp(),
-      privacyVersion: PRIVACY_VERSION
+      privacyVersion: PRIVACY_VERSION,
+      emailVerified: Boolean(user.emailVerified)
     });
   } else {
     await databaseSdk.update(userRef, {
@@ -165,7 +261,8 @@ async function syncUserProfile(user) {
       displayName,
       provider,
       lastSeenAt: databaseSdk.serverTimestamp(),
-      privacyVersion: PRIVACY_VERSION
+      privacyVersion: PRIVACY_VERSION,
+      emailVerified: Boolean(user.emailVerified)
     });
   }
   return displayName;
@@ -190,17 +287,23 @@ function renderOwnFeedback(entries) {
 
 function renderOwnMessages() {
   if (!ui.myMessages) return;
-  const sorted = Object.entries(cloudState.messages || {})
-    .map(([id, item]) => ({ id, ...item }))
+  const targeted = Object.entries(cloudState.messages || {})
+    .map(([id, item]) => ({ id: `target-${id}`, sourceId: id, source: 'target', ...item }));
+  const broadcasts = Object.entries(cloudState.broadcasts || {})
+    .map(([id, item]) => ({ id: `broadcast-${id}`, sourceId: id, source: 'broadcast', ...item }));
+  const sorted = [...targeted, ...broadcasts]
     .sort((left, right) => Number(right.createdAt || 0) - Number(left.createdAt || 0));
-  const unread = sorted.filter(item => !cloudState.reads?.[item.id]).length;
+  const isRead = item => item.source === 'broadcast'
+    ? Boolean(cloudState.broadcastReads?.[item.sourceId])
+    : Boolean(cloudState.reads?.[item.sourceId]);
+  const unread = sorted.filter(item => !isRead(item)).length;
   ui.unreadBadge.textContent = String(unread);
   ui.unreadBadge.classList.toggle('hidden', unread === 0);
   ui.myMessages.innerHTML = sorted.length ? sorted.map(item => `
-    <article class="cloud-item ${cloudState.reads?.[item.id] ? '' : 'unread'}" data-cloud-message="${escapeHtml(item.id)}">
+    <article class="cloud-item ${isRead(item) ? '' : 'unread'}" data-cloud-message="${escapeHtml(item.sourceId)}" data-message-source="${escapeHtml(item.source)}">
       <div class="cloud-item-head">
         <div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(formatDate(item.createdAt))} · Leandro Moura</small></div>
-        ${cloudState.reads?.[item.id] ? '' : '<span class="status-chip">Nova</span>'}
+        ${isRead(item) ? '' : `<span class="status-chip">${item.source === 'broadcast' ? 'Comunicado' : 'Nova'}</span>`}
       </div>
       <p>${escapeHtml(item.body)}</p>
     </article>`).join('')
@@ -229,7 +332,25 @@ function bindOwnData(user) {
     },
     error => toast(authErrorMessage(error), true)
   );
-  cloudState.unsubscribe.push(feedbackStop, messagesStop, readsStop);
+  const broadcastsStop = databaseSdk.onValue(
+    databaseSdk.ref(database, 'broadcasts'),
+    snapshot => {
+      cloudState.broadcasts = snapshot.val() || {};
+      renderOwnMessages();
+    },
+    error => toast(authErrorMessage(error), true)
+  );
+  const broadcastReadsStop = databaseSdk.onValue(
+    databaseSdk.ref(database, `broadcastReads/${user.uid}`),
+    snapshot => {
+      cloudState.broadcastReads = snapshot.val() || {};
+      renderOwnMessages();
+    },
+    error => toast(authErrorMessage(error), true)
+  );
+  cloudState.unsubscribe.push(
+    feedbackStop, messagesStop, readsStop, broadcastsStop, broadcastReadsStop
+  );
 }
 
 function flattenFeedback(value) {
@@ -255,13 +376,45 @@ function renderAdminUsers() {
   ui.adminUsersList.innerHTML = visible.length ? visible.map(user => `
     <button class="admin-user" type="button" data-admin-user="${escapeHtml(user.uid)}">
       <span><strong>${escapeHtml(user.displayName || 'Usuário')}</strong><small>${escapeHtml(user.email || 'Sem e-mail')} · último acesso ${escapeHtml(formatDate(user.lastSeenAt))}</small></span>
-      <span class="status-chip">${escapeHtml(user.provider === 'google.com' ? 'Google' : 'E-mail')}</span>
+      <span class="status-chip">${user.emailVerified === false ? 'Pendente' : 'Verificado'}</span>
     </button>`).join('')
     : '<div class="empty-cloud">Nenhum perfil encontrado.</div>';
   const selected = ui.adminMessageUser.value;
-  ui.adminMessageUser.innerHTML = '<option value="">Selecione um usuário</option>' +
+  ui.adminMessageUser.innerHTML = '<option value="">Selecione um usuário</option><option value="__all__">Todos os usuários</option>' +
     users.map(user => `<option value="${escapeHtml(user.uid)}">${escapeHtml(user.displayName || 'Usuário')} · ${escapeHtml(user.email || 'sem e-mail')}</option>`).join('');
-  if (users.some(user => user.uid === selected)) ui.adminMessageUser.value = selected;
+  if (selected === '__all__' || users.some(user => user.uid === selected)) {
+    ui.adminMessageUser.value = selected;
+  }
+}
+
+function flattenDownloads(value) {
+  const result = [];
+  Object.entries(value || {}).forEach(([uid, items]) => {
+    Object.entries(items || {}).forEach(([id, item]) => result.push({ uid, id, ...item }));
+  });
+  return result.sort(
+    (left, right) => Number(right.completedAt || 0) - Number(left.completedAt || 0)
+  );
+}
+
+function renderAdminActivity(uid = cloudState.selectedUserUid) {
+  if (!ui.adminDownloadActivity) return;
+  cloudState.selectedUserUid = uid || '';
+  const user = cloudState.users[uid] || {};
+  const activity = flattenDownloads(uid ? { [uid]: cloudState.downloadActivity[uid] || {} } : {});
+  ui.adminActivityTitle.textContent = uid
+    ? `Downloads de ${user.displayName || user.email || 'usuário'}`
+    : 'Selecione um usuário';
+  ui.adminActivityCount.textContent = `${activity.length} ${activity.length === 1 ? 'item' : 'itens'}`;
+  ui.adminDownloadActivity.innerHTML = activity.length ? activity.map(item => `
+    <article class="admin-activity-item">
+      <div>
+        <strong>${escapeHtml(item.title || 'Download')}</strong>
+        <small>${escapeHtml(item.category || 'Outros')} · ${escapeHtml(item.platform || item.sourceHost || 'Link direto')} · ${escapeHtml(formatDate(item.completedAt))}</small>
+      </div>
+      <span class="history-format">${escapeHtml(String(item.format || '').toUpperCase())}</span>
+    </article>`).join('')
+    : `<div class="empty-cloud">${uid ? 'Nenhum download concluído registrado para este perfil.' : 'Toque em um perfil para ver a atividade.'}</div>`;
 }
 
 function feedbackLabel(item) {
@@ -314,15 +467,31 @@ function bindAdminData() {
     },
     error => toast(authErrorMessage(error), true)
   );
-  cloudState.unsubscribe.push(usersStop, feedbackStop);
+  const activityStop = databaseSdk.onValue(
+    databaseSdk.ref(database, 'downloadActivity'),
+    snapshot => {
+      cloudState.downloadActivity = snapshot.val() || {};
+      ui.adminDownloadsCount.textContent = String(flattenDownloads(cloudState.downloadActivity).length);
+      renderAdminActivity();
+    },
+    error => toast(authErrorMessage(error), true)
+  );
+  cloudState.unsubscribe.push(usersStop, feedbackStop, activityStop);
 }
 
 async function showSignedIn(user) {
+  if (!user.emailVerified) {
+    showUnverified(user);
+    return;
+  }
   clearListeners();
   cloudState.user = user;
   ui.signedOut?.classList.add('hidden');
   ui.signedIn?.classList.remove('hidden');
+  ui.verificationPanel?.classList.add('hidden');
+  ui.verifiedContent?.classList.remove('hidden');
   setCloudStatus('Sincronizado', true);
+  dispatchAuth('verified', user);
   let displayName = user.displayName || user.email?.split('@')[0] || 'Usuário';
   try {
     displayName = await syncUserProfile(user);
@@ -347,17 +516,47 @@ async function showSignedIn(user) {
   if (cloudState.isAdmin) bindAdminData();
 }
 
-async function signInWithEmail(event) {
+function setAuthMode(mode) {
+  cloudState.authMode = mode === 'signup' ? 'signup' : 'login';
+  const signup = cloudState.authMode === 'signup';
+  ui.authModeLogin.classList.toggle('active', !signup);
+  ui.authModeSignup.classList.toggle('active', signup);
+  ui.authModeLogin.setAttribute('aria-selected', String(!signup));
+  ui.authModeSignup.setAttribute('aria-selected', String(signup));
+  document.querySelectorAll('.signup-only').forEach(element =>
+    element.classList.toggle('hidden', !signup));
+  ui.authTitle.textContent = t(signup ? 'signupTitle' : 'loginTitle');
+  ui.authDescription.textContent = t(signup ? 'signupDescription' : 'loginDescription');
+  ui.authSubmit.textContent = t(signup ? 'signup' : 'login');
+  ui.password.autocomplete = signup ? 'new-password' : 'current-password';
+  ui.password.placeholder = signup ? 'Crie uma senha forte' : 'Digite sua senha';
+}
+
+function strongPassword(value) {
+  return value.length >= 10 &&
+    /[a-z]/.test(value) &&
+    /[A-Z]/.test(value) &&
+    /\d/.test(value) &&
+    /[^A-Za-z0-9]/.test(value);
+}
+
+async function submitEmailAuth(event) {
   event.preventDefault();
+  if (renderAttempts()) return;
   const email = ui.email.value.trim();
   const password = ui.password.value;
   if (!email || !password) return toast('Informe o e-mail e a senha.', true);
+  if (cloudState.authMode === 'signup') {
+    return createEmailAccount();
+  }
   try {
     setCloudStatus('Entrando…');
     await authSdk.signInWithEmailAndPassword(auth, email, password);
+    clearAttempts();
     ui.password.value = '';
     toast('Conta conectada.');
   } catch (error) {
+    registerFailedAttempt();
     setCloudStatus('Falha no acesso');
     toast(authErrorMessage(error), true);
   }
@@ -368,6 +567,9 @@ async function createEmailAccount() {
   const email = ui.email.value.trim();
   const password = ui.password.value;
   if (!name) return toast('Informe seu nome para criar a conta.', true);
+  if (!strongPassword(password)) {
+    return toast('Use 10 ou mais caracteres, com maiúscula, minúscula, número e símbolo.', true);
+  }
   if (!ui.consent.checked) {
     return toast('Leia e marque a Política de Privacidade e os Termos.', true);
   }
@@ -375,25 +577,14 @@ async function createEmailAccount() {
     setCloudStatus('Criando conta…');
     const credential = await authSdk.createUserWithEmailAndPassword(auth, email, password);
     await authSdk.updateProfile(credential.user, { displayName: name });
-    await syncUserProfile(credential.user);
+    await authSdk.sendEmailVerification(credential.user);
+    clearAttempts();
     ui.password.value = '';
-    toast('Conta criada com segurança.');
+    showUnverified(credential.user);
+    toast('Conta criada. Enviamos um link para confirmar seu e-mail.');
   } catch (error) {
+    registerFailedAttempt();
     setCloudStatus('Falha no cadastro');
-    toast(authErrorMessage(error), true);
-  }
-}
-
-async function signInWithGoogle() {
-  if (window.MouraUI?.isAndroid) {
-    return toast('No APK, entre com e-mail e senha. O Google bloqueia login em navegadores incorporados.', true);
-  }
-  try {
-    const provider = new authSdk.GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-    await authSdk.signInWithPopup(auth, provider);
-    toast('Conta Google conectada.');
-  } catch (error) {
     toast(authErrorMessage(error), true);
   }
 }
@@ -448,22 +639,23 @@ async function sendAdminMessage(event) {
   const title = ui.adminMessageTitle.value.trim();
   const body = ui.adminMessageBody.value.trim();
   if (!targetUid || !title || !body) {
-    return toast('Escolha o usuário, o título e a mensagem.', true);
+    return toast('Escolha o destinatário, o título e a mensagem.', true);
   }
   try {
+    const isBroadcast = targetUid === '__all__';
     const destination = databaseSdk.push(
-      databaseSdk.ref(database, `messages/${targetUid}`)
+      databaseSdk.ref(database, isBroadcast ? 'broadcasts' : `messages/${targetUid}`)
     );
     await databaseSdk.set(destination, {
       title,
       body,
       createdAt: databaseSdk.serverTimestamp(),
       sentBy: cloudState.user.uid,
-      type: 'admin'
+      type: isBroadcast ? 'broadcast' : 'admin'
     });
     ui.adminMessageTitle.value = '';
     ui.adminMessageBody.value = '';
-    toast('Mensagem privada enviada.');
+    toast(isBroadcast ? 'Comunicado enviado para todos os usuários.' : 'Mensagem privada enviada.');
   } catch (error) {
     toast(authErrorMessage(error), true);
   }
@@ -497,14 +689,43 @@ async function saveAdminFeedback(article) {
 }
 
 function attachEvents() {
-  ui.emailForm?.addEventListener('submit', signInWithEmail);
-  ui.signUp?.addEventListener('click', createEmailAccount);
+  ui.emailForm?.addEventListener('submit', submitEmailAuth);
+  ui.authModeLogin?.addEventListener('click', () => setAuthMode('login'));
+  ui.authModeSignup?.addEventListener('click', () => setAuthMode('signup'));
+  ui.togglePassword?.addEventListener('click', () => {
+    const visible = ui.password.type === 'text';
+    ui.password.type = visible ? 'password' : 'text';
+    ui.togglePassword.textContent = t(visible ? 'show' : 'hide');
+  });
   ui.reset?.addEventListener('click', resetPassword);
-  ui.google?.addEventListener('click', signInWithGoogle);
   ui.signOut?.addEventListener('click', async () => {
     try {
       await authSdk.signOut(auth);
       toast('Conta desconectada.');
+    } catch (error) {
+      toast(authErrorMessage(error), true);
+    }
+  });
+  ui.verificationSignOut?.addEventListener('click', () => authSdk.signOut(auth));
+  ui.resendVerification?.addEventListener('click', async () => {
+    if (!auth.currentUser) return;
+    try {
+      await authSdk.sendEmailVerification(auth.currentUser);
+      toast('E-mail de confirmação reenviado. Confira também a caixa de spam.');
+    } catch (error) {
+      toast(authErrorMessage(error), true);
+    }
+  });
+  ui.checkVerification?.addEventListener('click', async () => {
+    if (!auth.currentUser) return;
+    try {
+      await authSdk.reload(auth.currentUser);
+      if (auth.currentUser.emailVerified) {
+        showSignedIn(auth.currentUser);
+        toast('E-mail confirmado. Bem-vindo ao Moura!');
+      } else {
+        toast('A confirmação ainda não apareceu. Abra o link do e-mail e tente novamente.', true);
+      }
     } catch (error) {
       toast(authErrorMessage(error), true);
     }
@@ -525,10 +746,11 @@ function attachEvents() {
     const article = event.target.closest('[data-cloud-message]');
     if (!article || !cloudState.user) return;
     try {
+      const broadcast = article.dataset.messageSource === 'broadcast';
       await databaseSdk.set(
         databaseSdk.ref(
           database,
-          `messageReads/${cloudState.user.uid}/${article.dataset.cloudMessage}`
+          `${broadcast ? 'broadcastReads' : 'messageReads'}/${cloudState.user.uid}/${article.dataset.cloudMessage}`
         ),
         databaseSdk.serverTimestamp()
       );
@@ -541,9 +763,17 @@ function attachEvents() {
     const button = event.target.closest('[data-admin-user]');
     if (!button) return;
     ui.adminMessageUser.value = button.dataset.adminUser;
+    renderAdminActivity(button.dataset.adminUser);
     ui.adminMessageTitle.focus();
     document.querySelectorAll('.admin-user').forEach(item =>
       item.classList.toggle('selected', item === button));
+  });
+  ui.adminMessageUser?.addEventListener('change', () => {
+    const collective = ui.adminMessageUser.value === '__all__';
+    ui.adminMessageSubmit.textContent = collective
+      ? 'Enviar comunicado para todos'
+      : 'Enviar mensagem privada';
+    if (!collective && ui.adminMessageUser.value) renderAdminActivity(ui.adminMessageUser.value);
   });
   ui.adminMessageForm?.addEventListener('submit', sendAdminMessage);
   ui.adminFeedbackFilter?.addEventListener('change', renderAdminFeedback);
@@ -551,18 +781,21 @@ function attachEvents() {
     const button = event.target.closest('[data-save-feedback]');
     if (button) saveAdminFeedback(button.closest('.admin-feedback'));
   });
+  setAuthMode('login');
+  renderAttempts();
+  window.addEventListener('moura:language', () => {
+    setAuthMode(cloudState.authMode);
+    renderAttempts();
+    renderOwnMessages();
+    renderAdminActivity();
+  });
+  window.setInterval(renderAttempts, 30000);
 }
 
 async function startCloud() {
   if (!ui.cloudStatus) return;
   setCloudStatus('Conectando…');
   attachEvents();
-  if (window.MouraUI?.isAndroid) {
-    ui.google.textContent = 'Google disponível na versão web';
-    ui.google.setAttribute('aria-disabled', 'true');
-    ui.googleHelp.textContent =
-      'No APK Android, use e-mail e senha. O Google não permite login seguro dentro de navegadores incorporados.';
-  }
   try {
     const [appModule, authModule, databaseModule] = await Promise.all([
       import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`),
@@ -584,10 +817,41 @@ async function startCloud() {
     });
   } catch (error) {
     showSignedOut();
-    setCloudStatus('Nuvem indisponível');
-    toast('A área de conta precisa de internet para conectar ao Firebase.', true);
+    setCloudStatus('Serviço indisponível');
+    toast('A área de conta precisa de internet. Tente novamente em alguns instantes.', true);
     console.error(error);
   }
 }
 
+async function recordDownload(item) {
+  if (!cloudState.user?.emailVerified || !database || !databaseSdk) return false;
+  try {
+    let sourceHost = '';
+    try {
+      sourceHost = new URL(String(item?.url || '')).hostname.replace(/^www\./, '').slice(0, 120);
+    } catch { /* link já foi validado no fluxo local; nenhum link é persistido */ }
+    const rawTitle = String(item?.title || item?.platform || 'Download')
+      .replace(/[\r\n\t]+/g, ' ')
+      .trim();
+    const destination = databaseSdk.push(
+      databaseSdk.ref(database, `downloadActivity/${cloudState.user.uid}`)
+    );
+    await databaseSdk.set(destination, {
+      uid: cloudState.user.uid,
+      title: rawTitle.slice(0, 180),
+      platform: String(item?.platform || 'Link direto').slice(0, 60),
+      sourceHost,
+      format: item?.format === 'mp4' ? 'mp4' : 'mp3',
+      category: String(item?.category || 'Outros').slice(0, 80),
+      completedAt: databaseSdk.serverTimestamp(),
+      status: 'completed'
+    });
+    return true;
+  } catch (error) {
+    console.warn('Não foi possível registrar a atividade mínima.', error);
+    return false;
+  }
+}
+
+window.MouraCloud = Object.freeze({ recordDownload });
 startCloud();

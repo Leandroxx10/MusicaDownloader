@@ -136,6 +136,7 @@ def validate_required_features() -> None:
         / "downloads"
         / "UiUpdateManager.java",
         WEB_DIR / "cloud.js",
+        WEB_DIR / "i18n.js",
         ROOT / "firebase" / "database.rules.json",
         ROOT / "FIREBASE-SETUP.md",
     ]
@@ -198,9 +199,10 @@ def validate_required_features() -> None:
         "atualização do processador no primeiro uso": "updateEngineWhenNeeded(false)"
         in download_service,
         "nova tentativa automática": 'sendEvent("retrying"' in download_service,
-        "rota pública alternativa": "android_vr,tv_simply,web_embedded"
+        "catálogos protegidos somente nos players oficiais": "if (isYouTubeUrl(url))"
         in download_service
-        and "verificação anti-robô" in download_service,
+        and "if (isSpotifyUrl(url))" in download_service
+        and "não é exportado pelo Moura" in app_js,
         "progresso por etapas": "normalizedDownloadProgress" in download_service
         and 'sendEvent("finalizing"' in download_service,
         "cancelamento de mídia": "cancelLocalDownload" in app_js
@@ -246,9 +248,22 @@ def validate_required_features() -> None:
         and "firebase-database.js" in required[12].read_text(encoding="utf-8")
         and "firebase-firestore" not in required[12].read_text(encoding="utf-8")
         and "firebase-storage" not in required[12].read_text(encoding="utf-8")
-        and '"admins"' in required[13].read_text(encoding="utf-8")
-        and '"feedback"' in required[13].read_text(encoding="utf-8")
-        and '"messages"' in required[13].read_text(encoding="utf-8"),
+        and '"admins"' in required[14].read_text(encoding="utf-8")
+        and '"feedback"' in required[14].read_text(encoding="utf-8")
+        and '"messages"' in required[14].read_text(encoding="utf-8"),
+        "conta obrigatória e e-mail verificado": 'id="authModeLogin"' in index
+        and 'id="authModeSignup"' in index
+        and 'id="verificationPanel"' in index
+        and "auth.token.email_verified === true" in required[14].read_text(encoding="utf-8")
+        and "AUTH_MAX_ATTEMPTS" in required[12].read_text(encoding="utf-8"),
+        "mensagens coletivas e atividade administrativa": '"broadcasts"' in required[14].read_text(encoding="utf-8")
+        and '"downloadActivity"' in required[14].read_text(encoding="utf-8")
+        and "recordDownload" in required[12].read_text(encoding="utf-8")
+        and 'id="adminDownloadActivity"' in index,
+        "idiomas e tema personalizável": "zh-CN" in required[13].read_text(encoding="utf-8")
+        and "ja:" in required[13].read_text(encoding="utf-8")
+        and 'id="languageSelect"' in index
+        and 'id="accentColor"' in index,
         "download completo no site": "moura-downloads.apk" in index
         and "moura-downloads-arm64.apk" not in index,
         "somente QR Code no app": 'id="appQrCode"' in index

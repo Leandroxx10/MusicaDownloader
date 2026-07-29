@@ -44,10 +44,17 @@ Os clientes do aplicativo não têm permissão para criar ou alterar administrad
 
 Em **Authentication → Sign-in method**, mantenha habilitados:
 
-- Email/Password;
-- Google, se também quiser login no navegador.
+- Email/Password.
 
-O login Google não é usado dentro do WebView do APK, porque o Google bloqueia autenticação OAuth em navegadores incorporados. No Android, use e-mail e senha. Isso evita um fluxo inseguro. Para uma futura publicação na Play Store, o login Google poderá ser migrado para o SDK Android nativo.
+O Moura não oferece login Google. Entrar e criar conta usam a mesma tela, alternando entre os dois modos. Toda conta nova precisa confirmar o e-mail antes de acessar o restante do aplicativo.
+
+Em **Authentication → Settings**, aplique também:
+
+- política de senha forte, com no mínimo 10 caracteres, maiúscula, minúscula, número e símbolo;
+- proteção contra enumeração de e-mails;
+- limite/monitoramento de tentativas suspeitas oferecido pelo Authentication.
+
+O aplicativo mostra as cinco tentativas locais restantes e bloqueia novas tentativas naquele aparelho por 15 minutos. Essa camada complementa, mas não substitui, os limites do Authentication.
 
 Se usar a área de conta em um domínio web no futuro, adicione o domínio do Netlify em **Authentication → Settings → Authorized domains**.
 
@@ -69,13 +76,19 @@ users/{uid}
 feedback/{uid}/{feedbackId}
 messages/{uid}/{messageId}
 messageReads/{uid}/{messageId}
+broadcasts/{messageId}
+broadcastReads/{uid}/{messageId}
+downloadActivity/{uid}/{downloadId}
 ```
 
-Cada usuário lê apenas o próprio perfil, feedback e mensagens. Somente um UID presente em `admins` pode listar perfis, ler todos os feedbacks, responder e enviar mensagens.
+Cada usuário verificado lê apenas o próprio perfil, feedback, mensagens e atividade. Somente um UID presente em `admins` pode listar perfis, ler todos os feedbacks e atividades, responder, enviar mensagens privadas e publicar comunicados coletivos.
+
+O registro de atividade guarda apenas título apresentado, plataforma/domínio, formato, categoria, status concluído e data. O link completo e o caminho do arquivo no celular não são enviados.
 
 ## 6. Antes da publicação pública
 
 - Restrinja a chave web do Firebase às APIs necessárias no Google Cloud Console.
+- Ative o App Check quando houver um provedor compatível com a distribuição escolhida e teste antes de exigir tokens.
 - Confirme periodicamente que o e-mail público do controlador, `leandro12done@gmail.com`, continua ativo e acessível.
 - Revise periodicamente os administradores e remova UIDs antigos no Firebase Console.
 - Exporte backups do Realtime Database antes de mudanças grandes.

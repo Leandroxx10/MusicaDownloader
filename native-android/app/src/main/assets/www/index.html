@@ -9,11 +9,11 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=12">
-  <link rel="stylesheet" href="./download.css?v=12">
+  <link rel="stylesheet" href="./styles.css?v=13">
+  <link rel="stylesheet" href="./download.css?v=13">
   <title>Moura Downloads</title>
 </head>
-<body>
+<body class="auth-pending">
   <div class="app-shell">
     <aside class="sidebar" aria-label="Navegação principal">
       <div class="brand">
@@ -21,12 +21,12 @@
         <div><strong>Moura</strong><span>Downloads</span></div>
       </div>
       <nav class="side-nav">
-        <button class="nav-item active" data-view="inicio"><span>⌂</span>Início</button>
-        <button class="nav-item" data-view="youtube"><span>▶</span>YouTube</button>
-        <button class="nav-item" data-view="downloads"><span>⇩</span>Biblioteca</button>
-        <button class="nav-item" data-view="historico"><span>◷</span>Histórico</button>
-        <button class="nav-item" data-view="conta"><span>●</span>Minha conta</button>
-        <button class="nav-item" data-view="configuracoes"><span>⚙</span>Ajustes</button>
+        <button class="nav-item active" data-view="inicio"><span>⌂</span><em data-i18n="navHome">Início</em></button>
+        <button class="nav-item" data-view="youtube"><span>▶</span><em data-i18n="navYouTube">YouTube</em></button>
+        <button class="nav-item" data-view="downloads"><span>⇩</span><em data-i18n="navLibrary">Biblioteca</em></button>
+        <button class="nav-item" data-view="historico"><span>◷</span><em data-i18n="navHistory">Histórico</em></button>
+        <button class="nav-item" data-view="conta"><span>●</span><em data-i18n="navAccount">Minha conta</em></button>
+        <button class="nav-item" data-view="configuracoes"><span>⚙</span><em data-i18n="navSettings">Ajustes</em></button>
       </nav>
       <div class="sidebar-note">
         <span class="status-dot"></span>
@@ -78,17 +78,17 @@
 
         <section class="download-card" aria-labelledby="downloadTitle">
           <div class="section-heading">
-            <div><span class="eyebrow">NOVO DOWNLOAD</span><h2 id="downloadTitle">Cole o link da mídia</h2></div>
+            <div><span class="eyebrow" data-i18n="downloadEyebrow">NOVO DOWNLOAD</span><h2 id="downloadTitle" data-i18n="downloadTitle">Cole o link da mídia</h2></div>
             <span id="platformPill" class="platform-pill">Aguardando link</span>
           </div>
           <div id="webOnlyNotice" class="web-only-notice"><strong>Esta função acontece dentro do aplicativo.</strong><span>Instale o APK completo no Android para processar os links no próprio celular.</span><a href="https://github.com/Leandroxx10/MusicaDownloader/releases/download/latest/moura-downloads.apk" download="moura-downloads.apk">Baixar app completo</a></div>
 
           <label class="url-field" for="mediaUrl">
             <span>🔗</span>
-            <input id="mediaUrl" type="url" inputmode="url" autocomplete="url" placeholder="https://youtube.com/..." aria-describedby="urlHelp">
-            <button id="pasteBtn" type="button">Colar</button>
+            <input id="mediaUrl" type="url" inputmode="url" autocomplete="url" placeholder="https://site.com/arquivo..." aria-describedby="urlHelp">
+            <button id="pasteBtn" type="button" data-i18n="paste">Colar</button>
           </label>
-          <p id="urlHelp" class="helper">O APK processa o link localmente. Conteúdos privados, protegidos por DRM ou sem autorização não devem ser baixados.</p>
+          <p id="urlHelp" class="helper">Use links diretos que autorizem o download. YouTube e Spotify são abertos somente nos players oficiais; conteúdos privados ou protegidos não são exportados.</p>
 
           <div class="format-grid" role="radiogroup" aria-label="Formato do download">
             <label class="format-option selected">
@@ -122,8 +122,8 @@
           </div>
 
           <div class="download-actions">
-            <button id="analyzeBtn" class="secondary-button">Verificar link</button>
-            <button id="downloadBtn" class="primary-button">Baixar no celular <span>⇩</span></button>
+            <button id="analyzeBtn" class="secondary-button" data-i18n="verifyLink">Verificar link</button>
+            <button id="downloadBtn" class="primary-button"><span data-i18n="downloadPhone">Baixar no celular</span> <span>⇩</span></button>
           </div>
 
           <div id="analysisPanel" class="analysis-panel hidden" aria-live="polite">
@@ -154,9 +154,9 @@
       <section id="view-youtube" class="view">
         <div class="page-title youtube-title">
           <div>
-            <span class="eyebrow">CENTRAL YOUTUBE</span>
-            <h1>Assista sem sair do Moura</h1>
-            <p>Cole o link de um vídeo público e reproduza no player oficial, com modo de privacidade aprimorada e sua lista salva somente neste aparelho.</p>
+            <span class="eyebrow" data-i18n="youtubeEyebrow">CENTRAL YOUTUBE</span>
+            <h1 data-i18n="youtubeTitle">Assista sem sair do Moura</h1>
+            <p data-i18n="youtubeDescription">Reproduza vídeos públicos no player oficial e mantenha sua lista local.</p>
           </div>
           <span class="youtube-official-badge">PLAYER OFICIAL</span>
         </div>
@@ -167,8 +167,8 @@
             <div class="youtube-url-field">
               <span>▶</span>
               <input id="youtubeUrl" type="url" inputmode="url" autocomplete="url" placeholder="https://youtu.be/..." aria-describedby="youtubeHelp">
-              <button id="youtubePasteBtn" class="secondary-button compact" type="button">Colar</button>
-              <button id="youtubeWatchBtn" class="primary-button compact" type="button">Assistir</button>
+              <button id="youtubePasteBtn" class="secondary-button compact" type="button" data-i18n="paste">Colar</button>
+              <button id="youtubeWatchBtn" class="primary-button compact" type="button" data-i18n="watch">Assistir</button>
             </div>
             <p id="youtubeHelp" class="helper">Compatível com links youtube.com, youtu.be e Shorts. Vídeos privados, restritos ou indisponíveis dependem do próprio YouTube.</p>
           </div>
@@ -247,7 +247,7 @@
 
       <section id="view-downloads" class="view">
         <div class="page-title library-title-row">
-          <div><span class="eyebrow">ARQUIVOS NO CELULAR</span><h1>Minha biblioteca</h1><p>Seu player pessoal, inteligente e totalmente local.</p></div>
+          <div><span class="eyebrow" data-i18n="libraryEyebrow">ARQUIVOS NO CELULAR</span><h1 data-i18n="libraryTitle">Minha biblioteca</h1><p data-i18n="libraryDescription">Seu player pessoal, inteligente e totalmente local.</p></div>
           <button id="refreshLibraryBtn" class="secondary-button compact">Atualizar</button>
         </div>
 
@@ -292,50 +292,74 @@
       </section>
 
       <section id="view-historico" class="view">
-        <div class="page-title"><span class="eyebrow">HISTÓRICO LOCAL</span><h1>Atividade recente</h1><p>O histórico fica somente neste aparelho.</p></div>
-        <div class="history-toolbar"><button id="clearHistoryBtn" class="danger-button">Limpar histórico</button></div>
+        <div class="page-title"><span class="eyebrow" data-i18n="historyEyebrow">HISTÓRICO LOCAL</span><h1 data-i18n="historyTitle">Atividade recente</h1><p data-i18n="historyDescription">O histórico completo fica somente neste aparelho.</p></div>
+        <div id="historyStats" class="history-stats" aria-live="polite"></div>
+        <div class="history-toolbar">
+          <select id="historyFilter" aria-label="Filtrar histórico">
+            <option value="all" data-i18n="historyAll">Tudo</option>
+            <option value="success" data-i18n="historySuccess">Concluídos</option>
+            <option value="failed" data-i18n="historyFailed">Com falha</option>
+          </select>
+          <button id="clearHistoryBtn" class="danger-button" data-i18n="clearHistory">Limpar histórico</button>
+        </div>
         <div id="historyList" class="history-list"></div>
       </section>
 
       <section id="view-conta" class="view">
         <div class="page-title account-title">
-          <div><span class="eyebrow">CONTA E SUPORTE</span><h1>Minha conta</h1><p>Entre para enviar sugestões, receber avisos do desenvolvedor e acompanhar respostas com privacidade.</p></div>
+          <div><span class="eyebrow" data-i18n="accountEyebrow">CONTA E SUPORTE</span><h1 data-i18n="accountTitle">Minha conta</h1><p data-i18n="accountDescription">Entre para usar o app, receber avisos e falar com o desenvolvedor.</p></div>
           <span id="cloudStatusBadge" class="status-value">Conectando</span>
         </div>
 
-        <div id="signedOutPanel" class="account-grid">
-          <section class="account-card">
-            <span class="eyebrow">ACESSO SEGURO</span>
-            <h2>Entrar com e-mail</h2>
-            <p>O Firebase protege sua senha. O Moura nunca recebe nem armazena a senha no Realtime Database.</p>
+        <div id="signedOutPanel" class="account-auth-shell">
+          <section class="account-card auth-card">
+            <span class="eyebrow">ACESSO PROTEGIDO</span>
+            <h2 id="authCardTitle">Entrar na sua conta</h2>
+            <p id="authCardDescription">Para usar o aplicativo, entre com seu e-mail e senha.</p>
+            <div class="auth-mode-switch" role="tablist" aria-label="Entrar ou criar conta">
+              <button id="authModeLogin" class="active" type="button" role="tab" aria-selected="true" data-i18n="login">Entrar</button>
+              <button id="authModeSignup" type="button" role="tab" aria-selected="false" data-i18n="signup">Criar conta</button>
+            </div>
             <form id="emailAuthForm" class="account-form">
-              <label for="authName">Seu nome <small>(somente para criar conta)</small></label>
-              <input id="authName" type="text" maxlength="80" autocomplete="name" placeholder="Como quer ser chamado">
-              <label for="authEmail">E-mail</label>
-              <input id="authEmail" type="email" maxlength="254" autocomplete="email" required placeholder="voce@exemplo.com">
-              <label for="authPassword">Senha</label>
-              <input id="authPassword" type="password" minlength="6" maxlength="128" autocomplete="current-password" required placeholder="Mínimo de 6 caracteres">
-              <label class="privacy-consent"><input id="privacyConsent" type="checkbox"><span>Li a <a href="./privacy.html" target="_blank" rel="noopener">Política de Privacidade</a> e os <a href="./terms.html" target="_blank" rel="noopener">Termos de Uso</a>.</span></label>
-              <div class="account-actions">
-                <button id="emailSignInBtn" class="primary-button" type="submit">Entrar</button>
-                <button id="emailSignUpBtn" class="secondary-button" type="button">Criar conta</button>
+              <div id="authNameGroup" class="form-group signup-only hidden">
+                <label for="authName">Seu nome</label>
+                <input id="authName" type="text" maxlength="80" autocomplete="name" placeholder="Como quer ser chamado">
               </div>
-              <button id="passwordResetBtn" class="text-button" type="button">Esqueci minha senha</button>
+              <label for="authEmail" data-i18n="email">E-mail</label>
+              <input id="authEmail" type="email" maxlength="254" autocomplete="email" required placeholder="voce@exemplo.com">
+              <label for="authPassword" data-i18n="password">Senha</label>
+              <div class="password-field">
+                <input id="authPassword" type="password" minlength="10" maxlength="128" autocomplete="current-password" required placeholder="Digite sua senha">
+                <button id="togglePasswordBtn" class="password-toggle" type="button" aria-label="Mostrar ou ocultar senha">Mostrar</button>
+              </div>
+              <small id="passwordRequirements" class="password-requirements signup-only hidden">Use 10 ou mais caracteres, com maiúscula, minúscula, número e símbolo.</small>
+              <label id="privacyConsentGroup" class="privacy-consent signup-only hidden"><input id="privacyConsent" type="checkbox"><span>Li a <a href="./privacy.html" target="_blank" rel="noopener">Política de Privacidade</a> e os <a href="./terms.html" target="_blank" rel="noopener">Termos de Uso</a>. Concordo com o registro mínimo das mídias concluídas para suporte e segurança.</span></label>
+              <div id="authAttemptStatus" class="auth-attempt-status" aria-live="polite">5 tentativas disponíveis neste aparelho.</div>
+              <button id="emailAuthSubmitBtn" class="primary-button" type="submit">Entrar</button>
+              <button id="passwordResetBtn" class="text-button" type="button" data-i18n="forgotPassword">Esqueci minha senha</button>
             </form>
-          </section>
-          <section class="account-card social-login-card">
-            <span class="eyebrow">ACESSO RÁPIDO</span>
-            <h2>Continuar com Google</h2>
-            <p id="googleLoginHelp">No site, você pode usar a conta Google. No APK Android, e-mail e senha são a opção mais compatível.</p>
-            <button id="googleSignInBtn" class="google-button" type="button"><span>G</span> Entrar com Google</button>
-            <div class="privacy-mini">
-              <strong>Dados mínimos</strong>
-              <small>Guardamos somente UID, nome, e-mail, provedor, datas de acesso, mensagens e feedback. Biblioteca e histórico de mídia continuam apenas no aparelho.</small>
+            <div class="security-summary">
+              <strong>Proteção da conta</strong>
+              <small>Sessão persistente, e-mail verificado, tentativas limitadas e dados privados por usuário. O desenvolvedor nunca vê sua senha.</small>
             </div>
           </section>
         </div>
 
         <div id="signedInPanel" class="hidden">
+          <section id="verificationPanel" class="account-card verification-card hidden">
+            <span class="verification-icon">✉</span>
+            <div>
+              <span class="eyebrow">CONFIRME SEU E-MAIL</span>
+              <h2>Falta só uma etapa</h2>
+              <p>Abra a mensagem enviada para <strong id="verificationEmail">seu e-mail</strong>, confirme o endereço e volte ao aplicativo.</p>
+              <div class="account-actions">
+                <button id="checkVerificationBtn" class="primary-button" type="button">Já confirmei</button>
+                <button id="resendVerificationBtn" class="secondary-button" type="button">Reenviar e-mail</button>
+                <button id="verificationSignOutBtn" class="secondary-button" type="button">Usar outra conta</button>
+              </div>
+            </div>
+          </section>
+          <div id="verifiedAccountContent">
           <section class="account-profile account-card">
             <div class="profile-avatar" id="profileAvatar">M</div>
             <div class="profile-copy"><span class="eyebrow">CONTA ATIVA</span><h2 id="profileName">Usuário</h2><p id="profileEmail">—</p></div>
@@ -380,6 +404,7 @@
               <article><strong id="adminUsersCount">0</strong><small>usuários no app</small></article>
               <article><strong id="adminFeedbackCount">0</strong><small>feedbacks recebidos</small></article>
               <article><strong id="adminOpenCount">0</strong><small>aguardando resposta</small></article>
+              <article><strong id="adminDownloadsCount">0</strong><small>downloads concluídos</small></article>
             </div>
             <div class="admin-grid">
               <section class="admin-card">
@@ -390,30 +415,57 @@
                 <span class="eyebrow">NOVA MENSAGEM</span><h3>Enviar para um usuário</h3>
                 <form id="adminMessageForm" class="account-form">
                   <label for="adminMessageUser">Destinatário</label>
-                  <select id="adminMessageUser" required><option value="">Selecione um usuário</option></select>
+                  <select id="adminMessageUser" required><option value="">Selecione um usuário</option><option value="__all__">Todos os usuários</option></select>
                   <label for="adminMessageTitle">Título</label>
                   <input id="adminMessageTitle" maxlength="90" required placeholder="Ex.: Nova versão disponível">
                   <label for="adminMessageBody">Mensagem</label>
                   <textarea id="adminMessageBody" maxlength="1200" required placeholder="Escreva uma mensagem clara e curta."></textarea>
-                  <button class="primary-button" type="submit">Enviar mensagem privada</button>
+                  <button id="adminMessageSubmit" class="primary-button" type="submit">Enviar mensagem</button>
                 </form>
               </section>
             </div>
+            <section class="admin-card admin-activity-card">
+              <div class="card-heading"><div><span class="eyebrow">ATIVIDADE DE DOWNLOAD</span><h3 id="adminActivityTitle">Selecione um usuário</h3><p>Somente metadados mínimos de downloads concluídos; links e caminhos locais não são armazenados.</p></div><span id="adminActivityCount" class="status-value">0 itens</span></div>
+              <div id="adminDownloadActivity" class="admin-activity-list"><div class="empty-cloud">Toque em um perfil para ver a atividade.</div></div>
+            </section>
             <section class="admin-card admin-feedback-card">
               <div class="card-heading"><div><span class="eyebrow">FEEDBACKS</span><h3>Mensagens recebidas</h3></div><select id="adminFeedbackFilter"><option value="todos">Todos</option><option value="novo">Novos</option><option value="respondido">Respondidos</option><option value="resolvido">Resolvidos</option></select></div>
               <div id="adminFeedbackList" class="admin-feedback-list"></div>
             </section>
           </section>
+          </div>
         </div>
       </section>
 
       <section id="view-configuracoes" class="view">
-        <div class="page-title"><span class="eyebrow">AJUSTES</span><h1>Armazenamento e categorias</h1><p>Os downloads são salvos em <strong>Downloads/Moura Downloads</strong>.</p></div>
+        <div class="page-title"><span class="eyebrow" data-i18n="settingsEyebrow">AJUSTES</span><h1 data-i18n="settingsTitle">Seu app, do seu jeito</h1><p>Os downloads são salvos em <strong>Downloads/Moura Downloads</strong>.</p></div>
         <div class="settings-card">
           <div class="setting-row"><div><strong>Processamento no aparelho</strong><small>Não utiliza servidor de conversão.</small></div><span id="localEngineStatus" class="status-value">Somente APK</span></div>
           <div class="setting-row"><div><strong>Versão instalada</strong><small>Player em segundo plano, Mixes, QR Code e atualizações inteligentes.</small></div><span id="installedVersion" class="status-value">4.0</span></div>
           <div class="setting-row"><div><strong>Desenvolvedor</strong><small>Identificação oficial do aplicativo.</small></div><span class="status-value">Leandro Moura</span></div>
           <div class="setting-row"><div><strong>Pasta de armazenamento</strong><small>Visível no gerenciador de arquivos e galeria.</small></div><span class="status-value">Moura Downloads</span></div>
+          <div class="setting-row appearance-setting">
+            <div><strong>Cor do aplicativo</strong><small>Escolha a cor principal que combina com você.</small></div>
+            <div class="theme-controls">
+              <button class="theme-swatch active" type="button" data-theme-color="#42f57b" aria-label="Verde"></button>
+              <button class="theme-swatch" type="button" data-theme-color="#38bdf8" aria-label="Azul"></button>
+              <button class="theme-swatch" type="button" data-theme-color="#a78bfa" aria-label="Roxo"></button>
+              <button class="theme-swatch" type="button" data-theme-color="#fb7185" aria-label="Rosa"></button>
+              <button class="theme-swatch" type="button" data-theme-color="#fbbf24" aria-label="Dourado"></button>
+              <input id="accentColor" type="color" value="#42f57b" aria-label="Cor personalizada">
+            </div>
+          </div>
+          <div class="setting-row">
+            <div><strong>Idioma</strong><small>A interface muda imediatamente e a escolha fica salva.</small></div>
+            <select id="languageSelect" class="settings-select" aria-label="Idioma do aplicativo">
+              <option value="pt-BR">Português (Brasil)</option>
+              <option value="en">English</option>
+              <option value="it">Italiano</option>
+              <option value="es">Español</option>
+              <option value="zh-CN">中文</option>
+              <option value="ja">日本語</option>
+            </select>
+          </div>
           <div id="updateCard" class="update-card">
             <div class="update-card-head">
               <div><span class="eyebrow">ATUALIZAÇÕES INTELIGENTES</span><h2 id="updateTitle">Seu app sempre atualizado</h2><p id="updateDescription">O Moura verifica novas versões e pode baixá-las automaticamente no Wi-Fi.</p></div>
@@ -449,12 +501,12 @@
     </main>
 
     <nav class="bottom-nav" aria-label="Navegação inferior">
-      <button class="nav-item active" data-view="inicio"><span>⌂</span><small>Início</small></button>
-      <button class="nav-item" data-view="youtube"><span>▶</span><small>YouTube</small></button>
-      <button class="nav-item" data-view="downloads"><span>⇩</span><small>Biblioteca</small></button>
-      <button class="nav-item" data-view="historico"><span>◷</span><small>Histórico</small></button>
-      <button class="nav-item" data-view="conta"><span>●</span><small>Conta</small></button>
-      <button class="nav-item" data-view="configuracoes"><span>⚙</span><small>Ajustes</small></button>
+      <button class="nav-item active" data-view="inicio"><span>⌂</span><small data-i18n="navHome">Início</small></button>
+      <button class="nav-item" data-view="youtube"><span>▶</span><small data-i18n="navYouTube">YouTube</small></button>
+      <button class="nav-item" data-view="downloads"><span>⇩</span><small data-i18n="navLibrary">Biblioteca</small></button>
+      <button class="nav-item" data-view="historico"><span>◷</span><small data-i18n="navHistory">Histórico</small></button>
+      <button class="nav-item" data-view="conta"><span>●</span><small data-i18n="navAccount">Conta</small></button>
+      <button class="nav-item" data-view="configuracoes"><span>⚙</span><small data-i18n="navSettings">Ajustes</small></button>
     </nav>
   </div>
 
@@ -495,7 +547,8 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="./app.js?v=12" defer></script>
-  <script src="./cloud.js?v=12" type="module"></script>
+  <script src="./i18n.js?v=13" defer></script>
+  <script src="./app.js?v=13" defer></script>
+  <script src="./cloud.js?v=13" type="module"></script>
 </body>
 </html>

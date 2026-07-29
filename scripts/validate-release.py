@@ -132,7 +132,7 @@ def main() -> None:
 
     with zipfile.ZipFile(interface_path) as archive:
         names = archive.namelist()
-        required = {"index.html", "app.js", "styles.css", "download.css"}
+        required = {"index.html", "app.js", "cloud.js", "i18n.js", "styles.css", "download.css"}
         if not required.issubset(names):
             fail(
                 "O pacote de interface está incompleto: "

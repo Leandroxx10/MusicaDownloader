@@ -97,6 +97,13 @@ public class DownloadService extends Service {
             stopSelf(startId);
             return START_NOT_STICKY;
         }
+        if (isYouTubeUrl(url)) {
+            sendEvent("error", 0, 0,
+                    "O catálogo do YouTube é reproduzido somente pelo player oficial. "
+                            + "Use os recursos oficiais do YouTube para acesso offline.");
+            stopSelf(startId);
+            return START_NOT_STICKY;
+        }
         if (isSpotifyUrl(url)) {
             sendEvent("error", 0, 0,
                     "O catálogo do Spotify usa proteção própria e não pode ser exportado. "

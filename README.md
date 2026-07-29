@@ -12,9 +12,12 @@ Aplicativo Android desenvolvido por **Leandro Moura**, com processamento local, 
 - Central YouTube com player oficial incorporado, suporte a vídeos, links curtos e Shorts.
 - Códigos de erro do YouTube explicados e botão seguro para abrir vídeos que bloqueiam incorporação.
 - Player oficial do Spotify para faixas, álbuns, playlists, artistas e podcasts.
-- Conta por e-mail e senha usando Firebase Authentication.
-- Feedback privado, caixa de entrada e painel administrativo protegido por UID.
-- Regras do Realtime Database com acesso negado por padrão e isolamento por usuário.
+- Login e criação de conta na mesma tela, com e-mail verificado, senha forte e limite visível de tentativas.
+- Feedback privado, caixa de entrada, mensagens individuais e comunicados coletivos.
+- Painel administrativo protegido por UID com perfis e atividade mínima de downloads concluídos.
+- Regras do Realtime Database com acesso negado por padrão, e-mail verificado e isolamento por usuário.
+- Interface em português, inglês, italiano, espanhol, chinês e japonês.
+- Cores personalizáveis e histórico responsivo com filtros, resumo e animações.
 - Controles principais do player simplificados; recursos extras ficam em **Mais opções**.
 - Lista **Ver depois** e histórico de vídeos armazenados somente no aparelho.
 - Reprodução do YouTube em tela cheia sem sair do Moura.
@@ -152,14 +155,17 @@ O aplicativo usa somente Firebase Authentication e Realtime Database. Firestore
 e Firebase Storage não são usados. Depois de instalar:
 
 1. abra **Minha conta**;
-2. crie uma conta com nome, e-mail e senha;
-3. envie ideias, problemas ou pedidos de privacidade;
-4. receba respostas e avisos na caixa de entrada.
+2. alterne entre **Entrar** e **Criar conta** na mesma tela;
+3. confirme o endereço pelo link enviado ao e-mail;
+4. envie ideias, problemas ou pedidos de privacidade;
+5. receba respostas, avisos privados e comunicados na caixa de entrada.
 
 Para ativar o painel de Leandro Moura e publicar as regras seguras, siga
 [`FIREBASE-SETUP.md`](FIREBASE-SETUP.md). O painel lista os perfis mínimos das
-pessoas que já entraram pelo aplicativo; listar diretamente todos os usuários do
-Firebase Authentication exigiria Admin SDK em um servidor confiável.
+pessoas que já entraram pelo aplicativo, permite mensagens individuais ou coletivas
+e exibe metadados mínimos dos downloads concluídos, sem armazenar o link completo
+nem o caminho local. Listar diretamente todos os usuários do Firebase Authentication
+exigiria Admin SDK em um servidor confiável.
 
 O contato público de suporte e privacidade é `leandro12done@gmail.com`.
 
@@ -176,7 +182,8 @@ o código.
 ## Estrutura
 
 - `app/`: site/PWA publicado pelo Netlify.
-- `app/cloud.js`: Authentication, perfis mínimos, feedback, mensagens e painel.
+- `app/cloud.js`: Authentication, perfis mínimos, atividade, feedback, mensagens e painel.
+- `app/i18n.js`: idiomas da interface e preferência local.
 - `firebase/database.rules.json`: regras seguras para copiar no Realtime Database.
 - `FIREBASE-SETUP.md`: ativação do administrador e configuração do Firebase.
 - `native-android/`: aplicativo Android.
