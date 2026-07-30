@@ -26,6 +26,29 @@
   );
   const isAndroid = isTrustedAppPage ||
     Boolean(window.AndroidBridge?.appMode && window.AndroidBridge.appMode() === 'android-local');
+  const STUDIO_DEFAULTS = {
+    media: [],
+    audio: null,
+    ratio: '9:16',
+    effect: 'normal',
+    transition: 'fade',
+    beatSync: false,
+    beatMode: 'balanced',
+    motion: true,
+    quality: '720',
+    musicVolume: 100,
+    projectName: 'Meu vídeo Moura',
+    speed: 1,
+    imageDuration: 3,
+    brightness: 0,
+    contrast: 0,
+    saturation: 0,
+    fade: true,
+    selectedIndex: 0,
+    output: null,
+    exporting: false
+  };
+  const studioSavedDraft = storage.get('moura_studio_draft_v2', {});
 
   const state = {
     history: storage.get('moura_history_v2', []),
@@ -45,14 +68,7 @@
     youtubePlayerApi: null,
     youtubeApiPromise: null,
     spotifyCurrent: null,
-    studio: {
-      media: [],
-      audio: null,
-      ratio: '9:16',
-      effect: 'normal',
-      output: null,
-      exporting: false
-    },
+    studio: { ...STUDIO_DEFAULTS, ...studioSavedDraft, output: null, exporting: false },
     modalMode: null,
     modalPayload: null,
     pendingDownload: null,
@@ -68,6 +84,17 @@
     messageNotifications: storage.get('moura_message_notifications_v1', true),
     toastTimer: null
   };
+  if (localPreviewView === 'editor' && !state.studio.media.length) {
+    const previewPixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+    state.studio.media = [
+      { uri: 'content://preview/scene-1', name: 'Abertura.jpg', mime: 'image/jpeg', preview: previewPixel, duration: 2.5 },
+      { uri: 'content://preview/scene-2', name: 'Momento principal.jpg', mime: 'image/jpeg', preview: previewPixel, duration: 3.75 },
+      { uri: 'content://preview/scene-3', name: 'Encerramento.mp4', mime: 'video/mp4', preview: previewPixel, sourceDuration: 8, duration: 5 }
+    ];
+    state.studio.audio = {
+      uri: 'content://preview/music', name: 'Minha música.mp3', mime: 'audio/mpeg', sourceDuration: 180
+    };
+  }
 
   const els = {
     modeBadge: $('#modeBadge'),
@@ -151,12 +178,29 @@
     studioPreviewVideo: $('#studioPreviewVideo'),
     studioPreviewImage: $('#studioPreviewImage'),
     studioPreviewEffect: $('#studioPreviewEffect'),
+    studioPreviewBadge: $('#studioPreviewBadge'),
     studioTimeline: $('#studioTimeline'),
+    studioSceneCount: $('#studioSceneCount'),
+    studioTotalDuration: $('#studioTotalDuration'),
+    studioTimelineDuration: $('#studioTimelineDuration'),
+    studioSyncStatus: $('#studioSyncStatus'),
+    studioClipInspector: $('#studioClipInspector'),
+    studioSelectedName: $('#studioSelectedName'),
+    studioSelectedType: $('#studioSelectedType'),
+    studioClipDuration: $('#studioClipDuration'),
+    studioClipDurationValue: $('#studioClipDurationValue'),
     studioProjectName: $('#studioProjectName'),
     studioSpeed: $('#studioSpeed'),
     studioSpeedValue: $('#studioSpeedValue'),
     studioImageDuration: $('#studioImageDuration'),
     studioImageDurationValue: $('#studioImageDurationValue'),
+    studioQuality: $('#studioQuality'),
+    studioTransition: $('#studioTransition'),
+    studioBeatSyncToggle: $('#studioBeatSyncToggle'),
+    studioBeatMode: $('#studioBeatMode'),
+    studioBeatModeField: $('#studioBeatModeField'),
+    studioBeatHint: $('#studioBeatHint'),
+    studioMotionToggle: $('#studioMotionToggle'),
     studioBrightness: $('#studioBrightness'),
     studioBrightnessValue: $('#studioBrightnessValue'),
     studioContrast: $('#studioContrast'),
@@ -164,6 +208,10 @@
     studioSaturation: $('#studioSaturation'),
     studioSaturationValue: $('#studioSaturationValue'),
     studioAudioName: $('#studioAudioName'),
+    studioMusicVolume: $('#studioMusicVolume'),
+    studioMusicVolumeValue: $('#studioMusicVolumeValue'),
+    studioExportSummary: $('#studioExportSummary'),
+    studioExportQuality: $('#studioExportQuality'),
     studioProgress: $('#studioProgress'),
     studioProgressTitle: $('#studioProgressTitle'),
     studioProgressText: $('#studioProgressText'),
@@ -814,6 +862,91 @@
     catch (error) { return { success: false, message: error?.message || 'Não foi possível concluir a ação.' }; }
   }
 
+  function studioClamp(value, minimum, maximum) {
+    return Math.max(minimum, Math.min(maximum, Number(value) || minimum));
+  }
+
+  function studioIsVideo(item) {
+    return String(item?.mime || '').startsWith('video/');
+  }
+
+  function normalizeStudioItem(item, defaultDuration = state.studio.imageDuration || 3) {
+    const video = studioIsVideo(item);
+    const sourceDuration = studioClamp(item?.sourceDuration || (video ? 6 : defaultDuration), .5, 900);
+    const maximum = video ? Math.min(60, sourceDuration) : 12;
+    return {
+      uri: String(item?.uri || ''),
+      name: String(item?.name || (video ? 'Vídeo' : 'Foto')),
+      mime: String(item?.mime || (video ? 'video/mp4' : 'image/jpeg')),
+      preview: studioSafeUri(item?.preview),
+      sourceDuration,
+      duration: studioClamp(item?.duration || (video ? Math.min(sourceDuration, 8) : defaultDuration), .5, maximum)
+    };
+  }
+
+  function hydrateStudioControls() {
+    if (!els.studioProjectName || els.studioProjectName.dataset.hydrated) return;
+    els.studioProjectName.dataset.hydrated = 'true';
+    els.studioProjectName.value = state.studio.projectName || STUDIO_DEFAULTS.projectName;
+    els.studioSpeed.value = state.studio.speed || 1;
+    els.studioImageDuration.value = state.studio.imageDuration || 3;
+    els.studioBrightness.value = state.studio.brightness || 0;
+    els.studioContrast.value = state.studio.contrast || 0;
+    els.studioSaturation.value = state.studio.saturation || 0;
+    els.studioQuality.value = state.studio.quality || '720';
+    els.studioTransition.value = state.studio.transition || 'fade';
+    els.studioBeatSyncToggle.checked = Boolean(state.studio.beatSync);
+    els.studioBeatMode.value = state.studio.beatMode || 'balanced';
+    els.studioMotionToggle.checked = state.studio.motion !== false;
+    els.studioMusicVolume.value = state.studio.musicVolume ?? 100;
+    $('#studioFadeToggle').checked = state.studio.fade !== false;
+    state.studio.media = (Array.isArray(state.studio.media) ? state.studio.media : [])
+      .slice(0, 20).map(item => normalizeStudioItem(item));
+  }
+
+  function syncStudioControls() {
+    state.studio.projectName = String(els.studioProjectName?.value || STUDIO_DEFAULTS.projectName).trim();
+    state.studio.speed = studioClamp(els.studioSpeed?.value || 1, .5, 2);
+    state.studio.imageDuration = studioClamp(els.studioImageDuration?.value || 3, .5, 12);
+    state.studio.brightness = studioClamp(els.studioBrightness?.value || 0, -100, 100);
+    state.studio.contrast = studioClamp(els.studioContrast?.value || 0, -100, 100);
+    state.studio.saturation = studioClamp(els.studioSaturation?.value || 0, -100, 100);
+    state.studio.quality = els.studioQuality?.value === '1080' ? '1080' : '720';
+    state.studio.transition = ['cut', 'fade', 'slideleft', 'circleopen']
+      .includes(els.studioTransition?.value) ? els.studioTransition.value : 'fade';
+    state.studio.beatSync = Boolean(els.studioBeatSyncToggle?.checked);
+    state.studio.beatMode = ['calm', 'balanced', 'energetic'].includes(els.studioBeatMode?.value)
+      ? els.studioBeatMode.value : 'balanced';
+    state.studio.motion = Boolean(els.studioMotionToggle?.checked);
+    state.studio.musicVolume = studioClamp(els.studioMusicVolume?.value ?? 100, 0, 150);
+    state.studio.fade = Boolean($('#studioFadeToggle')?.checked);
+  }
+
+  function persistStudioDraft() {
+    syncStudioControls();
+    const draft = {
+      media: state.studio.media,
+      audio: state.studio.audio,
+      ratio: state.studio.ratio,
+      effect: state.studio.effect,
+      transition: state.studio.transition,
+      beatSync: state.studio.beatSync,
+      beatMode: state.studio.beatMode,
+      motion: state.studio.motion,
+      quality: state.studio.quality,
+      musicVolume: state.studio.musicVolume,
+      projectName: state.studio.projectName,
+      speed: state.studio.speed,
+      imageDuration: state.studio.imageDuration,
+      brightness: state.studio.brightness,
+      contrast: state.studio.contrast,
+      saturation: state.studio.saturation,
+      fade: state.studio.fade,
+      selectedIndex: state.studio.selectedIndex
+    };
+    storage.set('moura_studio_draft_v2', draft);
+  }
+
   function studioFilter() {
     const brightness = (Number(els.studioBrightness?.value || 0) + 100) / 100;
     const contrast = (Number(els.studioContrast?.value || 0) + 100) / 100;
@@ -835,21 +968,91 @@
     return /^data:image\/(?:jpeg|png|webp);base64,/i.test(uri) ? uri : '';
   }
 
+  function studioTransitionDuration() {
+    if (state.studio.transition === 'cut' || state.studio.media.length < 2) return 0;
+    return state.studio.beatSync ? .08 : .35;
+  }
+
+  function studioProjectDuration() {
+    const mediaDuration = state.studio.media.reduce((sum, item) =>
+      sum + studioClamp(item.duration, .5, 60), 0);
+    const transitions = studioTransitionDuration() * Math.max(0, state.studio.media.length - 1);
+    return Math.max(0, (mediaDuration - transitions) / studioClamp(state.studio.speed || 1, .5, 2));
+  }
+
+  function formatStudioTime(seconds) {
+    const safe = Math.max(0, Math.round(Number(seconds) || 0));
+    const minutes = Math.floor(safe / 60);
+    return `${minutes}:${String(safe % 60).padStart(2, '0')}`;
+  }
+
+  function studioDurationLabel(value) {
+    return `${Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}s`;
+  }
+
+  function renderStudioTimeline(media) {
+    if (!els.studioTimeline) return;
+    if (!media.length) {
+      els.studioTimeline.innerHTML = `<span>${escapeHtml(t('studioTimelineEmpty'))}</span>`;
+      return;
+    }
+    els.studioTimeline.innerHTML = media.map((item, index) => {
+      const preview = studioSafeUri(item.preview);
+      const transition = index > 0
+        ? `<span class="studio-clip-transition" aria-hidden="true">${state.studio.transition === 'cut' ? '│' : '◆'}</span>`
+        : '';
+      return `${transition}<article class="studio-clip ${index === state.studio.selectedIndex ? 'selected' : ''}"
+          data-studio-index="${index}" style="--clip-grow:${studioClamp(item.duration, .5, 12)}"
+          title="${escapeHtml(item.name || `Cena ${index + 1}`)}">
+        ${preview ? `<img class="studio-clip-thumb" src="${escapeHtml(preview)}" alt="">` : ''}
+        <span class="studio-clip-shade"></span>
+        <span class="studio-clip-number">${index + 1}</span>
+        <span class="studio-clip-kind">${studioIsVideo(item) ? '▶' : '▧'}</span>
+        <span class="studio-clip-name">${escapeHtml(item.name || `Cena ${index + 1}`)}</span>
+        <span class="studio-clip-duration">${studioDurationLabel(item.duration)}</span>
+      </article>`;
+    }).join('');
+  }
+
+  function renderStudioInspector(selected) {
+    const hasSelection = Boolean(selected);
+    els.studioClipInspector?.classList.toggle('hidden', !hasSelection);
+    if (!selected) return;
+    const video = studioIsVideo(selected);
+    if (els.studioSelectedName) els.studioSelectedName.textContent = selected.name;
+    if (els.studioSelectedType) els.studioSelectedType.textContent = video ? t('studioVideo') : t('studioPhoto');
+    if (els.studioClipDuration) {
+      els.studioClipDuration.max = String(video ? Math.max(.5, Math.min(60, selected.sourceDuration || 60)) : 12);
+      els.studioClipDuration.value = String(selected.duration);
+    }
+    if (els.studioClipDurationValue) {
+      els.studioClipDurationValue.textContent = studioDurationLabel(selected.duration);
+    }
+    const left = $('[data-studio-clip-action="left"]');
+    const right = $('[data-studio-clip-action="right"]');
+    if (left) left.disabled = state.studio.selectedIndex <= 0;
+    if (right) right.disabled = state.studio.selectedIndex >= state.studio.media.length - 1;
+  }
+
   function renderStudio() {
     if (!els.studioPreview) return;
+    hydrateStudioControls();
+    syncStudioControls();
     const media = state.studio.media || [];
-    const first = media[0];
-    const hasMedia = Boolean(first);
+    state.studio.selectedIndex = Math.max(0, Math.min(
+      Number(state.studio.selectedIndex) || 0, Math.max(0, media.length - 1)));
+    const selected = media[state.studio.selectedIndex];
+    const hasMedia = Boolean(selected);
     els.studioPreviewEmpty?.classList.toggle('hidden', hasMedia);
     els.studioPreviewVideo?.classList.add('hidden');
     els.studioPreviewImage?.classList.add('hidden');
-    if (first) {
-      const source = studioSafeUri(first.uri);
-      const preview = studioSafeUri(first.preview);
+    if (selected) {
+      const source = studioSafeUri(selected.uri);
+      const preview = studioSafeUri(selected.preview);
       if (preview) {
         els.studioPreviewImage.src = preview;
         els.studioPreviewImage.classList.remove('hidden');
-      } else if (String(first.mime || '').startsWith('video/')) {
+      } else if (studioIsVideo(selected)) {
         els.studioPreviewVideo.src = source;
         els.studioPreviewVideo.classList.remove('hidden');
       } else {
@@ -857,23 +1060,55 @@
         els.studioPreviewImage.classList.remove('hidden');
       }
     }
+    els.studioPreviewBadge?.classList.toggle('hidden', !hasMedia);
+    if (hasMedia && els.studioPreviewBadge) {
+      els.studioPreviewBadge.textContent = `${t('studioScene')} ${state.studio.selectedIndex + 1} · ${studioDurationLabel(selected.duration)}`;
+    }
     const ratioClass = state.studio.ratio === '16:9'
       ? 'ratio-wide' : state.studio.ratio === '1:1' ? 'ratio-square' : 'ratio-vertical';
     els.studioPreview.classList.remove('ratio-vertical', 'ratio-wide', 'ratio-square');
     els.studioPreview.classList.add(ratioClass);
     if (els.studioPreviewEffect) els.studioPreviewEffect.style.backdropFilter = studioFilter();
     $('#studioClearMediaBtn')?.classList.toggle('hidden', !hasMedia);
-    if (els.studioTimeline) {
-      els.studioTimeline.innerHTML = media.length
-        ? media.map((item, index) => `
-          <article class="studio-clip" title="${escapeHtml(item.name || `Cena ${index + 1}`)}">
-            <span>${String(item.mime || '').startsWith('video/') ? '▶' : '▧'}</span>
-            <strong>${index + 1}</strong><small>${escapeHtml(item.name || `Cena ${index + 1}`)}</small>
-          </article>`).join('')
-        : `<span>${escapeHtml(t('studioTimelineEmpty'))}</span>`;
+    renderStudioTimeline(media);
+    renderStudioInspector(selected);
+
+    const duration = studioProjectDuration();
+    if (els.studioSceneCount) els.studioSceneCount.textContent = String(media.length);
+    if (els.studioTotalDuration) els.studioTotalDuration.textContent = formatStudioTime(duration);
+    if (els.studioTimelineDuration) els.studioTimelineDuration.textContent = formatStudioTime(duration);
+    if (els.studioSyncStatus) {
+      els.studioSyncStatus.textContent = state.studio.beatSync ? t('studioBeatActive') : t('studioManual');
     }
     if (els.studioAudioName) {
       els.studioAudioName.textContent = state.studio.audio?.name || t('studioNoMusic');
+    }
+    const beatActive = state.studio.beatSync;
+    els.studioBeatModeField?.classList.toggle('hidden', !beatActive);
+    els.studioBeatSyncToggle.checked = beatActive;
+    els.studioBeatHint?.closest('.studio-beat-card')?.classList.toggle('active', beatActive);
+    if (els.studioBeatHint) {
+      els.studioBeatHint.textContent = beatActive
+        ? (state.studio.audio ? t('studioBeatReady') : t('studioBeatNeedsMusic'))
+        : t('studioBeatOptional');
+    }
+
+    if (els.studioSpeedValue) {
+      els.studioSpeedValue.textContent = `${Number(state.studio.speed).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}×`;
+    }
+    if (els.studioImageDurationValue) {
+      els.studioImageDurationValue.textContent = studioDurationLabel(state.studio.imageDuration);
+    }
+    if (els.studioMusicVolumeValue) {
+      els.studioMusicVolumeValue.textContent = `${Math.round(state.studio.musicVolume)}%`;
+    }
+    if (els.studioExportQuality) {
+      els.studioExportQuality.textContent = `${state.studio.quality === '1080' ? 'FULL HD' : 'HD'} · ${formatStudioTime(duration)}`;
+    }
+    if (els.studioExportSummary) {
+      els.studioExportSummary.textContent = media.length
+        ? `${media.length} ${media.length === 1 ? t('studioScene').toLowerCase() : t('studioScenes').toLowerCase()} · ${formatStudioTime(duration)} · ${state.studio.beatSync ? t('studioBeatActive') : t('studioManual')}`
+        : t('studioExportText');
     }
     $$('#studioRatioOptions [data-studio-ratio]').forEach(button =>
       button.classList.toggle('active', button.dataset.studioRatio === state.studio.ratio));
@@ -884,19 +1119,53 @@
   function updateStudioControl(input, output, formatter = value => value) {
     if (!input || !output) return;
     output.textContent = formatter(input.value);
+    syncStudioControls();
+    persistStudioDraft();
     renderStudio();
   }
 
   function pickStudioMedia() {
-    if (!isAndroid) return toast('O Estúdio funciona no aplicativo Android instalado.', true);
+    if (!isAndroid) return toast(t('studioAndroidOnly'), true);
     const result = nativeAction('selectEditorMedia');
     toast(result.message, !result.success);
   }
 
   function pickStudioAudio() {
-    if (!isAndroid) return toast('O Estúdio funciona no aplicativo Android instalado.', true);
+    if (!isAndroid) return toast(t('studioAndroidOnly'), true);
     const result = nativeAction('selectEditorAudio');
     toast(result.message, !result.success);
+  }
+
+  function moveStudioClip(direction) {
+    const from = state.studio.selectedIndex;
+    const to = from + direction;
+    if (to < 0 || to >= state.studio.media.length) return;
+    const [item] = state.studio.media.splice(from, 1);
+    state.studio.media.splice(to, 0, item);
+    state.studio.selectedIndex = to;
+    persistStudioDraft();
+    renderStudio();
+  }
+
+  function deleteStudioClip() {
+    if (!state.studio.media.length) return;
+    state.studio.media.splice(state.studio.selectedIndex, 1);
+    state.studio.selectedIndex = Math.min(
+      state.studio.selectedIndex, Math.max(0, state.studio.media.length - 1));
+    state.studio.output = null;
+    persistStudioDraft();
+    renderStudio();
+  }
+
+  function duplicateStudioClip() {
+    if (state.studio.media.length >= 20) return toast(t('studioLimit'), true);
+    const item = state.studio.media[state.studio.selectedIndex];
+    if (!item) return;
+    const copy = { ...item, name: `${item.name} · ${t('studioCopy')}` };
+    state.studio.media.splice(state.studio.selectedIndex + 1, 0, copy);
+    state.studio.selectedIndex += 1;
+    persistStudioDraft();
+    renderStudio();
   }
 
   function setStudioProgress(visible, progress = 0, title = '', message = '') {
@@ -909,59 +1178,84 @@
   }
 
   function exportStudioVideo() {
-    if (!state.studio.media.length) {
-      return toast('Escolha um vídeo ou algumas fotos para começar.', true);
+    syncStudioControls();
+    if (!state.studio.media.length) return toast(t('studioChooseFirst'), true);
+    if (state.studio.beatSync && !state.studio.audio?.uri) {
+      return toast(t('studioBeatNeedsMusic'), true);
     }
-    if (!isAndroid) return toast('Instale o app Android para criar o vídeo no celular.', true);
+    if (!isAndroid) return toast(t('studioInstallToExport'), true);
     const config = {
       media: state.studio.media.map(item => ({
-        uri: item.uri, name: item.name, mime: item.mime
+        uri: item.uri,
+        name: item.name,
+        mime: item.mime,
+        duration: studioClamp(item.duration, .5, studioIsVideo(item) ? 60 : 12),
+        sourceDuration: item.sourceDuration
       })),
       audio: state.studio.audio,
-      name: String(els.studioProjectName?.value || 'Meu vídeo Moura').trim(),
+      name: state.studio.projectName,
       ratio: state.studio.ratio,
       effect: state.studio.effect,
-      speed: Number(els.studioSpeed?.value || 1),
-      imageDuration: Number(els.studioImageDuration?.value || 3),
-      brightness: Number(els.studioBrightness?.value || 0),
-      contrast: Number(els.studioContrast?.value || 0),
-      saturation: Number(els.studioSaturation?.value || 0),
-      fade: Boolean($('#studioFadeToggle')?.checked)
+      transition: state.studio.transition,
+      transitionDuration: studioTransitionDuration(),
+      beatSync: state.studio.beatSync,
+      beatMode: state.studio.beatMode,
+      motion: state.studio.motion,
+      quality: state.studio.quality,
+      musicVolume: state.studio.musicVolume,
+      speed: state.studio.speed,
+      imageDuration: state.studio.imageDuration,
+      brightness: state.studio.brightness,
+      contrast: state.studio.contrast,
+      saturation: state.studio.saturation,
+      fade: state.studio.fade
     };
+    persistStudioDraft();
     const result = nativeAction('startVideoEditor', JSON.stringify(config));
     if (!result.success) return toast(result.message, true);
     state.studio.exporting = true;
     state.studio.output = null;
     els.studioResult?.classList.add('hidden');
     $('#studioExportBtn').disabled = true;
-    setStudioProgress(true, 1, 'Preparando seu projeto',
-      'Organizando os arquivos no celular.');
+    setStudioProgress(true, 1, t('studioPreparing'), t('studioOrganizing'));
     toast(result.message);
   }
 
   window.MouraEditor = {
     onMediaSelected(data) {
       const items = Array.isArray(data?.items) ? data.items : [];
-      if (!items.length) return toast(data?.message || 'Nenhuma mídia foi selecionada.', true);
-      state.studio.media = items.slice(0, 12);
+      if (!items.length) return toast(data?.message || t('studioNothingSelected'), true);
+      const available = Math.max(0, 20 - state.studio.media.length);
+      const normalized = items.slice(0, available)
+        .map(item => normalizeStudioItem(item, state.studio.imageDuration));
+      state.studio.media.push(...normalized);
+      state.studio.selectedIndex = Math.max(0, state.studio.media.length - normalized.length);
       state.studio.output = null;
+      persistStudioDraft();
       renderStudio();
-      toast(items.length === 1 ? 'Mídia adicionada ao projeto.' : `${items.length} imagens adicionadas.`);
+      toast(normalized.length === 1 ? t('studioMediaAdded') : t('studioMediaAddedMany', { count: normalized.length }));
     },
     onAudioSelected(data) {
-      if (!data?.uri) return toast(data?.message || 'Nenhuma música foi selecionada.', true);
-      state.studio.audio = data;
+      if (!data?.uri) return toast(data?.message || t('studioNoAudioSelected'), true);
+      state.studio.audio = {
+        uri: String(data.uri),
+        name: String(data.name || t('studioMusic')),
+        mime: String(data.mime || 'audio/*'),
+        sourceDuration: Number(data.sourceDuration || 0)
+      };
+      persistStudioDraft();
       renderStudio();
-      toast('Trilha sonora adicionada.');
+      toast(t('studioAudioAdded'));
     },
     onEvent(event) {
       if (!event) return;
-      if (['preparing', 'running', 'saving'].includes(event.status)) {
+      if (['preparing', 'analyzing', 'running', 'saving'].includes(event.status)) {
         state.studio.exporting = true;
-        setStudioProgress(true, event.progress || 1,
-          event.status === 'preparing' ? 'Preparando seu projeto'
-            : event.status === 'saving' ? 'Salvando na galeria' : 'Criando seu vídeo',
-          event.message || 'Processando no próprio celular.');
+        const title = event.status === 'analyzing' ? t('studioAnalyzing')
+          : event.status === 'preparing' ? t('studioPreparing')
+            : event.status === 'saving' ? t('studioSaving') : t('studioRendering');
+        setStudioProgress(true, event.progress || 1, title,
+          event.message || t('studioProcessingLocal'));
         return;
       }
       state.studio.exporting = false;
@@ -970,16 +1264,18 @@
         state.studio.output = event;
         setStudioProgress(false);
         els.studioResult?.classList.remove('hidden');
-        if (els.studioResultName) els.studioResultName.textContent =
-          event.name || 'Vídeo salvo na galeria';
-        toast('Vídeo criado e salvo na galeria.');
+        if (els.studioResultName) {
+          const rhythm = event.bpm ? ` · ${Math.round(event.bpm)} BPM` : '';
+          els.studioResultName.textContent = `${event.name || t('studioSavedGallery')}${rhythm}`;
+        }
+        toast(event.bpm ? t('studioCreatedBeat', { bpm: Math.round(event.bpm) }) : t('studioCreated'));
       } else if (event.status === 'cancelled') {
         setStudioProgress(false);
-        toast('Criação cancelada.');
+        toast(t('studioCancelled'));
       } else if (event.status === 'error') {
-        setStudioProgress(true, 0, 'Não foi possível criar o vídeo',
-          event.message || 'Revise os arquivos e tente novamente.');
-        toast(event.message || 'Falha ao criar o vídeo.', true);
+        setStudioProgress(true, 0, t('studioCreateError'),
+          event.message || t('studioReviewFiles'));
+        toast(event.message || t('studioCreateFailed'), true);
       }
     }
   };
@@ -1445,6 +1741,7 @@
       renderCategoryManager();
       renderYouTubeLists();
       renderLibrary();
+      renderStudio();
       if (isAndroid) {
         $('#heroTitle').textContent = t('appHeroTitle');
         $('#heroDescription').textContent = t('appHeroDescription');
@@ -1620,37 +1917,98 @@
   $('#studioPickAudioBtn')?.addEventListener('click', pickStudioAudio);
   $('#studioClearMediaBtn')?.addEventListener('click', () => {
     state.studio.media = [];
+    state.studio.audio = null;
+    state.studio.selectedIndex = 0;
     state.studio.output = null;
     if (els.studioPreviewVideo) {
       els.studioPreviewVideo.pause();
       els.studioPreviewVideo.removeAttribute('src');
     }
+    persistStudioDraft();
     renderStudio();
+  });
+  els.studioTimeline?.addEventListener('click', event => {
+    const clip = event.target.closest('[data-studio-index]');
+    if (!clip) return;
+    state.studio.selectedIndex = Number(clip.dataset.studioIndex) || 0;
+    renderStudio();
+    clip.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  });
+  els.studioClipDuration?.addEventListener('input', () => {
+    const item = state.studio.media[state.studio.selectedIndex];
+    if (!item) return;
+    item.duration = studioClamp(
+      els.studioClipDuration.value, .5,
+      studioIsVideo(item) ? Math.min(60, item.sourceDuration || 60) : 12);
+    state.studio.output = null;
+    persistStudioDraft();
+    renderStudio();
+  });
+  els.studioClipInspector?.addEventListener('click', event => {
+    const button = event.target.closest('[data-studio-clip-action]');
+    if (!button) return;
+    const action = button.dataset.studioClipAction;
+    if (action === 'left') moveStudioClip(-1);
+    if (action === 'right') moveStudioClip(1);
+    if (action === 'duplicate') duplicateStudioClip();
+    if (action === 'delete') deleteStudioClip();
   });
   $('#studioRatioOptions')?.addEventListener('click', event => {
     const button = event.target.closest('[data-studio-ratio]');
     if (!button) return;
     state.studio.ratio = button.dataset.studioRatio;
+    persistStudioDraft();
     renderStudio();
   });
   $('#studioEffectOptions')?.addEventListener('click', event => {
     const button = event.target.closest('[data-studio-effect]');
     if (!button) return;
     state.studio.effect = button.dataset.studioEffect;
+    persistStudioDraft();
     renderStudio();
   });
   els.studioSpeed?.addEventListener('input', () =>
     updateStudioControl(els.studioSpeed, els.studioSpeedValue,
-      value => `${Number(value).toLocaleString('pt-BR')}×`));
+      value => `${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}×`));
   els.studioImageDuration?.addEventListener('input', () =>
     updateStudioControl(els.studioImageDuration, els.studioImageDurationValue,
-      value => `${value}s`));
+      studioDurationLabel));
+  $('#studioApplyDurationBtn')?.addEventListener('click', () => {
+    syncStudioControls();
+    let changed = 0;
+    state.studio.media.forEach(item => {
+      if (studioIsVideo(item)) return;
+      item.duration = state.studio.imageDuration;
+      changed += 1;
+    });
+    persistStudioDraft();
+    renderStudio();
+    toast(changed ? t('studioDurationApplied', { count: changed }) : t('studioNoPhotos'), !changed);
+  });
   els.studioBrightness?.addEventListener('input', () =>
     updateStudioControl(els.studioBrightness, els.studioBrightnessValue));
   els.studioContrast?.addEventListener('input', () =>
     updateStudioControl(els.studioContrast, els.studioContrastValue));
   els.studioSaturation?.addEventListener('input', () =>
     updateStudioControl(els.studioSaturation, els.studioSaturationValue));
+  els.studioMusicVolume?.addEventListener('input', () =>
+    updateStudioControl(els.studioMusicVolume, els.studioMusicVolumeValue,
+      value => `${Math.round(Number(value))}%`));
+  [
+    els.studioQuality, els.studioTransition, els.studioBeatMode,
+    els.studioBeatSyncToggle, els.studioMotionToggle, $('#studioFadeToggle')
+  ].forEach(control => control?.addEventListener('change', () => {
+    syncStudioControls();
+    persistStudioDraft();
+    renderStudio();
+    if (control === els.studioBeatSyncToggle && control.checked && !state.studio.audio) {
+      toast(t('studioBeatNeedsMusic'), true);
+    }
+  }));
+  els.studioProjectName?.addEventListener('input', () => {
+    syncStudioControls();
+    persistStudioDraft();
+  });
   $('#studioExportBtn')?.addEventListener('click', exportStudioVideo);
   $('#studioCancelBtn')?.addEventListener('click', () => {
     const result = nativeAction('cancelVideoEditor');

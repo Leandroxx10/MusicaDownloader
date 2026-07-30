@@ -88,9 +88,9 @@ def main() -> None:
         "publishedAt": datetime.now(timezone.utc).isoformat(),
         "commit": os.environ.get("GITHUB_SHA", ""),
         "notes": (
-            "Correção completa do Estúdio Moura: geração de vídeos restaurada, "
-            "prévia das mídias, efeitos, velocidade, trilha sonora, salvamento "
-            "na galeria e compartilhamento."
+            "Estúdio Moura Pro com linha do tempo por cena, duração individual, "
+            "transições, Full HD, movimento cinematográfico e sincronização "
+            "automática com as batidas da música."
         ),
         "interfaceBundle": {
             "contentVersion": version_code,

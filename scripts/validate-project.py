@@ -326,7 +326,17 @@ def validate_required_features() -> None:
         and '"python/usr/lib"' in video_editor
         and '"LD_LIBRARY_PATH"' in video_editor
         and "editorPreviewData" in main_activity
-        and "first.preview" in app_js
+        and "selected.preview" in app_js
+        and 'id="studioClipDuration"' in index
+        and 'id="studioBeatSyncToggle"' in index
+        and 'id="studioTransition"' in index
+        and "analyzeBeats" in video_editor
+        and "alignScenesToBeats" in video_editor
+        and "ensureFfmpegRuntimeLibraries" in video_editor
+        and '"libc++_shared.so"' in video_editor
+        and "xfade=transition=" in video_editor
+        and "zoompan=" in video_editor
+        and 'config.optString("quality", "720")' in video_editor
         and "MediaStore.Video.Media.RELATIVE_PATH" in video_editor
         and 'android:name=".VideoEditorService"' in manifest,
         "bloqueio progressivo liberável pelo administrador":

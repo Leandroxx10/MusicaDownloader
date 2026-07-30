@@ -316,8 +316,27 @@ public class MainActivity extends Activity {
             item.put("mime", mime);
             String preview = editorPreviewData(uri, mime);
             if (!preview.isEmpty()) item.put("preview", preview);
+            double sourceDuration = editorMediaDuration(uri, mime);
+            if (sourceDuration > 0d) item.put("sourceDuration", sourceDuration);
         } catch (Exception ignored) { }
         return item;
+    }
+
+    private double editorMediaDuration(Uri uri, String mime) {
+        if (mime == null || (!mime.startsWith("video/") && !mime.startsWith("audio/"))) {
+            return 0d;
+        }
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+        try {
+            retriever.setDataSource(this, uri);
+            String duration = retriever.extractMetadata(
+                    MediaMetadataRetriever.METADATA_KEY_DURATION);
+            return duration == null ? 0d : Math.max(.1d, Double.parseDouble(duration) / 1000d);
+        } catch (Exception ignored) {
+            return 0d;
+        } finally {
+            try { retriever.release(); } catch (Exception ignored) { }
+        }
     }
 
     private String editorPreviewData(Uri uri, String mime) {
@@ -393,7 +412,7 @@ public class MainActivity extends Activity {
             List<Uri> selected = new ArrayList<>();
             ClipData clip = data.getClipData();
             if (clip != null) {
-                int count = Math.min(12, clip.getItemCount());
+                int count = Math.min(20, clip.getItemCount());
                 for (int index = 0; index < count; index++) {
                     Uri uri = clip.getItemAt(index).getUri();
                     persistEditorPermission(data, uri);
@@ -1076,7 +1095,7 @@ public class MainActivity extends Activity {
                         Intent.createChooser(picker, "Escolher vídeo ou fotos"),
                         EDITOR_MEDIA_REQUEST);
             });
-            return actionResult(true, "Escolha um vídeo ou até 12 fotos.").toString();
+            return actionResult(true, "Escolha vídeos ou até 20 fotos.").toString();
         }
 
         @JavascriptInterface
@@ -1108,9 +1127,9 @@ public class MainActivity extends Activity {
                 }
                 JSONObject config = new JSONObject(configJson == null ? "{}" : configJson);
                 JSONArray media = config.optJSONArray("media");
-                if (media == null || media.length() == 0 || media.length() > 12) {
+                if (media == null || media.length() == 0 || media.length() > 20) {
                     return actionResult(false,
-                            "Escolha um vídeo ou de 1 a 12 imagens.").toString();
+                            "Escolha de 1 a 20 fotos ou vídeos.").toString();
                 }
                 Intent editor = new Intent(MainActivity.this, VideoEditorService.class);
                 editor.setAction(VideoEditorService.ACTION_START);

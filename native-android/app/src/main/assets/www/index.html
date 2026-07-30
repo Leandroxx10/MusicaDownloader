@@ -9,8 +9,8 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=17">
-  <link rel="stylesheet" href="./download.css?v=17">
+  <link rel="stylesheet" href="./styles.css?v=18">
+  <link rel="stylesheet" href="./download.css?v=18">
   <title>Moura Downloads</title>
 </head>
 <body class="auth-pending">
@@ -285,29 +285,58 @@
 
       <section id="view-editor" class="view">
         <div class="page-title studio-title">
-          <div><span class="eyebrow" data-i18n="studioEyebrow">ESTÚDIO MOURA</span><h1 data-i18n="studioTitle">Crie seu vídeo</h1><p data-i18n="studioDescription">Junte fotos ou um vídeo, aplique seu estilo, adicione música e exporte no celular.</p></div>
-          <span class="studio-private-badge" data-i18n="studioPrivate">100% no aparelho</span>
+          <div><span class="eyebrow" data-i18n="studioEyebrow">ESTÚDIO MOURA PRO</span><h1 data-i18n="studioTitle">Edite como profissional</h1><p data-i18n="studioDescription">Monte cenas, controle cada duração e sincronize automaticamente as trocas com as batidas da música.</p></div>
+          <span class="studio-private-badge" data-i18n="studioPrivate">IA musical no aparelho</span>
         </div>
+
+        <section class="studio-project-bar" aria-label="Resumo do projeto">
+          <div><span>◫</span><small data-i18n="studioScenes">Cenas</small><strong id="studioSceneCount">0</strong></div>
+          <div><span>◷</span><small data-i18n="studioDuration">Duração</small><strong id="studioTotalDuration">0:00</strong></div>
+          <div><span>♫</span><small data-i18n="studioSync">Sincronização</small><strong id="studioSyncStatus">Manual</strong></div>
+          <div class="studio-autosave"><i></i><small data-i18n="studioAutosave">Projeto salvo automaticamente</small></div>
+        </section>
 
         <div class="studio-shell">
           <section class="studio-preview-card">
             <div id="studioPreview" class="studio-preview ratio-vertical">
               <div id="studioPreviewEmpty" class="studio-preview-empty">
-                <span>✦</span><strong data-i18n="studioStart">Comece sua criação</strong><small data-i18n="studioStartText">Escolha um vídeo ou até 12 imagens.</small>
+                <span>✦</span><strong data-i18n="studioStart">Comece sua criação</strong><small data-i18n="studioStartText">Escolha vídeos ou até 20 fotos.</small>
               </div>
               <video id="studioPreviewVideo" class="hidden" playsinline controls></video>
               <img id="studioPreviewImage" class="hidden" alt="Prévia do projeto">
               <div id="studioPreviewEffect" class="studio-preview-effect"></div>
+              <div id="studioPreviewBadge" class="studio-preview-badge hidden">Cena 1</div>
             </div>
             <div class="studio-source-actions">
-              <button id="studioPickMediaBtn" class="primary-button" type="button"><span>＋</span> <span data-i18n="studioChooseMedia">Escolher vídeo ou fotos</span></button>
-              <button id="studioClearMediaBtn" class="secondary-button hidden" type="button" data-i18n="studioClearMedia">Trocar mídia</button>
+              <button id="studioPickMediaBtn" class="primary-button" type="button"><span>＋</span> <span data-i18n="studioChooseMedia">Adicionar fotos ou vídeos</span></button>
+              <button id="studioClearMediaBtn" class="secondary-button hidden" type="button" data-i18n="studioClearMedia">Limpar projeto</button>
+            </div>
+            <div class="studio-timeline-head">
+              <div><strong data-i18n="studioTimeline">Linha do tempo</strong><small data-i18n="studioTimelineHint">Toque em uma cena para editar</small></div>
+              <output id="studioTimelineDuration">0:00</output>
             </div>
             <div id="studioTimeline" class="studio-timeline"><span data-i18n="studioTimelineEmpty">Sua sequência aparecerá aqui</span></div>
+
+            <section id="studioClipInspector" class="studio-clip-inspector hidden">
+              <div class="studio-inspector-head">
+                <div><span class="eyebrow" data-i18n="studioSelectedScene">CENA SELECIONADA</span><strong id="studioSelectedName">Cena 1</strong></div>
+                <span id="studioSelectedType" class="studio-type-chip">FOTO</span>
+              </div>
+              <div class="studio-field">
+                <div class="studio-label-value"><label for="studioClipDuration" data-i18n="studioSceneTime">Duração desta cena</label><output id="studioClipDurationValue">3,0s</output></div>
+                <input id="studioClipDuration" type="range" min="0.5" max="12" step="0.25" value="3">
+              </div>
+              <div class="studio-clip-actions">
+                <button type="button" data-studio-clip-action="left" title="Mover para a esquerda">← <span data-i18n="studioMove">Mover</span></button>
+                <button type="button" data-studio-clip-action="right" title="Mover para a direita"><span data-i18n="studioMove">Mover</span> →</button>
+                <button type="button" data-studio-clip-action="duplicate">⧉ <span data-i18n="studioDuplicate">Duplicar</span></button>
+                <button class="danger" type="button" data-studio-clip-action="delete">⌫ <span data-i18n="delete">Excluir</span></button>
+              </div>
+            </section>
           </section>
 
           <section class="studio-tools-card">
-            <div class="studio-tool-heading"><span class="eyebrow" data-i18n="studioTools">FERRAMENTAS</span><h2 data-i18n="studioCustomize">Personalize sua criação</h2></div>
+            <div class="studio-tool-heading"><span class="eyebrow" data-i18n="studioTools">CONTROLES PROFISSIONAIS</span><h2 data-i18n="studioCustomize">Direção e acabamento</h2></div>
             <div class="studio-field">
               <label for="studioProjectName" data-i18n="studioProjectName">Nome do vídeo</label>
               <input id="studioProjectName" maxlength="70" value="Meu vídeo Moura">
@@ -320,48 +349,96 @@
                 <button type="button" data-studio-ratio="1:1">1:1 <small>Feed</small></button>
               </div>
             </div>
-            <div class="studio-field">
-              <div class="studio-label-value"><label for="studioSpeed" data-i18n="studioSpeed">Velocidade</label><output id="studioSpeedValue">1,0×</output></div>
-              <input id="studioSpeed" type="range" min="0.5" max="2" step="0.25" value="1">
+
+            <div class="studio-dual-fields">
+              <label class="studio-select-field"><span data-i18n="studioQuality">Qualidade</span>
+                <select id="studioQuality">
+                  <option value="720">HD 720p</option>
+                  <option value="1080">Full HD 1080p</option>
+                </select>
+              </label>
+              <label class="studio-select-field"><span data-i18n="studioTransition">Transição</span>
+                <select id="studioTransition">
+                  <option value="fade" data-i18n="studioTransitionFade">Dissolver</option>
+                  <option value="slideleft" data-i18n="studioTransitionSlide">Deslizar</option>
+                  <option value="circleopen" data-i18n="studioTransitionCircle">Círculo</option>
+                  <option value="cut" data-i18n="studioTransitionCut">Corte seco</option>
+                </select>
+              </label>
             </div>
+
             <div class="studio-field">
-              <div class="studio-label-value"><label for="studioImageDuration" data-i18n="studioImageTime">Tempo de cada foto</label><output id="studioImageDurationValue">3s</output></div>
-              <input id="studioImageDuration" type="range" min="1" max="8" step="1" value="3">
+              <div class="studio-label-value"><label for="studioImageDuration" data-i18n="studioImageTime">Tempo padrão das fotos</label><output id="studioImageDurationValue">3,0s</output></div>
+              <input id="studioImageDuration" type="range" min="0.5" max="12" step="0.25" value="3">
+              <button id="studioApplyDurationBtn" class="studio-inline-button" type="button" data-i18n="studioApplyAll">Aplicar a todas as fotos</button>
             </div>
+
+            <section class="studio-beat-card">
+              <div class="studio-beat-icon"><i></i><i></i><i></i><i></i></div>
+              <div class="studio-beat-copy"><strong data-i18n="studioBeatSync">Mix automático nas batidas</strong><small data-i18n="studioBeatSyncText">Analisa a música e troca as cenas nos pulsos mais fortes.</small></div>
+              <label class="simple-toggle"><input id="studioBeatSyncToggle" type="checkbox"><span></span></label>
+              <label id="studioBeatModeField" class="studio-select-field studio-beat-mode hidden"><span data-i18n="studioBeatStyle">Ritmo do corte</span>
+                <select id="studioBeatMode">
+                  <option value="calm" data-i18n="studioBeatCalm">Suave</option>
+                  <option value="balanced" data-i18n="studioBeatBalanced" selected>Equilibrado</option>
+                  <option value="energetic" data-i18n="studioBeatEnergetic">Energético</option>
+                </select>
+              </label>
+              <p id="studioBeatHint">Adicione uma música para ativar a sincronização.</p>
+            </section>
+
+            <label class="studio-toggle"><input id="studioMotionToggle" type="checkbox" checked><span><strong data-i18n="studioMotion">Movimento cinematográfico</strong><small data-i18n="studioMotionText">Aplica zoom suave nas fotos para evitar cenas paradas.</small></span></label>
+
             <div class="studio-field">
-              <div class="studio-label-value"><label for="studioBrightness" data-i18n="studioBrightness">Brilho</label><output id="studioBrightnessValue">0</output></div>
-              <input id="studioBrightness" type="range" min="-100" max="100" value="0">
+              <div class="studio-label-value"><label for="studioSpeed" data-i18n="studioSpeed">Velocidade geral</label><output id="studioSpeedValue">1,0×</output></div>
+              <input id="studioSpeed" type="range" min="0.5" max="2" step="0.05" value="1">
             </div>
-            <div class="studio-field">
-              <div class="studio-label-value"><label for="studioContrast" data-i18n="studioContrast">Contraste</label><output id="studioContrastValue">0</output></div>
-              <input id="studioContrast" type="range" min="-100" max="100" value="0">
-            </div>
-            <div class="studio-field">
-              <div class="studio-label-value"><label for="studioSaturation" data-i18n="studioSaturation">Cores</label><output id="studioSaturationValue">0</output></div>
-              <input id="studioSaturation" type="range" min="-100" max="100" value="0">
-            </div>
-            <div class="studio-segment">
-              <span data-i18n="studioEffects">Efeitos</span>
-              <div id="studioEffectOptions" class="studio-effect-options">
-                <button class="active" type="button" data-studio-effect="normal" data-i18n="effectNormal">Original</button>
-                <button type="button" data-studio-effect="vivid" data-i18n="effectVivid">Vibrante</button>
-                <button type="button" data-studio-effect="warm" data-i18n="effectWarm">Quente</button>
-                <button type="button" data-studio-effect="cool" data-i18n="effectCool">Frio</button>
-                <button type="button" data-studio-effect="mono" data-i18n="effectMono">P&B</button>
-                <button type="button" data-studio-effect="vintage" data-i18n="effectVintage">Retrô</button>
+
+            <details class="studio-advanced" open>
+              <summary data-i18n="studioColor">Cor e estilo</summary>
+              <div class="studio-color-grid">
+                <div class="studio-field">
+                  <div class="studio-label-value"><label for="studioBrightness" data-i18n="studioBrightness">Brilho</label><output id="studioBrightnessValue">0</output></div>
+                  <input id="studioBrightness" type="range" min="-100" max="100" value="0">
+                </div>
+                <div class="studio-field">
+                  <div class="studio-label-value"><label for="studioContrast" data-i18n="studioContrast">Contraste</label><output id="studioContrastValue">0</output></div>
+                  <input id="studioContrast" type="range" min="-100" max="100" value="0">
+                </div>
+                <div class="studio-field">
+                  <div class="studio-label-value"><label for="studioSaturation" data-i18n="studioSaturation">Cores</label><output id="studioSaturationValue">0</output></div>
+                  <input id="studioSaturation" type="range" min="-100" max="100" value="0">
+                </div>
               </div>
-            </div>
+              <div class="studio-segment">
+                <span data-i18n="studioEffects">Efeitos</span>
+                <div id="studioEffectOptions" class="studio-effect-options">
+                  <button class="active" type="button" data-studio-effect="normal" data-i18n="effectNormal">Original</button>
+                  <button type="button" data-studio-effect="vivid" data-i18n="effectVivid">Vibrante</button>
+                  <button type="button" data-studio-effect="warm" data-i18n="effectWarm">Quente</button>
+                  <button type="button" data-studio-effect="cool" data-i18n="effectCool">Frio</button>
+                  <button type="button" data-studio-effect="mono" data-i18n="effectMono">P&B</button>
+                  <button type="button" data-studio-effect="vintage" data-i18n="effectVintage">Retrô</button>
+                </div>
+              </div>
+            </details>
+
             <div class="studio-audio-row">
-              <div><strong data-i18n="studioMusic">Trilha sonora</strong><small id="studioAudioName" data-i18n="studioNoMusic">Sem música adicionada</small></div>
+              <div class="studio-audio-icon">♫</div>
+              <div><strong data-i18n="studioMusic">Trilha sonora</strong><small id="studioAudioName">Sem música adicionada</small></div>
               <button id="studioPickAudioBtn" class="secondary-button compact" type="button" data-i18n="studioChooseMusic">Escolher música</button>
+            </div>
+            <div class="studio-field">
+              <div class="studio-label-value"><label for="studioMusicVolume" data-i18n="studioMusicVolume">Volume da música</label><output id="studioMusicVolumeValue">100%</output></div>
+              <input id="studioMusicVolume" type="range" min="0" max="150" step="5" value="100">
             </div>
             <label class="studio-toggle"><input id="studioFadeToggle" type="checkbox" checked><span><strong data-i18n="studioFade">Entrada e saída suaves</strong><small data-i18n="studioFadeText">Evita cortes bruscos no áudio.</small></span></label>
           </section>
         </div>
 
         <section class="studio-export-card">
-          <div><span class="eyebrow" data-i18n="studioExport">EXPORTAR</span><h2 data-i18n="studioExportTitle">Pronto para compartilhar</h2><p data-i18n="studioExportText">O vídeo será salvo em Filmes/Moura Studio e ficará visível na galeria.</p></div>
-          <button id="studioExportBtn" class="primary-button" type="button"><span data-i18n="studioCreateVideo">Criar vídeo</span> <span>⇩</span></button>
+          <div><span class="eyebrow" data-i18n="studioExport">EXPORTAÇÃO PROFISSIONAL</span><h2 data-i18n="studioExportTitle">Pronto para renderizar</h2><p id="studioExportSummary">O vídeo será salvo em Filmes/Moura Studio e ficará visível na galeria.</p></div>
+          <button id="studioExportBtn" class="primary-button studio-export-button" type="button"><span>✦</span><span data-i18n="studioCreateVideo">Criar vídeo</span><small id="studioExportQuality">HD · 0:00</small></button>
           <div id="studioProgress" class="studio-progress hidden" aria-live="polite">
             <div><strong id="studioProgressTitle">Preparando seu projeto</strong><span id="studioProgressPercent">0%</span></div>
             <div class="progress-track"><i id="studioProgressBar"></i></div>
@@ -707,8 +784,8 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="./i18n.js?v=17" defer></script>
-  <script src="./app.js?v=17" defer></script>
-  <script src="./cloud.js?v=17" type="module"></script>
+  <script src="./i18n.js?v=18" defer></script>
+  <script src="./app.js?v=18" defer></script>
+  <script src="./cloud.js?v=18" type="module"></script>
 </body>
 </html>
